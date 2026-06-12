@@ -1,7 +1,7 @@
 // ── AST-Slop Engine ─────────────────────────────────────
-// Detects AI-authored code patterns using regex + context.
+// Detects AI-authored code patterns using regex + AST context.
 // Tree-sitter integration provides AST-aware enhancements;
-// regex remains the default fallback when tree-sitter is unavailable.
+// regex remains the fallback when tree-sitter is unavailable.
 
 import { readFile } from "node:fs/promises";
 import { join, extname, relative } from "node:path";
@@ -16,9 +16,20 @@ import type {
   Suggestion,
 } from "../../types/index.js";
 import { readFileContent, toLines, extractImports } from "../../utils/file-utils.js";
-// Tree-sitter imports removed — will be re-integrated in v0.3
-// import { initParser, parseFile, ... } from "../../utils/tree-sitter.js";
-// import type { Tree } from "web-tree-sitter";
+import {
+  initParser,
+  parseFile,
+  findNodesOfType,
+  isInsideCatch,
+  isInsideFunction,
+  isCatchBodyEmpty,
+  getAsExpressionType,
+  getAsExpressionContext,
+  extractImportFromNode,
+  walkAST,
+  isAvailable,
+} from "../../utils/tree-sitter.js";
+import type { ASTNode } from "../../utils/tree-sitter.js"
 
 // ── Helpers ─────────────────────────────────────────────
 
@@ -66,8 +77,13 @@ function languageFromPath(filePath: string): Language | null {
   return map[ext] ?? null;
 }
 
-// tsLangHint removed — will be re-integrated in v0.3 with tree-sitter
-// function tsLangHint(filePath: string): "typescript" | "tsx" | "javascript" { ... }
+/** Determine TS/TSX language hint for tree-sitter parsing */
+function tsLangHint(filePath: string): 'tsx' | 'typescript' | 'javascript' {
+  const ext = extname(filePath)
+  if (ext === '.tsx' || ext === '.jsx') return 'tsx'
+  if (ext === '.ts') return 'typescript'
+  return 'javascript'
+}
 
 /** Check whether an import source is a bare specifier (not relative, not absolute) */
 function isBareSpecifier(source: string): boolean {
@@ -1535,20 +1551,286 @@ function normalizeParamTypes(rawParams: string): string {
     .join(', ')
 }
 
-// ── Tree-sitter Enhanced Detectors (STUBBED — v0.3) ──
-// The tree-sitter integration was partially implemented with incorrect
-// API types. Removing for now; will be properly re-integrated in v0.3.
-// See git history for the removed implementations of:
-//   detectNarrativeCommentsTS, detectAsAnyTS,
-//   detectHallucinatedImportsTS, detectSwallowedExceptionTS,
-//   detectGenericNamesTS
+// ── Tree-sitter AST-Enhanced Detectors ──────────────
+
+/**
+ * AST-enhanced empty catch detection.
+ * Uses tree-sitter to find catch_clause nodes and checks if their body is empty.
+ * More accurate than regex — catches multi-line empty catches, nested catches, etc.
+ */
+function detectEmptyCatchAST(root: ASTNode, filePath: string): Diagnostic[] {
+  const results: Diagnostic[] = []
+  const catchNodes = findNodesOfType(root, 'catch_clause')
+
+  for (const catchNode of catchNodes) {
+    if (isCatchBodyEmpty(catchNode)) {
+      const line = catchNode.startRow + 1
+      const col = catchNode.startCol + 1
+      // Extract catch variable name if present
+      const catchParam = catchNode.children.find(c => c.type === 'identifier' || c.fieldName === 'parameter')
+      const catchVar = catchParam?.text ?? 'error'
+
+      results.push(
+        diag({
+          filePath,
+          rule: 'ast-slop/swallowed-exception',
+          severity: 'info',
+          message: 'Swallowed exception: empty catch block (AST-confirmed)',
+          help: 'Handle the error (log, rethrow, or recover). Empty catch blocks silently swallow errors, making bugs invisible.',
+          line,
+          column: col,
+          fixable: true,
+          suggestion: {
+            type: 'insert',
+            text: `  console.error(${catchVar});`,
+            range: { startLine: line + 1, startCol: 1, endLine: line + 1, endCol: 1 },
+            confidence: 0.85,
+            reason: 'AST analysis confirms this catch block is empty. Add at least error logging.',
+          },
+          detail: { astConfirmed: true, catchVariable: catchVar },
+        }),
+      )
+    }
+  }
+  return results
+}
+
+/**
+ * AST-enhanced `as any` detection.
+ * Uses tree-sitter to find as_expression nodes, checks their type,
+ * and only flags `as any` outside catch/ORM/JSON contexts.
+ * Suppresses false positives where `as any` is acceptable.
+ */
+function detectAsAnyAST(root: ASTNode, filePath: string): Diagnostic[] {
+  const results: Diagnostic[] = []
+  const asExpressions = findNodesOfType(root, 'as_expression')
+
+  for (const asNode of asExpressions) {
+    const type = getAsExpressionType(asNode)
+    if (type !== 'any') continue
+
+    const context = getAsExpressionContext(asNode)
+    // `as any` inside catch or ORM contexts is often legitimate
+    if (context === 'catch') continue
+    if (context === 'orm') continue
+    if (context === 'json') continue
+
+    const line = asNode.startRow + 1
+    const col = asNode.startCol + 1
+
+    results.push(
+      diag({
+        filePath,
+        rule: 'ast-slop/as-any',
+        severity: 'warning',
+        message: `Unsafe cast: as any — opts out of type checking entirely (AST-confirmed, not in catch/ORM/JSON context)`,
+        help: 'Replace `as any` with a more specific type, a type guard, or `as unknown as SpecificType` if truly needed.',
+        line,
+        column: col,
+        fixable: true,
+        suggestion: {
+          type: 'refactor',
+          text: '/* replace with specific type */',
+          confidence: 0.6,
+          reason: 'AST analysis confirms `as any` outside acceptable catch/ORM/JSON contexts.',
+        },
+        detail: { astConfirmed: true, expressionContext: context },
+      }),
+    )
+  }
+  return results
+}
+
+/**
+ * AST-enhanced import analysis.
+ * Uses tree-sitter to extract import info with full accuracy,
+ * enabling detection of type-only barrel imports and re-exports
+ * that regex can't reliably identify.
+ */
+function detectBarrelImportsAST(root: ASTNode, filePath: string): Diagnostic[] {
+  const results: Diagnostic[] = []
+  const importNodes = findNodesOfType(root, 'import_statement')
+  const importDeclNodes = findNodesOfType(root, 'import_declaration')
+  const allImports = [...importNodes, ...importDeclNodes]
+
+  for (const impNode of allImports) {
+    const info = extractImportFromNode(impNode)
+    if (!info) continue
+
+    // Detect type-only barrel imports: `import type { X } from './index'`
+    // These suggest the file is consuming from a barrel file for types only
+    if (info.isTypeOnly && isBarrelSource(info.source)) {
+      const line = info.line
+      results.push(
+        diag({
+          filePath,
+          rule: 'ast-slop/barrel-type-import',
+          severity: 'info',
+          message: `Type-only import from barrel file "${info.source}" — consider importing directly from the source module`,
+          help: 'Import types directly from their source module instead of through a barrel (index) file. This reduces coupling and improves tree-shaking.',
+          line,
+          column: 1,
+          fixable: false,
+          detail: { astConfirmed: true, source: info.source, symbols: info.symbols, isTypeOnly: info.isTypeOnly },
+        }),
+      )
+    }
+
+    // Detect wildcard barrel imports: `import * as X from './index'`
+    if (impNode.text.includes('import *') && isBarrelSource(info.source)) {
+      const line = info.line
+      results.push(
+        diag({
+          filePath,
+          rule: 'ast-slop/barrel-wildcard-import',
+          severity: 'info',
+          message: `Wildcard import from barrel file "${info.source}" — imports more than needed`,
+          help: 'Use named imports instead of wildcard imports from barrel files. This improves tree-shaking and makes dependencies explicit.',
+          line,
+          column: 1,
+          fixable: false,
+          detail: { astConfirmed: true, source: info.source },
+        }),
+      )
+    }
+  }
+  return results
+}
+
+/** Check if an import source looks like a barrel file */
+function isBarrelSource(source: string): boolean {
+  // Match paths ending in /index, ./index, or just '.' or '..'
+  return /(?:^|\/)(index|src|lib|utils|helpers|types|models|services|components)(\/)?$/.test(source)
+}
+
+/**
+ * AST-enhanced console.log suppression.
+ * Finds console.log/debug calls and checks if they're inside catch blocks.
+ * Suppresses false positives that regex-based detection misses.
+ */
+function detectConsoleLeftoversAST(root: ASTNode, filePath: string): Diagnostic[] {
+  const results: Diagnostic[] = []
+  // Skip test files
+  if (/[/__]tests?[/__]/i.test(filePath)) return results
+  if (/\.test\.(?:ts|tsx|js|jsx)$/.test(filePath)) return results
+  if (/\.spec\.(?:ts|tsx|js|jsx)$/.test(filePath)) return results
+
+  const callExprs = findNodesOfType(root, 'call_expression')
+
+  for (const callNode of callExprs) {
+    const text = callNode.text
+    const logMatch = text.match(/^console\.(log|debug)\s*\(/)
+    if (!logMatch) continue
+
+    // AST-confirmed: is this console.log inside a catch block?
+    if (isInsideCatch(callNode)) continue
+
+    const line = callNode.startRow + 1
+    const col = callNode.startCol + 1
+
+    results.push(
+      diag({
+        filePath,
+        rule: 'ast-slop/console-leftover',
+        severity: 'suggestion',
+        message: `console.${logMatch[1]}() leftover — likely debugging artifact (AST-confirmed, not in catch block)`,
+        help: 'Remove debug logging before committing. Use a proper logging library for production, or guard with environment checks.',
+        line,
+        column: col,
+        fixable: true,
+        suggestion: {
+          type: 'delete',
+          text: '',
+          range: { startLine: line, startCol: 1, endLine: line, endCol: text.length + 1 },
+          confidence: 0.9,
+          reason: 'AST analysis confirms this console.log is not inside a catch block — it is a debugging artifact.',
+        },
+        detail: { astConfirmed: true },
+      }),
+    )
+  }
+  return results
+}
+
+/**
+ * AST-enhanced double assertion detection.
+ * Uses tree-sitter to find chained `as unknown as X` patterns
+ * and verify they are actual double assertions (not in test assertions).
+ */
+function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagnostic[] {
+  const results: Diagnostic[] = []
+  const asExpressions = findNodesOfType(root, 'as_expression')
+
+  for (const asNode of asExpressions) {
+    const type = getAsExpressionType(asNode)
+    // Check if this is the outer `as X` of a double assertion
+    // The inner `as unknown` would be a child or sibling
+    const innerAs = asNode.children.find(c => c.type === 'as_expression')
+    if (!innerAs) continue
+
+    const innerType = getAsExpressionType(innerAs)
+    if (innerType !== 'unknown') continue
+
+    const line = asNode.startRow + 1
+    const col = asNode.startCol + 1
+
+    results.push(
+      diag({
+        filePath,
+        rule: 'ast-slop/double-assertion',
+        severity: 'warning',
+        message: `Double type assertion: as unknown as ${type ?? 'unknown'} — bypasses type safety (AST-confirmed)`,
+        help: 'Use a proper type guard, type predicate, or adjust the source/target types. Double assertions defeat the purpose of TypeScript.',
+        line,
+        column: col,
+        fixable: true,
+        suggestion: {
+          type: 'refactor',
+          text: `as ${type ?? 'SpecificType'}`,
+          confidence: 0.5,
+          reason: 'AST analysis confirms this is a double assertion bypassing the type system.',
+        },
+        detail: { astConfirmed: true, targetType: type },
+      }),
+    )
+  }
+  return results
+}
 
 
 // ── Deduplication ───────────────────────────────────────
 
-// dedupDiagnostics removed — will be re-integrated in v0.3 with tree-sitter
-// When AST-enhanced detectors return, this dedup function will be needed to
-// prefer AST diagnostics over regex equivalents on the same line+rule.
+/** Deduplicate diagnostics: prefer AST-confirmed over regex on same line+rule */
+function dedupDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
+  // Build a key from filePath + rule + line
+  // If both regex and AST-confirmed diagnostics exist for the same key,
+  // prefer the AST-confirmed one (higher confidence, more precise)
+  const byKey = new Map<string, Diagnostic[]>()
+
+  for (const d of diagnostics) {
+    const key = `${d.filePath}::${d.rule}::${d.line}`
+    const list = byKey.get(key) ?? []
+    list.push(d)
+    byKey.set(key, list)
+  }
+
+  const results: Diagnostic[] = []
+  for (const [, group] of byKey) {
+    if (group.length === 1) {
+      results.push(group[0])
+      continue
+    }
+    // Prefer AST-confirmed diagnostics
+    const astConfirmed = group.find(d => d.detail?.astConfirmed === true)
+    if (astConfirmed) {
+      results.push(astConfirmed)
+    } else {
+      // Keep the first one (regex-based)
+      results.push(group[0])
+    }
+  }
+  return results
+}
 
 // ── File Analysis Orchestrator ──────────────────────────
 
@@ -1604,10 +1886,30 @@ async function analyzeFile(
 
   // Workspace misconfig requires async check — handled separately in run()
 
-  // Tree-sitter enhanced detectors removed — will be re-integrated in v0.3
-  // Currently only regex-based detection is active.
+  // ── Tree-sitter AST enhancement (optional, falls back to regex) ──
+  // Only for TS/TSX/JS/JSX files. If tree-sitter is available,
+  // run AST-enhanced detectors and merge with regex results,
+  // then deduplicate to prefer AST-confirmed diagnostics.
+  const isTsLike = language === 'typescript' || language === 'javascript'
+  if (isTsLike && isAvailable()) {
+    const langHint = tsLangHint(filePath)
+    const isTsx = langHint === 'tsx'
+    const astRoot = await parseFile(content, isTsx)
+    if (astRoot) {
+      // AST-enhanced detectors that overlap with regex rules
+      diagnostics.push(...detectEmptyCatchAST(astRoot, relPath))
+      diagnostics.push(...detectAsAnyAST(astRoot, relPath))
+      diagnostics.push(...detectConsoleLeftoversAST(astRoot, relPath))
+      diagnostics.push(...detectDoubleAssertionAST(astRoot, relPath))
 
-  return diagnostics;
+      // AST-only detectors (new diagnostics regex can't find)
+      diagnostics.push(...detectBarrelImportsAST(astRoot, relPath))
+    }
+    // Deduplicate: prefer AST-confirmed over regex on same line+rule
+    return dedupDiagnostics(diagnostics)
+  }
+
+  return diagnostics
 }
 
 // ── Engine Definition ───────────────────────────────────
@@ -1615,14 +1917,14 @@ async function analyzeFile(
 export const astSlopEngine: Engine = {
   name: "ast-slop",
   description:
-    "Detects AI-authored code patterns using regex-based context analysis. Flags narrative comments, decorative blocks, trivial restating comments, debug leftovers, TODO stubs, generic variable names, defensive coding patterns, swallowed exceptions, unsafe type casts, hallucinated imports, unnecessary abstractions, silent recovery, hardcoded config, meta comments, debug paths, suspicious aliases, workspace misconfig, overdefensive types, placeholder implementations, and copy-paste signatures. Tree-sitter AST enhancements planned for v0.3.",
+    "Detects AI-authored code patterns using regex + tree-sitter AST context analysis. Flags narrative comments, decorative blocks, trivial restating comments, debug leftovers, TODO stubs, generic variable names, defensive coding patterns, swallowed exceptions, unsafe type casts, hallucinated imports, unnecessary abstractions, silent recovery, hardcoded config, meta comments, debug paths, suspicious aliases, workspace misconfig, overdefensive types, placeholder implementations, and copy-paste signatures. Tree-sitter AST enhancements suppress false positives and add barrel-import detection when available.",
   supportedLanguages: ["typescript", "javascript", "python"],
 
   async run(context: EngineContext): Promise<EngineResult> {
     const start = performance.now();
 
-    // Tree-sitter init removed — will be re-integrated in v0.3
-    // await initParser();
+    // Try to initialise tree-sitter (optional — falls back to regex if unavailable)
+    const tsAvailable = await initParser()
 
     // Resolve files to scan
     const files = context.files ?? [];
