@@ -192,8 +192,9 @@ program
     const result = await runScan(context, {
       onEngineStart: format === 'human' ? (name: string) => process.stderr.write(`  ⏳ ${name}...`) : undefined,
       onEngineComplete: format === 'human' ? (r: any) => {
-        const status = r.skipped ? "⏭️ skipped" : `✅ ${r.diagnostics.length} issues (${Math.round(r.elapsed)}ms)`;
-        process.stderr.write(` ${status}\n`);
+        // Move cursor to start of line, clear, and write status on same line
+        const status = r.skipped ? '⏭️  skipped' : `✅ ${r.diagnostics.length} issues (${Math.round(r.elapsed)}ms)`
+        process.stderr.write(`\r  ${status.padEnd(50)}\n`)
       } : undefined,
     });
 

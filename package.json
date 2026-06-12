@@ -4,7 +4,7 @@
   "description": "Deep AI slop detection with AST analysis, alternative import paths, dead code flow, type safety, and 12 engines. Far beyond aislop.",
   "type": "module",
   "bin": {
-    "deep-slop": "./dist/cli.js",
+    "deep-slop": "./dist/deep-slop-bundled.js",
     "deep-slop-mcp": "./dist/mcp.js"
   },
   "files": [
@@ -26,7 +26,7 @@
   },
   "scripts": {
     "dev": "tsdown --watch",
-    "build": "rm -rf dist && NODE_ENV=production tsdown",
+    "build": "rm -rf dist && NODE_ENV=production tsdown && npx esbuild dist/cli.js --bundle --platform=node --format=esm --outfile=dist/deep-slop-bundled.js --external:web-tree-sitter --external:tree-sitter-typescript --external:tree-sitter-python --external:tree-sitter-go --external:tree-sitter-rust --external:tree-sitter-php --external:tree-sitter-c-sharp --external:tree-sitter-swift --banner:js='import{createRequire}from\"node:module\";const require=createRequire(import.meta.url);'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "scan": "pnpm build && node dist/cli.js scan .",
