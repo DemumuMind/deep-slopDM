@@ -4,6 +4,7 @@ import { calculateScore } from '../scoring/index.js'
 import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
 import { LiveGrid } from '../ui/live-grid.js'
+import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
 
 /** Registry of all 15 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
@@ -36,6 +37,12 @@ export async function runScan(
   callbacks?: OrchestratorCallbacks,
 ): Promise<ScanResult> {
   const startTotal = performance.now();
+
+  // Preload all source files into cache for faster engine access
+  clearFileCache()
+  if (context.files?.length) {
+    await preloadFiles(context.files)
+  }
 
   // Determine which engines to run
   const enabledEngines = Object.entries(ENGINE_REGISTRY).filter(

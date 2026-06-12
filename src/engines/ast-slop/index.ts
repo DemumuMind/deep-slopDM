@@ -169,7 +169,7 @@ function detectNarrativeComments(
           diag({
             filePath,
             rule: "ast-slop/narrative-comment",
-            severity: "info",
+            severity: "suggestion",
             message: `Narrative comment: "${label}" — describes WHAT, not WHY`,
             help: "Remove or replace with a comment explaining the reasoning (WHY), not the mechanics (WHAT). Code should be self-documenting for the WHAT.",
             line: num,
@@ -300,7 +300,7 @@ function detectTrivialComments(
   return results;
 }
 
-// 4. Console.log / console.debug leftovers
+// 4. Console.log / console.debug leftovers (NOT console.error/warn/info)
 function detectConsoleLeftovers(
   lines: { num: number; text: string }[],
   filePath: string,
@@ -308,10 +308,19 @@ function detectConsoleLeftovers(
 ): Diagnostic[] {
   const results: Diagnostic[] = [];
 
+  // Skip test files — console.log in tests is normal
+  if (/[/__]tests?[/__]/i.test(filePath)) return results
+  if (/\.test\.(?:ts|tsx|js|jsx)$/.test(filePath)) return results
+  if (/\.spec\.(?:ts|tsx|js|jsx)$/.test(filePath)) return results
+
   for (const { num, text } of lines) {
     const trimmed = text.trim();
 
     if (language !== "python") {
+      // Only flag console.log and console.debug — NOT console.error/warn/info
+      // Skip test files — console.log is expected there
+      const isTest = filePath.includes('.test.') || filePath.includes('.spec.') || filePath.includes('__tests__')
+      if (isTest) continue
       const logMatch = trimmed.match(/console\.(log|debug)\s*\(/);
       if (logMatch) {
         const isInCatch = isInCatchBlock(lines, num);
@@ -322,7 +331,7 @@ function detectConsoleLeftovers(
           diag({
             filePath,
             rule: "ast-slop/console-leftover",
-            severity: "warning",
+            severity: "suggestion",
             message: `console.${logMatch[1]}() leftover — likely debugging artifact`,
             help: "Remove debug logging before committing. Use a proper logging library for production, or guard with environment checks.",
             line: num,
@@ -352,7 +361,7 @@ function detectConsoleLeftovers(
           diag({
             filePath,
             rule: "ast-slop/console-leftover",
-            severity: "warning",
+            severity: "suggestion",
             message: "print() leftover — likely debugging artifact",
             help: "Replace print() with proper logging (logging.debug, logger.debug) or remove entirely.",
             line: num,
@@ -438,10 +447,13 @@ function detectTodoStubs(
   return results;
 }
 
-// 6. Generic variable names
+// 6. Generic variable names — only truly placeholder names, not common valid ones
 const GENERIC_NAMES = new Set([
-  "data", "result", "info", "temp", "obj", "item",
-  "value1", "value2", "value3", "tmp", "retval", "stuff",
+  'var1', 'var2', 'var3', 'temp', 'tmp', 'retval',
+  'foo', 'bar', 'baz', 'qux', 'quux',
+  'x', 'y', 'z', 'a', 'b', 'c',
+  'stuff', 'thing', 'something', 'whatever', 'misc',
+  'obj', 'itm',
 ]);
 
 function isGenericNameAcceptable(
@@ -586,7 +598,7 @@ function detectSwallowedExceptions(
               diag({
                 filePath,
                 rule: "ast-slop/swallowed-exception",
-                severity: "warning",
+                severity: "info",
                 message: "Swallowed exception: except block contains only pass/ellipsis",
                 help: "At minimum, log the error. Silently swallowing exceptions hides bugs. Consider: logger.error(f'...: {e}', exc_info=True)",
                 line: num,
@@ -616,7 +628,7 @@ function detectSwallowedExceptions(
           diag({
             filePath,
             rule: "ast-slop/swallowed-exception",
-            severity: "warning",
+            severity: "info",
             message: "Swallowed exception: empty catch block",
             help: "Handle the error (log, rethrow, or recover). Empty catch blocks silently swallow errors, making bugs invisible.",
             line: num,
@@ -642,7 +654,7 @@ function detectSwallowedExceptions(
                 diag({
                   filePath,
                   rule: "ast-slop/swallowed-exception",
-                  severity: "warning",
+                  severity: "info",
                   message: "Swallowed exception: empty catch block",
                   help: "Handle the error (log, rethrow, or recover). Empty catch blocks silently swallow errors, making bugs invisible.",
                   line: num,
@@ -929,7 +941,7 @@ function detectSilentRecovery(
             diag({
               filePath,
               rule: 'ast-slop/silent-recovery',
-              severity: 'warning',
+              severity: 'info',
               message: 'Silent recovery: except block contains only comments — errors are neither logged nor rethrown',
               help: 'At minimum, log the error or rethrow. Comment-only catch blocks silently swallow errors while appearing to handle them.',
               line: num,
@@ -960,7 +972,7 @@ function detectSilentRecovery(
                 diag({
                   filePath,
                   rule: 'ast-slop/silent-recovery',
-                  severity: 'warning',
+                  severity: 'info',
                   message: 'Silent recovery: catch block contains only comments — errors are neither logged nor rethrown',
                   help: 'At minimum, log the error or rethrow. Comment-only catch blocks silently swallow errors while appearing to handle them.',
                   line: num,
@@ -1472,7 +1484,7 @@ function detectCopyPasteSignature(
 
   const byParamTypes = new Map<string, Signature[]>()
   for (const sig of signatures) {
-    if (sig.paramTypes.length < 3) continue
+    if (sig.paramTypes.length < 4) continue
     const list = byParamTypes.get(sig.paramTypes) ?? []
     list.push(sig)
     byParamTypes.set(sig.paramTypes, list)

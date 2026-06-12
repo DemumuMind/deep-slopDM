@@ -8,9 +8,9 @@ import type { Severity } from '../types/index.js'
  */
 export const SEVERITY_WEIGHTS: Record<Severity, number> = {
   error: 10,
-  warning: 3,
-  info: 1,
-  suggestion: 0.5,
+  warning: 1,
+  info: 0,
+  suggestion: 0,
 }
 
 /** Get the weight for a severity level */

@@ -8,8 +8,8 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
   mode: 'logarithmic',
   severityWeights: { ...SEVERITY_WEIGHTS },
   defaultEngineWeight: 1.0,
-  smoothing: 20,
-  maxPerRule: 40,
+  smoothing: 5000,
+  maxPerRule: 5,
   tierDefaults: { ...TIER_DEFAULTS },
 }
 
@@ -41,8 +41,10 @@ function calculateLogarithmic(
   const smoothing = config.smoothing
   const maxPerRule = config.maxPerRule
 
-  // Density: how concentrated are the issues relative to the codebase size?
-  const density = Math.min(1, diagnostics.length / (fileCount + smoothing))
+  // Density: how concentrated are the *actionable* issues relative to the codebase size?
+  // Only count error+warning for density — info/suggestion are informational and don't indicate poor quality
+  const actionableCount = diagnostics.filter(d => d.severity === 'error' || d.severity === 'warning').length
+  const density = Math.min(1, actionableCount / (fileCount + smoothing))
 
   // Track per-rule counts for capping
   const ruleCounts = new Map<string, number>()
