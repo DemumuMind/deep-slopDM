@@ -1,6 +1,6 @@
 {
   "name": "deep-slop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Deep AI slop detection with AST analysis, alternative import paths, dead code flow, type safety, and 12 engines. Far beyond aislop.",
   "type": "module",
   "bin": {
@@ -66,6 +66,7 @@
     "minimatch": "^10.2.5",
     "picocolors": "^1.1.1",
     "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-python": "^0.25.0",
     "tree-sitter-typescript": "^0.23.2",
     "web-tree-sitter": "^0.25.5",
     "yaml": "^2.8.2",
