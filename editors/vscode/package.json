@@ -1,0 +1,65 @@
+{
+  "name": "deep-slop-vscode",
+  "displayName": "deep-slop",
+  "description": "Deep AI slop detection — 12 AST-powered engines",
+  "version": "0.3.0",
+  "publisher": "romanchello",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters"
+  ],
+  "keywords": [
+    "slop",
+    "ai",
+    "quality",
+    "lint"
+  ],
+  "activationEvents": [
+    "onLanguage:typescript",
+    "onLanguage:javascript",
+    "onLanguage:typescriptreact",
+    "onLanguage:javascriptreact",
+    "onCommand:deep-slop.scanWorkspace",
+    "onCommand:deep-slop.scanFile"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "deep-slop.scanWorkspace",
+        "title": "deep-slop: Scan Workspace"
+      },
+      {
+        "command": "deep-slop.scanFile",
+        "title": "deep-slop: Scan Current File"
+      }
+    ],
+    "configuration": {
+      "title": "deep-slop",
+      "properties": {
+        "deep-slop.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to deep-slop CLI"
+        },
+        "deep-slop.scanOnSave": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-scan on save"
+        },
+        "deep-slop.autoScan": {
+          "type": "boolean",
+          "default": false,
+          "description": "Auto-scan on activation"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

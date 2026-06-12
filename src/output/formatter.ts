@@ -59,6 +59,9 @@ export function formatOutput(result: ScanResult): string {
   // Score + meta
   const scoreStr = `${result.score}/100`
   lines.push(`  ${scoreLabel(result.score)} Score: ${scoreStr}`)
+  if (result.meta.diffScope) {
+    lines.push(`  ${style('info', `Scanning ${result.meta.diffScope} file(s)`)}`)
+  }
   lines.push(`  ${style('muted', 'Files:')} ${result.meta.filesScanned} | ${style('muted', 'Time:')} ${Math.round(result.meta.elapsed)}ms`)
   lines.push(`  ${style('muted', 'Languages:')} ${result.meta.languages.join(', ')}`)
   lines.push(`  ${style('muted', 'Frameworks:')} ${result.meta.frameworks.join(', ')}`)

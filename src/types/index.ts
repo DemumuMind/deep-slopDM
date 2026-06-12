@@ -122,6 +122,8 @@ export interface EngineContext {
   installedTools: Record<string, string | boolean>;
   /** Engine configuration */
   config: DeepSlopConfig;
+  /** Diff scope description, e.g. "3 changed vs origin/main" */
+  diffScope?: string;
 }
 
 export interface Engine {
@@ -176,5 +178,7 @@ export interface ScanResult {
     frameworks: Framework[];
     filesScanned: number;
     elapsed: number;
+    /** Diff scope description, e.g. "3 changed vs origin/main" */
+    diffScope?: string;
   };
 }

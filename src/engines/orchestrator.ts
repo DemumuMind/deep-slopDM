@@ -1,6 +1,8 @@
 import { performance } from 'node:perf_hooks'
 import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Severity, Category, Diagnostic } from '../types/index.js'
 import { calculateScore } from '../scoring/index.js'
+import { applyRuleSeverities } from '../scoring/rule-overrides.js'
+import { appendRecord, type HistoryRecord } from '../history/store.js'
 
 /** Registry of all 12 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
@@ -96,8 +98,16 @@ export async function runScan(
     });
   }
 
-  // Calculate aggregate metrics
-  const allDiagnostics = results.flatMap((r) => r.diagnostics);
+  // Collect raw diagnostics from all engines
+  const rawDiagnostics = results.flatMap((r) => r.diagnostics)
+
+  // Apply per-rule severity overrides from config
+  const allDiagnostics = applyRuleSeverities(rawDiagnostics, context.config.rules || {})
+
+  // Propagate adjusted diagnostics back into engine results
+  for (const r of results) {
+    r.diagnostics = allDiagnostics.filter((d) => d.engine === r.engine)
+  }
 
   const bySeverity: Record<Severity, number> = { error: 0, warning: 0, info: 0, suggestion: 0 };
   const byEngine: Record<EngineName, number> = {} as Record<EngineName, number>;
@@ -113,7 +123,7 @@ export async function runScan(
   const scoringResult = calculateScore(allDiagnostics, fileCount)
   const score = scoringResult.score
 
-  return {
+  const scanResult: ScanResult = {
     engines: results,
     score,
     categoryScores,
@@ -126,8 +136,31 @@ export async function runScan(
       frameworks: context.frameworks,
       filesScanned: context.files?.length ?? 0,
       elapsed: performance.now() - startTotal,
+      diffScope: context.diffScope,
     },
-  };
+  }
+
+  // Persist history for full scans (not diff/staged/ci)
+  if (!context.diffScope) {
+    const record: HistoryRecord = {
+      timestamp: new Date().toISOString(),
+      score: scanResult.score,
+      errors: bySeverity.error,
+      warnings: bySeverity.warning,
+      info: bySeverity.info,
+      suggestions: bySeverity.suggestion,
+      filesScanned: scanResult.meta.filesScanned,
+      engines: results.filter((r) => !r.skipped).map((r) => r.engine),
+      durationMs: scanResult.meta.elapsed,
+    }
+    try {
+      appendRecord(context.rootDirectory, record)
+    } catch {
+      // History write failure should not break scan
+    }
+  }
+
+  return scanResult
 }
 
 

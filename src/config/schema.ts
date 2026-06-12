@@ -84,6 +84,8 @@ export const RawConfigSchema = z.object({
   exclude: z.array(z.string()).optional(),
   ci: CiSchema.optional(),
   extends: z.string().optional(),
+  /** Per-rule severity overrides (e.g. { "ast-slop/narrative-comment": "off" }) */
+  rules: z.record(z.string(), z.enum(['error', 'warning', 'info', 'off'])).default({}).optional(),
 }).passthrough()
 
 /**
@@ -109,6 +111,8 @@ export const DeepSlopConfigSchema = z.object({
   exclude: z.array(z.string()),
   /** CI quality gate */
   ci: CiSchema.optional(),
+  /** Per-rule severity overrides (e.g. { "ast-slop/narrative-comment": "off" }) */
+  rules: z.record(z.string(), z.enum(['error', 'warning', 'info', 'off'])).default({}),
 }).passthrough()
 
 /** Inferred TypeScript type from the Zod schema */

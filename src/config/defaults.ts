@@ -38,4 +38,5 @@ export const DEFAULT_CONFIG: DeepSlopConfig = {
     validateKeys: false,
   },
   exclude: ['node_modules', '.git', 'dist', 'build', 'coverage', 'tmp-*'],
+  rules: {},
 }

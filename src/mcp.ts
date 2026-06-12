@@ -1,17 +1,19 @@
 #!/usr/bin/env node
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { resolve } from "node:path";
-import { z } from "zod";
-import { runScan, runFix } from "./engines/orchestrator.js";
-import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js";
-import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName } from "./types/index.js";
-import { APP_VERSION } from "./version.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
+import { resolve } from "node:path"
+import { z } from "zod"
+import { runScan, runFix as runEngineFix } from "./engines/orchestrator.js"
+import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js"
+import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName } from "./types/index.js"
+import { APP_VERSION } from "./version.js"
+import { getCatalog, findRule } from "./engines/catalog.js"
+import { runFix as runFixPipeline } from "./fix/index.js"
 
 const server = new McpServer({
   name: "deep-slop",
   version: APP_VERSION,
-});
+})
 
 // ── Tool 1: deep_slop_scan ─────────────────────────────
 server.tool(
@@ -24,22 +26,22 @@ server.tool(
     minSeverity: z.enum(["error", "warning", "info", "suggestion"]).default("info"),
   },
   async ({ path, engines, exclude, minSeverity }) => {
-    const rootDir = resolve(path);
-    const languages = await detectLanguages(rootDir);
-    const frameworks = await detectFrameworks(rootDir);
-    const files = await collectFiles(rootDir, languages, exclude);
+    const rootDir = resolve(path)
+    const languages = await detectLanguages(rootDir)
+    const frameworks = await detectFrameworks(rootDir)
+    const files = await collectFiles(rootDir, languages, exclude)
 
     const config: DeepSlopConfig = {
       ...DEFAULT_CONFIG,
       exclude: [...DEFAULT_CONFIG.exclude, ...(exclude ?? [])],
-    };
+    }
 
     if (engines) {
       for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
-        config.engines[name as keyof typeof config.engines] = false;
+        config.engines[name as keyof typeof config.engines] = false
       }
       for (const name of engines) {
-        config.engines[name as keyof typeof config.engines] = true;
+        config.engines[name as keyof typeof config.engines] = true
       }
     }
 
@@ -50,13 +52,13 @@ server.tool(
       files,
       installedTools: {},
       config,
-    });
+    })
 
     // Filter by severity
-    const sevOrder = { error: 0, warning: 1, info: 2, suggestion: 3 };
-    const minOrder = sevOrder[minSeverity];
+    const sevOrder = { error: 0, warning: 1, info: 2, suggestion: 3 }
+    const minOrder = sevOrder[minSeverity]
     for (const e of result.engines) {
-      e.diagnostics = e.diagnostics.filter((d: { severity: keyof typeof sevOrder }) => sevOrder[d.severity] <= minOrder);
+      e.diagnostics = e.diagnostics.filter((d: { severity: keyof typeof sevOrder }) => sevOrder[d.severity] <= minOrder)
     }
 
     return {
@@ -64,103 +66,119 @@ server.tool(
         type: "text",
         text: JSON.stringify(result, null, 2),
       }],
-    };
-  },
-);
-
-// ── Tool 2: deep_slop_fix ──────────────────────────────
-server.tool(
-  "deep_slop_fix",
-  "Auto-fix detected issues (safe transforms only)",
-  {
-    path: z.string().default(".").describe("Project directory"),
-    engine: z.string().describe("Engine to fix issues from"),
-    safe: z.boolean().default(true).describe("Only apply safe fixes"),
-  },
-  async ({ path, engine, safe }) => {
-    // First scan, then fix
-    const rootDir = resolve(path);
-    const languages = await detectLanguages(rootDir);
-    const frameworks = await detectFrameworks(rootDir);
-    const files = await collectFiles(rootDir, languages);
-
-    const config = { ...DEFAULT_CONFIG };
-    // Enable only the target engine
-    for (const name of Object.keys(config.engines)) {
-      config.engines[name as keyof typeof config.engines] = false;
     }
-    config.engines[engine as keyof typeof config.engines] = true;
+  },
+)
 
-    const result = await runScan({
-      rootDirectory: rootDir,
-      languages,
-      frameworks,
-      files,
-      installedTools: {},
-      config,
-    });
+// ── Tool 2: deep_slop_why ──────────────────────────────
+server.tool(
+  "deep_slop_why",
+  "Explain why a specific rule flagged this code, with impact tier and documentation link",
+  {
+    rule_id: z.string().describe("Rule ID (e.g. 'ast-slop/narrative-comment')"),
+  },
+  async ({ rule_id }) => {
+    const catalog = getCatalog()
+    const rule = catalog.find((r) => r.id === rule_id)
 
-    const diags = result.engines.flatMap((e: { diagnostics: any[] }) => e.diagnostics);
-    const fixable = safe ? diags.filter((d: any) => d.fixable) : diags;
+    if (!rule) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            error: "Rule not found",
+            suggestion: "Use deep_slop_rules to list available rules",
+          }, null, 2),
+        }],
+      }
+    }
 
-    const fixResult = await runFix(engine as EngineName, fixable, {
-      rootDirectory: rootDir,
-      languages,
-      frameworks,
-      files,
-      installedTools: {},
-      config,
-    });
+    const slug = rule.id.replace(/\//g, '-').replace(/[^a-z0-9-]/g, '')
+    const documentation_url = `https://github.com/cardtest15-coder/deep-slop/wiki/rules#${slug}`
 
     return {
       content: [{
         type: "text",
-        text: JSON.stringify(fixResult ?? { error: "Fix not available for this engine" }, null, 2),
+        text: JSON.stringify({
+          rule_id: rule.id,
+          engine: rule.engine,
+          severity: rule.severity,
+          impact_tier: rule.impactTier,
+          description: rule.description,
+          hint: rule.help,
+          documentation_url,
+          fixable: rule.fixable,
+        }, null, 2),
       }],
-    };
+    }
   },
-);
+)
 
-// ── Tool 3: deep_slop_why ──────────────────────────────
+// ── Tool 3: deep_slop_fix ──────────────────────────────
 server.tool(
-  "deep_slop_why",
-  "Explain why a specific rule flagged this code",
+  "deep_slop_fix",
+  "Auto-fix detected issues: scan → collect fixable diagnostics → apply fixes → re-scan",
   {
-    rule: z.string().describe("Rule ID (e.g. 'ast-slop/narrative-comment')"),
+    directory: z.string().describe("Project directory to fix"),
+    safe: z.boolean().default(true).describe("Only apply safe fixes (confidence >= 0.8)"),
+    rule_overrides: z.record(z.string(), z.enum(["error", "warning", "info", "off"])).optional().describe("Rule severity overrides (e.g. {\"ast-slop/narrative-comment\": \"off\"})"),
   },
-  async ({ rule }) => {
-    const explanations: Record<string, string> = {
-      "ast-slop/narrative-comment": "AI agents often leave comments that describe WHAT code does rather than WHY. These comments add noise and don't help future readers. Remove them or replace with WHY explanations.",
-      "ast-slop/decorative-comment": "Decorative separators (// ===, // ───) are visual noise that AI agents add to structure code. Use plain section labels without the padding.",
-      "ast-slop/console-leftover": "console.log/console.debug are debug statements left by AI agents. Remove from production code, keep console.error/warn in catch blocks.",
-      "ast-slop/as-any": "`as any` bypasses TypeScript's type safety. AI agents use it as a shortcut. Replace with proper types or named interfaces.",
-      "import-intelligence/alternative-path": "Tree-shakeable imports reduce bundle size. Instead of `import { X } from 'lodash'`, use `import X from 'lodash/X'` so only X is included.",
-      "import-intelligence/barrel-optimization": "Barrel files (index.ts) re-export from submodules. Importing from the barrel forces bundlers to process the entire barrel. Direct imports are more efficient.",
-      "import-intelligence/circular-dependency": "Circular imports create initialization order problems and can cause runtime errors. Refactor to break the cycle.",
-      "import-intelligence/unused-import": "Unused imports increase bundle size and indicate incomplete refactoring. Remove them, but verify they aren't used in type positions first.",
-      "import-intelligence/duplicate-import": "Multiple imports from the same module should be merged into one import statement for clarity.",
-      "import-intelligence/broken-alias": "The tsconfig path alias doesn't resolve to an existing file. This will cause build failures or incorrect module resolution.",
-      "dead-flow/unreachable-after-terminator": "Code after return/throw/break/continue can never execute. Remove it to reduce confusion.",
-      "dead-flow/unused-export": "Exported symbols that nothing imports are dead code. Either remove them or they indicate a missing consumer.",
-      "dead-flow/unused-variable": "Variables declared but never used waste memory and indicate incomplete refactoring. Prefix with _ if intentionally unused.",
-      "dead-flow/empty-block": "Empty blocks after if/for/while/try/catch are suspicious. Either add logic or add a comment explaining why it's intentionally empty.",
-      "type-safety/double-assertion": "`as unknown as X` double casts bypass the type system entirely. Use a named interface extending the source type instead.",
-      "type-safety/ts-suppress": "@ts-ignore and @ts-expect-error suppress type errors. Fix the underlying type error instead of suppressing it.",
-      "type-safety/non-null-assertion": "The `!` operator asserts a value is non-null without checking. Add explicit null checks instead.",
-      "type-safety/generic-any": "Using `any` as a generic parameter (e.g., Array<any>) defeats the purpose of generics. Use `unknown` or a specific type.",
-      "syntax-deep/bom-present": "UTF-8 BOM characters cause issues with some parsers and tools. Strip them for consistent file processing.",
-      "syntax-deep/crlf-line-endings": "CRLF line endings cause git diff noise and tooling issues on Unix systems. Normalize to LF.",
-      "syntax-deep/precision-loss": "Floating-point literals with >15 significant digits lose precision at runtime. Use the shortest decimal that represents the same double.",
-      "syntax-deep/unicode-anomaly": "Control characters, zero-width spaces, or RTL overrides in source code can cause subtle bugs or security issues.",
-    };
+  async ({ directory, safe, rule_overrides }) => {
+    const rootDir = resolve(directory)
 
-    const explanation = explanations[rule] ?? `No detailed explanation available for rule '${rule}'. This rule is part of deep-slop's detection engine. Consult the documentation for more information.`;
+    // Detect project
+    const languages = await detectLanguages(rootDir)
+    const frameworks = await detectFrameworks(rootDir)
+    const files = await collectFiles(rootDir, languages)
+
+    const config: DeepSlopConfig = {
+      ...DEFAULT_CONFIG,
+      rules: (rule_overrides ?? {}) as Record<string, import('./scoring/rule-overrides.js').RuleSeverityOverride>,
+    }
+
+    const context = {
+      rootDirectory: rootDir,
+      languages,
+      frameworks,
+      files,
+      installedTools: {} as Record<string, string | boolean>,
+      config,
+    }
+
+    // Scan before fix
+    const scanBefore = await runScan(context)
+    const scoreBefore = scanBefore.score
+
+    const allDiagnostics = scanBefore.engines.flatMap((e) => e.diagnostics)
+
+    // Run fix pipeline
+    const fixResult = await runFixPipeline(allDiagnostics, context, {
+      mode: safe ? 'safe' : 'force',
+      dryRun: false,
+      verify: true,
+    })
+
+    // Re-scan after fix
+    const scanAfter = await runScan(context)
+    const scoreAfter = scanAfter.score
+
+    const remainingIssues = scanAfter.totalDiagnostics
 
     return {
-      content: [{ type: "text", text: explanation }],
-    };
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          ok: !fixResult.rolledBack,
+          fixedCount: fixResult.diagnosticsFixed,
+          scoreBefore,
+          scoreAfter,
+          delta: scoreAfter - scoreBefore,
+          remainingIssues,
+        }, null, 2),
+      }],
+    }
   },
-);
+)
 
 // ── Tool 4: deep_slop_engines ──────────────────────────
 server.tool(
@@ -181,7 +199,7 @@ server.tool(
       { name: "i18n-lint", rules: 3, desc: "Hardcoded strings, missing translation keys, locale mismatches" },
       { name: "config-lint", rules: 3, desc: "tsconfig, ESLint, bundler configuration validation" },
       { name: "meta-quality", rules: 2, desc: "Scoring weights, trend analysis, diff scoring, quality gate" },
-    ];
+    ]
 
     return {
       content: [{
@@ -189,11 +207,50 @@ server.tool(
         text: `deep-slop engines (${engines.length} total, ${engines.reduce((s, e) => s + e.rules, 0)} rules):\n\n` +
           engines.map((e) => `  ${e.name.padEnd(22)} ${e.rules} rules — ${e.desc}`).join("\n"),
       }],
-    };
+    }
   },
-);
+)
 
-// ── Tool 5: deep_slop_score ────────────────────────────
+// ── Tool 5: deep_slop_rules ────────────────────────────
+server.tool(
+  "deep_slop_rules",
+  "List all available rules with metadata, or search by name/description",
+  {
+    search: z.string().optional().describe("Fuzzy search query for rule name or description"),
+  },
+  async ({ search }) => {
+    const catalog = search ? findRule(search) : getCatalog()
+
+    if (catalog.length === 0) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            message: "No rules found matching query",
+            query: search,
+            totalAvailable: getCatalog().length,
+          }, null, 2),
+        }],
+      }
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify(catalog.map((r) => ({
+          id: r.id,
+          engine: r.engine,
+          severity: r.severity,
+          impactTier: r.impactTier,
+          fixable: r.fixable,
+          description: r.description,
+        })), null, 2),
+      }],
+    }
+  },
+)
+
+// ── Tool 6: deep_slop_score ────────────────────────────
 server.tool(
   "deep_slop_score",
   "Quick quality score check (fast, returns just the score)",
@@ -201,10 +258,10 @@ server.tool(
     path: z.string().default(".").describe("Project directory"),
   },
   async ({ path }) => {
-    const rootDir = resolve(path);
-    const languages = await detectLanguages(rootDir);
-    const frameworks = await detectFrameworks(rootDir);
-    const files = await collectFiles(rootDir, languages);
+    const rootDir = resolve(path)
+    const languages = await detectLanguages(rootDir)
+    const frameworks = await detectFrameworks(rootDir)
+    const files = await collectFiles(rootDir, languages)
 
     const result = await runScan({
       rootDirectory: rootDir,
@@ -213,21 +270,21 @@ server.tool(
       files,
       installedTools: {},
       config: DEFAULT_CONFIG,
-    });
+    })
 
     return {
       content: [{
         type: "text",
         text: `Score: ${result.score}/100 | Errors: ${result.bySeverity.error} | Warnings: ${result.bySeverity.warning} | Files: ${result.meta.filesScanned}`,
       }],
-    };
+    }
   },
-);
+)
 
 // ── Start MCP server ────────────────────────────────────
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  const transport = new StdioServerTransport()
+  await server.connect(transport)
 }
 
-main().catch(console.error);
+main().catch(console.error)
