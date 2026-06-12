@@ -18,8 +18,8 @@ export interface ExitCodeOptions {
   failOnErrors: boolean
   /** Whether the project is scoreable (sufficient TS/JS coverage) */
   scoreable: boolean
-  /** The quality score (0-100) */
-  score: number
+  /** The quality score (0-100), or null if not scoreable */
+  score: number | null
   /** Score threshold below which to fail */
   failBelow: number
 }
@@ -41,7 +41,7 @@ export function computeExitCode(options: ExitCodeOptions): number {
     return 0
   }
 
-  if (options.score < options.failBelow) {
+  if (options.score !== null && options.score < options.failBelow) {
     return 1
   }
 

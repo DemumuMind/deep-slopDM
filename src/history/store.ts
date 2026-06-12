@@ -15,7 +15,7 @@ import { join } from 'node:path'
 
 export interface HistoryRecord {
   timestamp: string
-  score: number
+  score: number | null
   errors: number
   warnings: number
   info: number

@@ -159,7 +159,7 @@ async function quickScan(rootDir: string): Promise<number> {
     config,
   })
 
-  return result.score
+  return result.score ?? 0
 }
 
 // ── Monitor Loop ───────────────────────────────────────

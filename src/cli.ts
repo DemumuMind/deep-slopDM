@@ -7,6 +7,7 @@
 // deep-slop-ignore-start ast-slop/as-any
 import { Command } from "commander";
 import { resolve, relative, join } from "node:path";
+import { execSync } from "node:child_process";
 import { runScan } from "./engines/orchestrator.js";
 import { runFix as runFixPipeline } from "./fix/index.js";
 import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js";
@@ -206,7 +207,7 @@ program
     }
 
     // CI gate
-    if (config.ci.failBelow && result.score < config.ci.failBelow) {
+    if (config.ci.failBelow && result.score !== null && result.score < config.ci.failBelow) {
       console.error(`\n  ❌ Score ${result.score} is below threshold ${config.ci.failBelow}`);
       process.exit(1);
     }
@@ -506,8 +507,8 @@ program
       if (hasErrors && failOnErrors) {
         console.log(style('danger', `  ✖  ${result.bySeverity.error} error-severity diagnostic(s) found`))
       }
-      if (coverageInfo.isScoreable && result.score < failBelow) {
-        console.log(style('danger', `  ✖  Score ${result.score} is below threshold ${failBelow}`))
+      if (coverageInfo.isScoreable && result.score !== null && result.score < failBelow) {
+        console.log(style('danger', `  \u2718  Score ${result.score} is below threshold ${failBelow}`))
       }
     } else {
       // JSON (default) — include coverage info in the output
@@ -689,14 +690,15 @@ program
       return
     }
 
-    const scores = records.map((r) => r.score)
+    const scores = records.map((r) => r.score ?? 0)
     const latest = records[records.length - 1]
+    const latestScore = latest.score ?? 0
     const previous = records.length >= 2 ? records[records.length - 2].score : null
-    const delta = deltaText(latest.score, previous)
+    const delta = deltaText(latestScore, previous)
 
     console.log('')
     console.log(styleBold('info', `Score trend (last ${records.length} runs):`))
-    console.log(`  ${sparkline(scores)}  ${styleBold(latest.score >= 75 ? 'success' : latest.score >= 50 ? 'warn' : 'danger', String(latest.score))} (${delta})`)
+    console.log(`  ${sparkline(scores)}  ${styleBold(latestScore >= 75 ? 'success' : latestScore >= 50 ? 'warn' : 'danger', String(latestScore))} (${delta})`)
     console.log('')
     console.log(`  ${style('muted', '#')}  ${style('muted', 'When').padEnd(14)} ${style('muted', 'Score').padEnd(7)} ${style('muted', 'Errors').padEnd(7)} ${style('muted', 'Warns').padEnd(7)} ${style('muted', 'Files')}`)
 
@@ -789,12 +791,12 @@ program
           // Update stats
           currentStats.isScanning = false
           currentStats.lastScanTime = Date.now()
-          currentStats.lastScanScore = result.score
+          currentStats.lastScanScore = result.score ?? 0
           currentStats.totalScans++
 
           // Display results
           console.log(formatWatchScanResult(
-            result.score,
+            result.score ?? 0,
             result.totalDiagnostics,
             result.meta.filesScanned,
             result.meta.elapsed,
@@ -804,7 +806,7 @@ program
           previousScore = result.score
 
           // Auto-repair if enabled and score is low
-          if (shouldRepair && result.score < 75) {
+          if (shouldRepair && (result.score ?? 0) < 75) {
             currentState = 'fixing'
             console.log(formatWatchStatus(watcher.getStats(), currentState, scanDelta))
 
@@ -827,12 +829,12 @@ program
               currentStats.isScanning = true
               const reScanResult = await runScan(context)
               currentStats.isScanning = false
-              currentStats.lastScanScore = reScanResult.score
+              currentStats.lastScanScore = reScanResult.score ?? 0
               currentStats.totalScans++
-              previousScore = reScanResult.score
+              previousScore = reScanResult.score ?? 0
 
               console.log(formatWatchScanResult(
-                reScanResult.score,
+                reScanResult.score ?? 0,
                 reScanResult.totalDiagnostics,
                 reScanResult.meta.filesScanned,
                 reScanResult.meta.elapsed,
@@ -841,7 +843,7 @@ program
           }
 
           // Check target score
-          if (targetScore !== null && result.score >= targetScore) {
+          if (targetScore !== null && (result.score ?? 0) >= targetScore) {
             console.log('')
             console.log(styleBold('success', `  Target score ${targetScore} reached! Current: ${result.score}`))
             console.log(separator())
@@ -924,20 +926,20 @@ program
           const result = await runScan(context)
           const currentStats = watcher.getStats()
           currentStats.lastScanTime = Date.now()
-          currentStats.lastScanScore = result.score
+          currentStats.lastScanScore = result.score ?? 0
           currentStats.totalScans++
 
           console.log(formatWatchScanResult(
-            result.score,
+            result.score ?? 0,
             result.totalDiagnostics,
             result.meta.filesScanned,
             result.meta.elapsed,
           ))
 
-          previousScore = result.score
+          previousScore = result.score ?? 0
 
           // Auto-repair if needed
-          if (shouldRepair && result.score < 75) {
+          if (shouldRepair && (result.score ?? 0) < 75) {
             currentState = 'fixing'
             console.log(formatWatchStatus(watcher.getStats(), currentState, null))
 
@@ -955,9 +957,9 @@ program
           }
 
           // Target score check
-          if (targetScore !== null && result.score >= targetScore) {
+          if (targetScore !== null && (result.score ?? 0) >= targetScore) {
             console.log('')
-            console.log(styleBold('success', `  Target score ${targetScore} reached! Current: ${result.score}`))
+            console.log(styleBold('success', `  Target score ${targetScore} reached! Current: ${result.score ?? '—'}`))
           }
         } catch (err) {
           console.log(`  ${style('danger', 'Error:')} ${err instanceof Error ? err.message : String(err)}`)
@@ -1107,7 +1109,7 @@ hookCmd
         config,
       })
 
-      const gate = checkQualityGate(rootDir, result.score)
+      const gate = checkQualityGate(rootDir, result.score ?? 0)
       const status = gate.pass ? style('success', 'PASS') : style('danger', 'FAIL')
       const deltaStr = gate.delta >= 0 ? `+${gate.delta}` : String(gate.delta)
 
@@ -1145,7 +1147,7 @@ hookCmd
       config,
     })
 
-    captureBaseline(rootDir, result.score, {
+    captureBaseline(rootDir, result.score ?? 0, {
       total: result.totalDiagnostics,
       errors: result.bySeverity.error ?? 0,
       warnings: result.bySeverity.warning ?? 0,
@@ -1155,7 +1157,7 @@ hookCmd
     console.log(separator())
     console.log(styleBold('info', '  Baseline Captured'))
     console.log(separator())
-    console.log(`  Score:       ${styleBold(result.score >= 75 ? 'success' : result.score >= 50 ? 'warn' : 'danger', String(result.score))} (${scoreLabel(result.score)})`)
+    console.log(`  Score:       ${styleBold((result.score ?? 0) >= 75 ? 'success' : (result.score ?? 0) >= 50 ? 'warn' : 'danger', String(result.score ?? '—'))} (${scoreLabel(result.score ?? 0)})`)
     console.log(`  Diagnostics: ${result.totalDiagnostics} total`)
     console.log(`  File:        ${join(rootDir, '.deep-slop', 'baseline.json')}`)
     console.log(separator())
@@ -1927,7 +1929,7 @@ program
         installedTools: {},
         config,
       })
-      score = result.score
+      score = result.score ?? undefined
     }
 
     const badgeUrl = generateBadgeUrl(owner, repo, score)
@@ -2083,6 +2085,66 @@ program.on('command:*', (operands: string[]) => {
   console.error(style('muted', '  Run `deep-slop commands` for a full command reference.'))
   process.exit(1)
 })
+
+// ── update command ────────────────────────────────────
+program
+  .command('update')
+  .description('Check for and install deep-slop updates')
+  .option('--check', 'Only check, do not install')
+  .action(async (opts: Record<string, any>) => {
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  deep-slop update'))
+    console.log(separator())
+    console.log('')
+    console.log(`  Current version: ${APP_VERSION}`)
+
+    try {
+      // Check npm registry for latest version
+      const latest = execSync('npm view deep-slop version 2>/dev/null', { encoding: 'utf8' }).trim()
+      if (!latest) {
+        console.log(style('warn', '  Could not fetch latest version from npm registry'))
+        console.log(style('muted', '  Make sure npm is available and you have network access'))
+        process.exit(1)
+      }
+
+      console.log(`  Latest version:  ${latest}`)
+
+      if (latest === APP_VERSION) {
+        console.log(style('suggestion', '  Already up to date!'))
+        process.exit(0)
+      }
+
+      if (opts.check) {
+        console.log(style('warn', `  Update available: ${APP_VERSION} → ${latest}`))
+        console.log(style('muted', '  Run `deep-slop update` (without --check) to install'))
+        process.exit(0)
+      }
+
+      // Install update
+      console.log(style('info', `  Updating deep-slop from ${APP_VERSION} to ${latest}...`))
+
+      const isGlobal = execSync('npm list -g deep-slop --depth=0 2>/dev/null', { encoding: 'utf8' }).includes('deep-slop')
+      const installCmd = isGlobal
+        ? 'npm update -g deep-slop'
+        : 'npm install -g deep-slop'
+
+      console.log(style('muted', `  Running: ${installCmd}`))
+      execSync(installCmd, { stdio: 'inherit' })
+
+      console.log('')
+      console.log(style('suggestion', `  Updated successfully: ${APP_VERSION} → ${latest}`))
+      console.log(style('muted', '  Restart your terminal to use the new version'))
+    } catch (err: any) {
+      if (err.message?.includes('ENOENT')) {
+        console.log(style('danger', '  npm is not available. Install Node.js first: https://nodejs.org'))
+      } else {
+        console.log(style('danger', `  Update failed: ${err.message}`))
+        console.log(style('muted', '  Try manually: npm update -g deep-slop'))
+      }
+      process.exit(1)
+    }
+  })
 
 // Non-blocking update check after every CLI command
 checkForUpdate().then((info) => {

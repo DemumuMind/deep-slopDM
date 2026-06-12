@@ -209,12 +209,13 @@ async function runAction(id: string): Promise<boolean> {
         console.log(style('muted', 'No scan history. Run `deep-slop scan` first.'))
         return true
       }
-      const scores = records.map((r) => r.score)
+      const scores = records.map((r) => r.score ?? 0)
       const latest = records[records.length - 1]
+      const latestScore = latest.score ?? 0
       const prev = records.length >= 2 ? records[records.length - 2].score : null
       console.log('')
       console.log(styleBold('info', `Score trend (last ${records.length}):`))
-      console.log(`  ${sparkline(scores)}  ${styleBold(latest.score >= 75 ? 'success' : latest.score >= 50 ? 'warn' : 'danger', String(latest.score))} (${deltaText(latest.score, prev)})`)
+      console.log(`  ${sparkline(scores)}  ${styleBold(latestScore >= 75 ? 'success' : latestScore >= 50 ? 'warn' : 'danger', String(latestScore))} (${deltaText(latestScore, prev)})`)
       console.log('')
       return true
     }
@@ -248,7 +249,7 @@ async function runAction(id: string): Promise<boolean> {
             config,
           })
           console.log(formatWatchScanResult(
-            result.score,
+            result.score ?? 0,
             result.totalDiagnostics,
             result.meta.filesScanned,
             result.meta.elapsed,

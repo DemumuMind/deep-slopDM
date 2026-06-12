@@ -205,7 +205,7 @@ server.tool(
           fixedCount: fixResult.diagnosticsFixed,
           scoreBefore,
           scoreAfter,
-          delta: scoreAfter - scoreBefore,
+          delta: (scoreAfter ?? 0) - (scoreBefore ?? 0),
           remainingIssues,
         }, null, 2),
       }],

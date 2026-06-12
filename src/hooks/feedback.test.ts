@@ -17,9 +17,10 @@ function makeDiag(filePath: string, line: number, rule: string): Diagnostic {
   }
 }
 
-function makeScanResult(score: number, diags: Diagnostic[]): ScanResult {
+function makeScanResult(score: number | null, diags: Diagnostic[]): ScanResult {
   return {
     score,
+    scoreable: score !== null,
     engines: diags.length > 0
       ? [{ engine: 'ast-slop', diagnostics: diags, elapsed: 100, skipped: false }]
       : [],

@@ -91,7 +91,7 @@ async function scanDirectory(dir: string): Promise<number> {
     config,
   })
 
-  return result.score
+  return result.score ?? 0
 }
 
 /**
@@ -126,7 +126,7 @@ async function scanForDiagnostics(dir: string) {
   ]
 
   return {
-    score: result.score,
+    score: result.score ?? 0,
     diagnostics: allDiagnostics,
     totalDiagnostics: result.totalDiagnostics + depResult.issuesFound,
   }

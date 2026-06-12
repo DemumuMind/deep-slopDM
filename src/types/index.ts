@@ -179,8 +179,10 @@ export { DEFAULT_CONFIG } from '../config/defaults.js'
 export interface ScanResult {
   /** Per-engine results */
   engines: EngineResult[];
-  /** Aggregate score 0-100 */
-  score: number;
+  /** Aggregate score 0-100, or null if majority of files are in unsupported languages */
+  score: number | null;
+  /** Whether the score is meaningful (false if >80% of files are in unsupported languages) */
+  scoreable: boolean;
   /** Per-category breakdown */
   categoryScores: Record<Category, number>;
   /** Total diagnostics */

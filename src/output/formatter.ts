@@ -61,8 +61,9 @@ export function formatOutput(result: ScanResult): string {
   lines.push('')
 
   // Score + meta
-  const scoreStr = `${result.score}/100`
-  lines.push(`  ${scoreLabel(result.score)} Score: ${scoreStr}`)
+  const scoreStr = result.score !== null ? `${result.score}/100` : '\u2014'
+  const scoreDisplay = result.score !== null ? result.score : 0
+  lines.push(`  ${scoreLabel(scoreDisplay)} Score: ${scoreStr}${result.score === null ? ' (majority of files in unsupported languages)' : ''}`)
   if (result.meta.diffScope) {
     lines.push(`  ${style('info', `Scanning ${result.meta.diffScope} file(s)`)}`)
   }
@@ -177,8 +178,10 @@ export function formatOutput(result: ScanResult): string {
   }
 
   // Final summary
+  const summaryScoreStr = result.score !== null ? `${result.score}/100` : '\u2014'
+  const summaryScoreDisplay = result.score !== null ? result.score : 0
   lines.push(separator())
-  lines.push(`  ${scoreLabel(result.score)} ${result.score}/100 — ${result.totalDiagnostics} total diagnostics`)
+  lines.push(`  ${scoreLabel(summaryScoreDisplay)} ${summaryScoreStr} — ${result.totalDiagnostics} total diagnostics${result.score === null ? ' (score withheld: unsupported languages)' : ''}`)
   lines.push(separator())
   lines.push('')
 

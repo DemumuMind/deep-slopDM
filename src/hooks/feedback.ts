@@ -25,9 +25,11 @@ export function formatHookFeedback(before: ScanResult, after: ScanResult): strin
   const lines: string[] = []
 
   // Score delta
-  const scoreDelta = after.score - before.score
+  const beforeScore = before.score ?? 0
+  const afterScore = after.score ?? 0
+  const scoreDelta = afterScore - beforeScore
   const scoreSign = scoreDelta > 0 ? '+' : ''
-  lines.push(`Score: ${before.score} → ${after.score} (${scoreSign}${scoreDelta})`)
+  lines.push(`Score: ${before.score ?? '—'} → ${after.score ?? '—'} (${scoreSign}${scoreDelta})`)
 
   // Fixed count — diagnostics that were in before but not in after
   const beforeDiags = collectDiagKeys(before)

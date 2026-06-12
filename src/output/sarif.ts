@@ -15,6 +15,7 @@
 // VS Code SARIF Viewer, and other SARIF consumers.
 
 import type { ScanResult, Severity, Diagnostic } from '../types/index.js'
+import { APP_VERSION } from '../version.js'
 
 /** SARIF severity mapping: error→error, warning→warning, info→note, suggestion→note */
 function mapSeverity(sev: Severity): 'error' | 'warning' | 'note' {
@@ -119,14 +120,14 @@ export function generateSarif(result: ScanResult): object {
   const allDiags = result.engines.flatMap((e) => e.diagnostics)
 
   return {
-    $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json',
+    $schema: 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
     version: '2.1.0',
     runs: [
       {
         tool: {
           driver: {
             name: 'deep-slop',
-            version: '0.1.0',
+            version: APP_VERSION,
             informationUri: 'https://github.com/Romanchello/deep-slop',
             rules: buildRules(allDiags),
           },
@@ -147,7 +148,8 @@ export function generateSarif(result: ScanResult): object {
           },
         ],
         properties: {
-          score: result.score,
+          score: result.scoreable === false ? null : result.score,
+          scoreable: result.scoreable,
           totalDiagnostics: result.totalDiagnostics,
           bySeverity: result.bySeverity,
           byEngine: result.byEngine,

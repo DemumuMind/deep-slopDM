@@ -4,7 +4,7 @@
 // deep-slop-ignore-start ast-slop/decorative-comment
 // deep-slop-ignore-start ast-slop/as-any
 import { performance } from 'node:perf_hooks'
-import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Severity, Category, Diagnostic } from '../types/index.js'
+import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Severity, Category, Diagnostic, Language } from '../types/index.js'
 import { calculateScore } from '../scoring/index.js'
 import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
@@ -12,6 +12,24 @@ import { LiveGrid } from '../ui/live-grid.js'
 import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
 import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
 import { applySuppressDirectives } from '../utils/suppress.js'
+
+/** File extension to Language mapping (for scoreability check) */
+const EXT_TO_LANG: Record<string, Language> = {
+  '.ts': 'typescript',
+  '.tsx': 'tsx',
+  '.js': 'javascript',
+  '.jsx': 'jsx',
+  '.mjs': 'javascript',
+  '.cjs': 'javascript',
+  '.py': 'python',
+  '.go': 'go',
+  '.rs': 'rust',
+  '.rb': 'ruby',
+  '.php': 'php',
+  '.java': 'java',
+  '.cs': 'csharp',
+  '.swift': 'swift',
+}
 
 /** Registry of all 18 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
@@ -177,11 +195,47 @@ export async function runScan(
   // Calculate score: density-aware logarithmic scoring
   const fileCount = context.files?.length ?? 0
   const scoringResult = calculateScore(allDiagnostics, fileCount)
-  const score = scoringResult.score
+  let score: number | null = scoringResult.score
+
+  // Determine scoreability: check if >80% of files are in unsupported languages
+  // Languages with dedicated rules (engines that ran and weren't skipped)
+  const supportedLangs = new Set<Language>()
+  for (const r of results) {
+    if (!r.skipped) {
+      // Find the engine's supported languages from the registry
+      const engineLoader = ENGINE_REGISTRY[r.engine]
+      if (engineLoader) {
+        try {
+          const engine = await engineLoader()
+          for (const l of engine.supportedLanguages) {
+            supportedLangs.add(l)
+          }
+        } catch {
+          // Engine load failure — skip
+        }
+      }
+    }
+  }
+
+  const unsupportedFileCount = context.files
+    ? context.files.filter((f) => {
+        const ext = f.split('.').pop()?.toLowerCase() ?? ''
+        const lang = EXT_TO_LANG[`.${ext}`]
+        return lang && !supportedLangs.has(lang)
+      }).length
+    : 0
+  const totalFileCount = context.files?.length ?? 0
+  const unsupportedRatio = totalFileCount > 0 ? unsupportedFileCount / totalFileCount : 0
+  const scoreable = unsupportedRatio < 0.8
+
+  if (!scoreable) {
+    score = null
+  }
 
   const scanResult: ScanResult = {
     engines: results,
     score,
+    scoreable,
     categoryScores,
     totalDiagnostics: allDiagnostics.length,
     bySeverity,
