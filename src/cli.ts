@@ -190,11 +190,10 @@ program
 
     // Run scan with progress (only show in human mode)
     const result = await runScan(context, {
-      onEngineStart: format === 'human' ? (name: string) => process.stderr.write(`  ⏳ ${name}...`) : undefined,
+      onEngineStart: format === 'human' ? (name: string) => process.stderr.write(`  ⏳ ${name}...\r`) : undefined,
       onEngineComplete: format === 'human' ? (r: any) => {
-        // Move cursor to start of line, clear, and write status on same line
         const status = r.skipped ? '⏭️  skipped' : `✅ ${r.diagnostics.length} issues (${Math.round(r.elapsed)}ms)`
-        process.stderr.write(`\r  ${status.padEnd(50)}\n`)
+        process.stderr.write(`  ${status.padEnd(55)}\n`)
       } : undefined,
     });
 
