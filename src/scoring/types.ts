@@ -34,6 +34,8 @@ export interface ScoringConfig {
   defaultEngineWeight: number
   /** Smoothing factor for density calculation (prevents div-by-zero) */
   smoothing: number
+  /** Maximum deduction per rule (caps impact of noisy rules) */
+  maxPerRule: number
   /** Per-tier defaults: multiplier and cap */
   tierDefaults: Record<ImpactTier, { multiplier: number; cap: number }>
 }

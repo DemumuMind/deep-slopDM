@@ -9,6 +9,8 @@ import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName } from "./types/in
 import { APP_VERSION } from "./version.js"
 import { getCatalog, findRule } from "./engines/catalog.js"
 import { runFix as runFixPipeline } from "./fix/index.js"
+import { readBaseline } from "./hooks/baseline.js"
+import { assessDiagnostic, summarizeAssessments } from "./output/assessment.js"
 
 const server = new McpServer({
   name: "deep-slop",
@@ -61,10 +63,30 @@ server.tool(
       e.diagnostics = e.diagnostics.filter((d: { severity: keyof typeof sevOrder }) => sevOrder[d.severity] <= minOrder)
     }
 
+    // Enrich diagnostics with assessment
+    const allDiags = result.engines.flatMap((e) => e.diagnostics)
+    const assessmentSummary = summarizeAssessments(allDiags)
+    const assessedDiags = allDiags.map((d) => ({
+      ...d,
+      assessment: assessDiagnostic(d),
+    }))
+
+    const enrichedResult = {
+      ...result,
+      engines: result.engines.map((e) => ({
+        ...e,
+        diagnostics: e.diagnostics.map((d) => ({
+          ...d,
+          assessment: assessDiagnostic(d),
+        })),
+      })),
+      assessmentSummary,
+    }
+
     return {
       content: [{
         type: "text",
-        text: JSON.stringify(result, null, 2),
+        text: JSON.stringify(enrichedResult, null, 2),
       }],
     }
   },
@@ -276,6 +298,43 @@ server.tool(
       content: [{
         type: "text",
         text: `Score: ${result.score}/100 | Errors: ${result.bySeverity.error} | Warnings: ${result.bySeverity.warning} | Files: ${result.meta.filesScanned}`,
+      }],
+    }
+  },
+)
+
+// ── Tool 7: deep_slop_baseline ──────────────────────────
+server.tool(
+  "deep_slop_baseline",
+  "Check the current quality baseline before making changes. Returns baseline score, last scan time, and file count.",
+  {
+    path: z.string().optional().describe("Project directory (defaults to current directory)"),
+  },
+  async ({ path }) => {
+    const rootDir = resolve(path ?? '.')
+    const baseline = readBaseline(rootDir)
+
+    if (!baseline) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            exists: false,
+            hint: "Run 'deep-slop hook baseline' to capture",
+          }, null, 2),
+        }],
+      }
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          exists: true,
+          score: baseline.score,
+          lastScanAt: baseline.timestamp,
+          fileCount: baseline.diagnostics.total,
+        }, null, 2),
       }],
     }
   },

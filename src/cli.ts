@@ -26,9 +26,28 @@ import { captureBaseline, readBaseline, checkQualityGate } from "./hooks/baselin
 import type { HookProvider } from "./hooks/types.js";
 import { formatWatchStatus, formatWatchScanResult, type WatchState } from "./watch/display.js"
 import { runRepairLoop, planRepair, type RepairResult } from "./agent/repair.js"
-import { detectAllProviders } from "./agents/providers.js";
+import { detectAllProviders } from "./agents/providers.js"
+import { connectProvider, resolveProvider } from "./agent/connect.js"
+import { checkForUpdate, showUpdateNotification } from "./update-notifier.js"
+import { suggestClosest } from "./ui/suggest.js"
+import { renderHomeScreen } from "./ui/home.js"
+import { renderCommandReference } from "./ui/command-reference.js"
+import { trackEvent, isTelemetryEnabled } from "./telemetry/index.js"
+import { estimateCost } from "./agents/pricing.js"
+import { setProviderPreference } from "./agent/use.js"
+import { projectInfo, detectPackageManager, detectInstalledLinters, detectTestFramework, detectCI, computeCoverage } from "./utils/discover.js"
+import { extractPlanPreview, type PlanPreviewResult } from "./fix/index.js";
+import { detectGitHubRepo, generateBadgeUrl, generateBadgeMarkdown, scoreColor } from "./badge/index.js";
+import { PRESETS, getPreset, listPresets } from "./config/presets.js";
 
 type OutputFormat = 'human' | 'json' | 'sarif'
+
+/** Truncate a code snippet for display */
+function truncateSnippet(text: string, maxLen: number): string {
+  const oneLine = text.replace(/\n/g, '↵')
+  if (oneLine.length <= maxLen) return oneLine
+  return oneLine.slice(0, maxLen - 3) + '...'
+}
 
 /** Parse an optional integer option value */
 function parseOptInt(value: string | undefined): number | undefined {
@@ -41,7 +60,7 @@ const program = new Command();
 
 program
   .name("deep-slop")
-  .description("Deep AI slop detection — 14 engines, AST-powered, with alternative import paths")
+  .description("Deep AI slop detection — 15 engines, AST-powered, with alternative import paths")
   .version(APP_VERSION);
 
 // ── SCAN ────────────────────────────────────────────────
@@ -115,7 +134,7 @@ program
     }
 
     // Collect files
-    let files = await collectFiles(rootDir, languages, config.exclude, opts.include);
+    let files = await collectFiles(rootDir, languages, config.exclude, opts.include, config.ignore);
 
     // Diff-aware filtering
     let diffScope: string | undefined
@@ -192,6 +211,7 @@ program
   .option("--force", "Apply all fixable diagnostics regardless of confidence")
   .option("--dry-run", "Show what would be fixed without modifying files")
   .option("--verify", "Re-scan after fix and rollback if score worsened")
+  .option("--plan", "Show detailed fix plan with before/after snippets and confirmation")
   .action(async (path: string, opts: Record<string, any>) => {
     const rootDir = resolve(path);
 
@@ -218,7 +238,7 @@ program
     }
 
     // Collect files
-    const files = await collectFiles(rootDir, languages, config.exclude);
+    const files = await collectFiles(rootDir, languages, config.exclude, undefined, config.ignore);
 
     const context = {
       rootDirectory: rootDir,
@@ -244,12 +264,14 @@ program
     const mode: 'safe' | 'force' = opts.force ? 'force' : 'safe'
     const dryRun = opts.dryRun ?? false
     const verify = opts.verify ?? false
+    const isPlan = opts.plan ?? false
 
     // Run fix pipeline
     const fixResult = await runFixPipeline(allDiagnostics, context, {
       mode,
-      dryRun,
-      verify,
+      dryRun: isPlan ? true : dryRun,
+      verify: isPlan ? false : verify,
+      plan: isPlan,
     })
 
     // Print fix result with colored output
@@ -257,6 +279,50 @@ program
 
     console.log('')
     console.log(separator())
+
+    // Handle --plan mode: show detailed plan table
+    if (isPlan) {
+      const preview = extractPlanPreview(fixResult)
+      if (preview) {
+        console.log(styleBold('info', '  Fix Plan Preview'))
+        console.log(separator())
+        console.log(`  Mode:            ${style('info', mode)}`)
+        console.log(`  Files affected:  ${style('suggestion', String(preview.filesAffected.length))}`)
+        console.log(`  Diagnostics:     ${style('suggestion', String(preview.diagnosticsAddressed))} addressed`)
+        console.log(`  Score:           ${String(preview.scoreBefore)} → ${preview.estimatedScoreAfter >= preview.scoreBefore ? style('success', String(preview.estimatedScoreAfter)) : style('danger', String(preview.estimatedScoreAfter))} (estimated)`)
+        console.log(`  Effort:          ${style(preview.estimatedEffort === 'low' ? 'success' : preview.estimatedEffort === 'medium' ? 'warn' : 'danger', preview.estimatedEffort)}`)
+        console.log('')
+
+        // Show files affected
+        console.log(style('muted', '  Files to modify:'))
+        for (const f of preview.filesAffected) {
+          console.log(`    ${style('suggestion', f)}`)
+        }
+        console.log('')
+
+        // Show each change with before/after
+        console.log(style('muted', '  Changes:'))
+        for (const item of preview.items) {
+          const confColor = item.confidence >= 0.8 ? 'success' : item.confidence >= 0.5 ? 'warn' : 'danger'
+          console.log(`  ${style('info', item.filePath)}:${item.startLine}-${item.endLine}  ${style('muted', item.rule)}  confidence=${style(confColor, String(item.confidence))}`)
+          console.log(`    ${style('danger', '-')} ${truncateSnippet(item.before, 60)}`)
+          console.log(`    ${style('success', '+')} ${truncateSnippet(item.after, 60)}`)
+        }
+
+        console.log('')
+        console.log(separator())
+        console.log(style('muted', '  Run without --plan to apply these fixes.'))
+        console.log('')
+      } else {
+        console.log(styleBold('info', '  Fix Plan'))
+        console.log(separator())
+        console.log(`  ${style('warn', 'No fixable diagnostics found.')}`)
+        console.log(separator())
+        console.log('')
+      }
+      return
+    }
+
     console.log(styleBold('info', '  Fix Summary'))
     console.log(separator())
 
@@ -307,10 +373,26 @@ program
     if (opts.human) format = 'human'
     if (opts.sarif) format = 'sarif'
 
+    // Build config — start from defaults, override with CLI
+    const config: DeepSlopConfig = {
+      ...DEFAULT_CONFIG,
+      exclude: [...DEFAULT_CONFIG.exclude, ...(opts.exclude ?? [])],
+    }
+
+    // Enable only selected engines
+    if (opts.engine) {
+      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
+        config.engines[name as keyof typeof config.engines] = false
+      }
+      for (const name of opts.engine) {
+        config.engines[name as keyof typeof config.engines] = true
+      }
+    }
+
     // Detect project
     const languages = await detectLanguages(rootDir);
     const frameworks = await detectFrameworks(rootDir);
-    let files = await collectFiles(rootDir, languages);
+    let files = await collectFiles(rootDir, languages, undefined, undefined, config.ignore);
 
     // Diff-aware filtering (same logic as scan)
     let diffScope: string | undefined
@@ -340,22 +422,6 @@ program
       files = filterToChanged(files, changedRelPaths)
       diffScope = `${files.length} changed vs ${refLabel}`
       process.stderr.write(`  ${diffScope} file(s)\n`)
-    }
-
-    // Build config — start from defaults, override with CLI
-    const config: DeepSlopConfig = {
-      ...DEFAULT_CONFIG,
-      exclude: [...DEFAULT_CONFIG.exclude, ...(opts.exclude ?? [])],
-    }
-
-    // Enable only selected engines
-    if (opts.engine) {
-      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
-        config.engines[name as keyof typeof config.engines] = false
-      }
-      for (const name of opts.engine) {
-        config.engines[name as keyof typeof config.engines] = true
-      }
     }
 
     // CI config overrides from CLI
@@ -545,7 +611,8 @@ program
   .description("Initialize deep-slop configuration in a project")
   .argument("[path]", "project directory", ".")
   .option("--strict", "Use strict thresholds (maxFunctionLoc:30, maxFileLoc:200, failBelow:75)")
-  .action((path: string, opts: { strict?: boolean }) => {
+  .option("--preset <name>", "Use a named preset (typescript-strict, monorepo-relaxed, python-go, minimal)")
+  .action((path: string, opts: { strict?: boolean, preset?: string }) => {
     runInit(path, opts)
   })
 
@@ -652,7 +719,7 @@ program
 
         try {
           // Collect files (use changed files for targeted scan)
-          const allFiles = await collectFiles(rootDir, languages, config.exclude)
+          const allFiles = await collectFiles(rootDir, languages, config.exclude, undefined, config.ignore)
           const changedRelative = changedFiles.map((f) => relative(rootDir, f))
           const files = allFiles.filter((f: string) =>
             changedRelative.some((c) => f === c || f.endsWith(c) || c.endsWith(f))
@@ -786,7 +853,7 @@ program
     // If --once, trigger an immediate scan cycle
     if (runOnce) {
       // Collect all files and trigger a scan
-      const allFiles = await collectFiles(rootDir, languages, config.exclude)
+      const allFiles = await collectFiles(rootDir, languages, config.exclude, undefined, config.ignore)
       if (allFiles.length > 0) {
         watcher.stop()
         // Run a manual scan cycle
@@ -1057,7 +1124,7 @@ agentCmd
   .command('repair')
   .description('Run AI agent repair loop to improve code quality score')
   .argument('[path]', 'project directory', '.')
-  .option('--provider <name>', 'Agent provider to use (claude/codex/aider/etc)', 'claude')
+  .option('--provider <name>', 'Agent provider to use (claude/codex/cursor/opencode/aider/goose/windsurf/vscode/amp/gemini-cli/kimi/warp/pi/crush/deep-agents/antigravity)', 'claude')
   .option('--target-score <n>', 'Target score to reach (default 75)', '75')
   .option('--max-turns <n>', 'Maximum repair cycles (default 5)', '5')
   .option('--in-place', 'Edit current tree (no worktree isolation)')
@@ -1133,6 +1200,74 @@ agentCmd
     }
   })
 
+// ── agent connect ─────────────────────────────────────
+agentCmd
+  .command('connect')
+  .description('Connect and verify an AI agent provider')
+  .argument('<provider>', 'Provider name (claude/codex/aider/cursor/opencode/goose)')
+  .argument('[path]', 'project directory', '.')
+  .action(async (provider: string, path: string) => {
+    const rootDir = resolve(path)
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', `  Connecting to ${provider}...`))
+    console.log(separator())
+
+    const result = await connectProvider(provider, rootDir)
+
+    if (result.success) {
+      console.log(`  ${style('success', '✔')} ${result.message}`)
+      console.log(`  ${style('muted', 'Provider preference saved to .deep-slop/provider')}`)
+    } else {
+      console.log(`  ${style('danger', '✖')} ${result.message}`)
+    }
+
+    console.log(separator())
+    console.log('')
+
+    if (!result.success) {
+      process.exit(1)
+    }
+  })
+
+// ── agent use ──────────────────────────────────────────
+agentCmd
+  .command('use')
+  .description('Set default AI agent provider for this project')
+  .argument('<provider>', 'Provider name (claude/codex/aider/cursor/opencode/goose/auto)')
+  .argument('[path]', 'project directory', '.')
+  .action(async (provider: string, path: string) => {
+    const rootDir = resolve(path)
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', `  Setting default provider: ${provider}`))
+    console.log(separator())
+
+    try {
+      if (provider === 'auto') {
+        // Auto-detect and set
+        const resolved = await resolveProvider('auto', rootDir)
+        setProviderPreference(resolved, rootDir)
+        console.log(`  ${style('success', '✔')} Auto-detected: ${style('info', resolved)}`)
+        console.log(`  ${style('muted', 'Saved to .deep-slop/provider')}`)
+      } else {
+        setProviderPreference(provider, rootDir)
+        console.log(`  ${style('success', '✔')} Default provider set to ${style('info', provider)}`)
+        console.log(`  ${style('muted', 'Saved to .deep-slop/provider')}`)
+      }
+    } catch (err) {
+      console.log(`  ${style('danger', '✖')} ${err instanceof Error ? err.message : String(err)}`)
+      console.log(separator())
+      console.log('')
+      process.exit(1)
+    }
+
+    console.log(separator())
+    console.log('')
+  })
+
 // ── agent providers ───────────────────────────────────
 agentCmd
   .command('providers')
@@ -1160,7 +1295,7 @@ agentCmd
   .command('plan')
   .description('Preview repair plan without running (shows initial score, target, provider, estimated turns)')
   .argument('[path]', 'project directory', '.')
-  .option('--provider <name>', 'Agent provider to use', 'claude')
+  .option('--provider <name>', 'Agent provider to use (claude/codex/cursor/opencode/aider/goose/windsurf/vscode/amp/gemini-cli/kimi/warp/pi/crush/deep-agents/antigravity)', 'claude')
   .option('--target-score <n>', 'Target score', '75')
   .option('--max-turns <n>', 'Max cycles', '5')
   .action(async (path: string, opts: Record<string, any>) => {
@@ -1221,7 +1356,7 @@ monitorCmd
   .option('--target-score <n>', 'Auto-repair when score drops below', '75')
   .option('--repair', 'Auto-repair on regression')
   .option('--interval <ms>', 'Polling interval in ms', '10000')
-  .option('--provider <name>', 'Agent provider to use', 'claude')
+  .option('--provider <name>', 'Agent provider to use (claude/codex/cursor/opencode/aider/goose/windsurf/vscode/amp/gemini-cli/kimi/warp/pi/crush/deep-agents/antigravity)', 'claude')
   .option('--max-turns <n>', 'Max repair turns', '5')
   .action(async (directory: string, opts: Record<string, any>) => {
     const rootDir = resolve(directory)
@@ -1531,10 +1666,169 @@ agentCmd
     console.log('')
   })
 
-// ── NO-ARGS: interactive menu ──────────────────────────
+// ── BADGE ─────────────────────────────────────────────
+program
+  .command('badge')
+  .description('Generate a shields.io badge for your deep-slop score')
+  .argument('[path]', 'project directory', '.')
+  .option('--owner <owner>', 'GitHub owner (auto-detected from git remote)')
+  .option('--repo <repo>', 'GitHub repo (auto-detected from git remote)')
+  .option('--score <n>', 'Score to display (run scan if omitted)')
+  .option('--json', 'Output as JSON for machine use')
+  .action(async (path: string, opts: Record<string, any>) => {
+    const rootDir = resolve(path)
+
+    // Resolve owner/repo
+    let owner = opts.owner
+    let repo = opts.repo
+
+    if (!owner || !repo) {
+      const detected = detectGitHubRepo(rootDir)
+      if (detected) {
+        if (!owner) owner = detected.owner
+        if (!repo) repo = detected.repo
+      }
+    }
+
+    if (!owner || !repo) {
+      process.stderr.write('  ⚠ Could not detect GitHub repo. Use --owner and --repo flags.\n')
+      process.exit(1)
+    }
+
+    // Resolve score
+    let score: number | undefined
+    if (opts.score !== undefined) {
+      score = parseInt(opts.score, 10)
+    } else {
+      // Run a quick scan to get score
+      const languages = await detectLanguages(rootDir)
+      const frameworks = await detectFrameworks(rootDir)
+      const files = await collectFiles(rootDir, languages, [])
+      const config: DeepSlopConfig = { ...DEFAULT_CONFIG }
+      const result = await runScan({
+        rootDirectory: rootDir,
+        languages,
+        frameworks,
+        files,
+        installedTools: {},
+        config,
+      })
+      score = result.score
+    }
+
+    const badgeUrl = generateBadgeUrl(owner, repo, score)
+    const pageUrl = `https://github.com/${owner}/${repo}`
+    const markdown = score !== undefined ? generateBadgeMarkdown(owner, repo, score) : ''
+    const color = score !== undefined ? scoreColor(score) : 'lightgrey'
+
+    if (opts.json) {
+      console.log(JSON.stringify({
+        owner,
+        repo,
+        score,
+        color,
+        badgeUrl,
+        pageUrl,
+        markdown,
+      }, null, 2))
+    } else {
+      console.log('')
+      console.log(separator())
+      console.log(styleBold('info', '  deep-slop badge'))
+      console.log(separator())
+      console.log(`  Repo:        ${style('info', `${owner}/${repo}`)}`)
+      if (score !== undefined) {
+        console.log(`  Score:       ${styleBold(score >= 80 ? 'success' : score >= 50 ? 'warn' : 'danger', String(score))} (${scoreLabel(score)})`)
+      }
+      console.log(`  Color:       ${color}`)
+      console.log(`  Badge URL:   ${style('suggestion', badgeUrl)}`)
+      console.log(`  Page URL:    ${style('muted', pageUrl)}`)
+      if (markdown) {
+        console.log(`  Markdown:    ${markdown}`)
+      }
+      console.log(separator())
+      console.log('')
+    }
+  })
+
+// ── DISCOVER ──────────────────────────────────────────
+program
+  .command('discover')
+  .description('Analyze project: languages, frameworks, package manager, linters, tests, CI')
+  .argument('[path]', 'project directory', '.')
+  .option('--json', 'Output as JSON')
+  .action(async (path: string, opts: Record<string, any>) => {
+    const rootDir = resolve(path)
+
+    process.stderr.write(`\n  deep-slop discover: ${rootDir}\n\n`)
+
+    const info = await projectInfo(rootDir)
+
+    if (opts.json) {
+      console.log(JSON.stringify(info, null, 2))
+      return
+    }
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  Project Discovery'))
+    console.log(separator())
+
+    // Languages
+    console.log(`  Languages:      ${info.languages.length > 0 ? info.languages.map((l) => style('info', l)).join(', ') : style('muted', 'none detected')}`)
+
+    // File counts
+    if (Object.keys(info.fileCounts).length > 0) {
+      const countsStr = Object.entries(info.fileCounts)
+        .map(([lang, count]) => `${style('suggestion', lang)}:${count}`)
+        .join('  ')
+      console.log(`  File counts:    ${countsStr}`)
+    }
+    console.log(`  Total files:    ${info.totalFiles}`)
+
+    // Frameworks
+    console.log(`  Frameworks:     ${info.frameworks.map((f) => f === 'none' ? style('muted', f) : style('info', f)).join(', ')}`)
+
+    // Package manager
+    const pmStr = info.packageManager ? style('info', info.packageManager) : style('muted', 'none detected')
+    console.log(`  Package mgr:    ${pmStr}`)
+
+    // Linters
+    const linterStr = info.linters.length > 0 ? info.linters.map((l) => style('suggestion', l)).join(', ') : style('muted', 'none detected')
+    console.log(`  Linters:        ${linterStr}`)
+
+    // Test frameworks
+    const testStr = info.testFrameworks.length > 0 ? info.testFrameworks.map((t) => style('suggestion', t)).join(', ') : style('muted', 'none detected')
+    console.log(`  Test frameworks:${testStr}`)
+
+    // CI
+    const ciStr = info.ci.length > 0 ? info.ci.map((c) => style('suggestion', c)).join(', ') : style('muted', 'none detected')
+    console.log(`  CI systems:     ${ciStr}`)
+
+    // Coverage info
+    const covColor = info.coverage.isScoreable ? 'success' : 'warn'
+    console.log(`  Scoreable:      ${style(covColor, info.coverage.isScoreable ? 'yes' : 'no')} (${Math.round(info.coverage.coverage * 100)}% coverage)`)
+    if (info.coverage.reason) {
+      console.log(`  Coverage note:  ${style('muted', info.coverage.reason)}`)
+    }
+
+    console.log(separator())
+    console.log('')
+  })
+
+// ── COMMANDS ───────────────────────────────────────────
+program
+  .command('commands')
+  .description('Show command reference with all available commands and flags')
+  .action(() => {
+    renderCommandReference()
+  })
+
+// ── NO-ARGS: interactive menu or home screen ───────────
 import { interactiveMenu } from './ui/interactive.js'
 
 // When no subcommand is given, launch the interactive TUI menu
+// or render home screen in non-TTY mode
 const originalParse = program.parse.bind(program)
 program.parse = function (argv?: readonly string[]) {
   const args = argv ?? process.argv
@@ -1543,14 +1837,46 @@ program.parse = function (argv?: readonly string[]) {
   const hasSubcommand = subArgs.length > 0 && !subArgs[0].startsWith('-')
 
   if (!hasSubcommand) {
-    // No subcommand → launch interactive menu
+    // Non-interactive mode: show home screen
+    if (!process.stdout.isTTY) {
+      renderHomeScreen()
+      return program as any
+    }
+    // Interactive mode: launch TUI menu
     interactiveMenu().catch(() => {
       process.exit(1)
     })
     return program as any
   }
 
+  // Unknown command: suggest closest match
+  if (!hasSubcommand) {
+    // handled above
+  }
+
   return originalParse(args)
 }
+
+// Add unknown command suggestion handler
+program.on('command:*', (operands: string[]) => {
+  const unknown = operands[0]
+  const allCommands = program.commands.map((c) => c.name()).filter(Boolean)
+  const suggestion = suggestClosest(unknown, allCommands)
+  console.error(style('danger', `  Unknown command: ${unknown}`))
+  if (suggestion) {
+    console.error(style('muted', `  Did you mean '${style('suggestion', suggestion)}'?`))
+  }
+  console.error(style('muted', '  Run `deep-slop commands` for a full command reference.'))
+  process.exit(1)
+})
+
+// Non-blocking update check after every CLI command
+checkForUpdate().then((info) => {
+  if (info?.isOutdated) {
+    showUpdateNotification(info)
+  }
+}).catch(() => {
+  // Silently ignore update check failures
+})
 
 program.parse()

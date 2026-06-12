@@ -49,6 +49,66 @@ export const AGENT_PROVIDERS: Record<string, AgentProvider> = {
     promptMode: 'stdin',
     detectCommand: 'goose --version',
   },
+  windsurf: {
+    command: 'windsurf',
+    args: ['--agent'],
+    promptMode: 'stdin',
+    detectCommand: 'windsurf --version',
+  },
+  vscode: {
+    command: 'code',
+    args: ['--agent'],
+    promptMode: 'stdin',
+    detectCommand: 'code --version',
+  },
+  amp: {
+    command: 'amp',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'amp --version',
+  },
+  'gemini-cli': {
+    command: 'gemini',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'gemini --version',
+  },
+  kimi: {
+    command: 'kimi',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'kimi --version',
+  },
+  warp: {
+    command: 'warp',
+    args: ['agent'],
+    promptMode: 'stdin',
+    detectCommand: 'warp --version',
+  },
+  pi: {
+    command: 'pi',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'pi --version',
+  },
+  crush: {
+    command: 'crush',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'crush --version',
+  },
+  'deep-agents': {
+    command: 'deep-agents',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'deep-agents --version',
+  },
+  antigravity: {
+    command: 'antigravity',
+    args: [],
+    promptMode: 'stdin',
+    detectCommand: 'antigravity --version',
+  },
 }
 
 /** Detect if an agent is available on the system */

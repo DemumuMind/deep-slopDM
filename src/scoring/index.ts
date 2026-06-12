@@ -8,7 +8,8 @@ export const DEFAULT_SCORING_CONFIG: ScoringConfig = {
   mode: 'logarithmic',
   severityWeights: { ...SEVERITY_WEIGHTS },
   defaultEngineWeight: 1.0,
-  smoothing: 1,
+  smoothing: 20,
+  maxPerRule: 40,
   tierDefaults: { ...TIER_DEFAULTS },
 }
 
@@ -38,12 +39,14 @@ function calculateLogarithmic(
   config: ScoringConfig,
 ): ScoringResult {
   const smoothing = config.smoothing
+  const maxPerRule = config.maxPerRule
 
   // Density: how concentrated are the issues relative to the codebase size?
   const density = Math.min(1, diagnostics.length / (fileCount + smoothing))
 
   // Track per-rule counts for capping
   const ruleCounts = new Map<string, number>()
+  const ruleDeductions = new Map<string, number>()
   let totalDeduction = 0
   let cappedCount = 0
 
@@ -64,7 +67,21 @@ function calculateLogarithmic(
     const ruleMultiplier = impact.multiplier
     const engineWeight = config.defaultEngineWeight
 
-    totalDeduction += severityWeight * ruleMultiplier * engineWeight
+    const deduction = severityWeight * ruleMultiplier * engineWeight
+
+    // Track per-rule deduction and cap at maxPerRule
+    const prevDeduction = ruleDeductions.get(d.rule) ?? 0
+    if (prevDeduction + deduction > maxPerRule) {
+      const allowed = maxPerRule - prevDeduction
+      if (allowed > 0) {
+        totalDeduction += allowed
+        ruleDeductions.set(d.rule, maxPerRule)
+      }
+      cappedCount++
+    } else {
+      totalDeduction += deduction
+      ruleDeductions.set(d.rule, prevDeduction + deduction)
+    }
   }
 
   // Scale by density — sparse issues in a large codebase are less concerning

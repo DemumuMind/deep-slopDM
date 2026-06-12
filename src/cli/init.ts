@@ -7,6 +7,8 @@ import { DEFAULT_CONFIG } from '../config/defaults.js'
 import { style, styleBold } from '../output/theme.js'
 import yaml from 'js-yaml'
 import type { DeepSlopConfig } from '../config/schema.js'
+import { getPreset, listPresets } from '../config/presets.js'
+import { deepMerge } from '../utils/deep-merge.js'
 
 /** Convert DEFAULT_CONFIG to a YAML-friendly plain object */
 function configToYaml(config: DeepSlopConfig, strict: boolean): string {
@@ -66,6 +68,7 @@ jobs:
 
 export interface InitOptions {
   strict?: boolean
+  preset?: string
 }
 
 export function runInit(targetPath: string, opts: InitOptions = {}): void {
@@ -78,6 +81,22 @@ export function runInit(targetPath: string, opts: InitOptions = {}): void {
   const created: string[] = []
   const skipped: string[] = []
 
+  // Resolve the base config: start from defaults, apply preset if provided
+  let baseConfig: DeepSlopConfig = { ...DEFAULT_CONFIG }
+
+  if (opts.preset) {
+    const preset = getPreset(opts.preset)
+    if (!preset) {
+      const available = listPresets().map((p) => p.name).join(', ')
+      process.stderr.write(`  ⚠ Preset "${opts.preset}" not found. Available: ${available}\n`)
+      process.exit(1)
+    }
+    baseConfig = deepMerge(
+      DEFAULT_CONFIG as unknown as Record<string, unknown>,
+      preset as unknown as Record<string, unknown>,
+    ) as unknown as DeepSlopConfig
+  }
+
   // Create .deep-slop/ directory + config.yml
   if (!existsSync(configDir)) {
     mkdirSync(configDir, { recursive: true })
@@ -86,8 +105,12 @@ export function runInit(targetPath: string, opts: InitOptions = {}): void {
   if (existsSync(configPath)) {
     skipped.push(configPath)
   } else {
-    const content = configToYaml(DEFAULT_CONFIG, !!opts.strict)
-    writeFileSync(configPath, content, 'utf-8')
+    const content = configToYaml(baseConfig, !!opts.strict)
+    // If using a preset, add extends field at the top
+    const finalContent = opts.preset
+      ? `extends: ${opts.preset}\n\n${content}`
+      : content
+    writeFileSync(configPath, finalContent, 'utf-8')
     created.push(configPath)
   }
 
@@ -124,6 +147,11 @@ export function runInit(targetPath: string, opts: InitOptions = {}): void {
   if (opts.strict) {
     console.log()
     console.log(`  ${style('suggestion', '→')} Strict mode: maxFunctionLoc=30, maxFileLoc=200, failBelow=75`)
+  }
+
+  if (opts.preset) {
+    console.log()
+    console.log(`  ${style('suggestion', '→')} Preset: ${opts.preset}`)
   }
 
   console.log()

@@ -37,7 +37,16 @@ export const DEFAULT_CONFIG: DeepSlopConfig = {
     hardcodedStrings: true,
     validateKeys: false,
   },
+  scoring: {
+    mode: 'logarithmic',
+    smoothing: 20,
+    maxPerRule: 40,
+  },
+  telemetry: {
+    enabled: false,
+  },
   exclude: ['node_modules', '.git', 'dist', 'build', 'coverage', 'tmp-*'],
+  ignore: [],
   ci: {
     failBelow: 70,
     format: 'json',

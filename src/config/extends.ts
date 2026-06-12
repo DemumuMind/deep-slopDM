@@ -2,6 +2,7 @@ import { readFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import yaml from 'js-yaml'
 import { deepMerge } from '../utils/deep-merge.js'
+import { getPreset, PRESETS } from './presets.js'
 
 /**
  * Load a raw config object from a file path.
@@ -16,10 +17,24 @@ function loadRawConfig(filePath: string): Record<string, unknown> {
 }
 
 /**
+ * Check if a string looks like a file path (starts with ./ or / or contains /)
+ */
+function isFilePath(value: string): boolean {
+  return value.startsWith('./') || value.startsWith('../') || value.startsWith('/') || value.includes('/')
+}
+
+/** All available preset names for error messages */
+const PRESET_NAMES = Object.keys(PRESETS)
+
+/**
  * Resolve the "extends" chain for a config file.
  * Checks for an "extends" key, loads the parent config,
  * recursively resolves the parent's own extends,
  * then deep-merges child overrides on top of the parent.
+ *
+ * Supports two forms of extends:
+ * - File path: extends: './path/to/config.yml' → load from file
+ * - Preset name: extends: 'typescript-strict' → load from PRESETS
  *
  * @param configPath - Absolute path to the config file
  * @returns The fully resolved (merged) raw config object
@@ -33,22 +48,38 @@ export function resolveExtends(
     return raw
   }
 
-  // Resolve parent path relative to the current config's directory
-  const parentPath = resolve(dirname(configPath), raw.extends)
-
-  if (!existsSync(parentPath)) {
-    throw new Error(
-      `[deep-slop] Config extends "${raw.extends}" but file not found: ${parentPath}`,
-    )
-  }
-
-  // Recursively resolve the parent's extends chain first
-  const parent = resolveExtends(parentPath)
+  const extendsValue = raw.extends as string
 
   // Remove the "extends" key before merging — it's not a config value
   const childWithoutExtends = { ...raw }
   delete childWithoutExtends.extends
 
-  // Child overrides parent
-  return deepMerge(parent, childWithoutExtends)
+  // Check if extends is a preset name or a file path
+  if (isFilePath(extendsValue)) {
+    // File path: resolve relative to the current config's directory
+    const parentPath = resolve(dirname(configPath), extendsValue)
+
+    if (!existsSync(parentPath)) {
+      throw new Error(
+        `[deep-slop] Config extends "${extendsValue}" but file not found: ${parentPath}`,
+      )
+    }
+
+    // Recursively resolve the parent's extends chain first
+    const parent = resolveExtends(parentPath)
+
+    // Child overrides parent
+    return deepMerge(parent, childWithoutExtends)
+  }
+
+  // Preset name: load from PRESETS
+  const preset = getPreset(extendsValue)
+  if (!preset) {
+    throw new Error(
+      `[deep-slop] Config extends "${extendsValue}" but preset not found. Available presets: ${PRESET_NAMES.join(', ')}`,
+    )
+  }
+
+  // Merge preset as parent, child overrides
+  return deepMerge(preset as unknown as Record<string, unknown>, childWithoutExtends)
 }

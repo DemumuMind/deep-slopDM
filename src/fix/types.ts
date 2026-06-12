@@ -52,4 +52,40 @@ export interface FixOptions {
   dryRun: boolean
   /** If true, re-scan after fix and rollback if score worsened */
   verify: boolean
+  /** If true, show detailed plan with before/after snippets and confirmation prompt */
+  plan?: boolean
+}
+
+/** A single item in the preview plan output */
+export interface PlanPreviewItem {
+  /** File path relative to root */
+  filePath: string
+  /** Rule that produced this fix */
+  rule: string
+  /** Original code (before) snippet */
+  before: string
+  /** Replacement code (after) snippet */
+  after: string
+  /** Confidence of the fix */
+  confidence: number
+  /** Start line (1-based) */
+  startLine: number
+  /** End line (1-based) */
+  endLine: number
+}
+
+/** Result of a plan preview run */
+export interface PlanPreviewResult {
+  /** Items in the plan */
+  items: PlanPreviewItem[]
+  /** Distinct files that will be modified */
+  filesAffected: string[]
+  /** Total number of diagnostics addressed */
+  diagnosticsAddressed: number
+  /** Current score */
+  scoreBefore: number
+  /** Estimated score after applying all fixes */
+  estimatedScoreAfter: number
+  /** Estimated effort level */
+  estimatedEffort: 'low' | 'medium' | 'high'
 }

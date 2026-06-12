@@ -6,54 +6,56 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import type { HookProvider } from './types.js'
 
-function uninstallClaudeHook(scope: string): void {
-  const configPath = scope === 'global'
-    ? join(homedir(), '.claude', 'settings.json')
-    : join(process.cwd(), '.claude', 'settings.json')
+function uninstallClaudeHook(rootDir: string): void {
+  const projectPath = join(rootDir, '.claude', 'settings.json')
+  const globalPath = join(homedir(), '.claude', 'settings.json')
 
-  if (!existsSync(configPath)) {
-    process.stderr.write(`  ⚠ Claude config not found: ${configPath}\n`)
-    return
-  }
+  // Try project-level first, then global
+  for (const configPath of [projectPath, globalPath]) {
+    if (!existsSync(configPath)) continue
 
-  let config: Record<string, unknown>
-  try {
-    config = JSON.parse(readFileSync(configPath, 'utf-8'))
-  } catch {
-    process.stderr.write(`  ⚠ Could not parse Claude config: ${configPath}\n`)
-    return
-  }
-
-  const hooks = config.hooks as Record<string, unknown[]> | undefined
-  if (!hooks?.postToolUse) {
-    process.stderr.write(`  ℹ No Claude hooks found to remove\n`)
-    return
-  }
-
-  const before = hooks.postToolUse.length
-  hooks.postToolUse = hooks.postToolUse.filter(
-    (h: unknown) =>
-      !(typeof h === 'object' && h !== null && String((h as Record<string, unknown>).command ?? '').includes('deep-slop')),
-  )
-
-  if (hooks.postToolUse.length === before) {
-    process.stderr.write(`  ℹ No deep-slop hook found in Claude config\n`)
-    return
-  }
-
-  if (hooks.postToolUse.length === 0) {
-    delete hooks.postToolUse
-    if (Object.keys(hooks).length === 0) {
-      delete config.hooks
+    let config: Record<string, unknown>
+    try {
+      config = JSON.parse(readFileSync(configPath, 'utf-8'))
+    } catch {
+      process.stderr.write(`  ⚠ Could not parse Claude config: ${configPath}\n`)
+      continue
     }
+
+    const hooks = config.hooks as Record<string, unknown[]> | undefined
+    if (!hooks?.postToolUse) {
+      process.stderr.write(`  ℹ No Claude hooks found in ${configPath}\n`)
+      continue
+    }
+
+    const before = hooks.postToolUse.length
+    hooks.postToolUse = hooks.postToolUse.filter(
+      (h: unknown) =>
+        !(typeof h === 'object' && h !== null && String((h as Record<string, unknown>).command ?? '').includes('deep-slop')),
+    )
+
+    if (hooks.postToolUse.length === before) {
+      process.stderr.write(`  ℹ No deep-slop hook found in ${configPath}\n`)
+      continue
+    }
+
+    if (hooks.postToolUse.length === 0) {
+      delete hooks.postToolUse
+      if (Object.keys(hooks).length === 0) {
+        delete config.hooks
+      }
+    }
+
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8')
+    process.stderr.write(`  ✔ Claude hook removed from ${configPath}\n`)
+    return
   }
 
-  writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8')
-  process.stderr.write(`  ✔ Claude hook removed from ${configPath}\n`)
+  process.stderr.write(`  ℹ No Claude config found with deep-slop hooks\n`)
 }
 
-function uninstallCursorHook(): void {
-  const rulePath = join(process.cwd(), '.cursor', 'rules', 'deep-slop-quality.mdc')
+function uninstallCursorHook(rootDir: string): void {
+  const rulePath = join(rootDir, '.cursor', 'rules', 'deep-slop-quality.mdc')
 
   if (!existsSync(rulePath)) {
     process.stderr.write(`  ℹ Cursor rule not found: ${rulePath}\n`)
@@ -64,8 +66,8 @@ function uninstallCursorHook(): void {
   process.stderr.write(`  ✔ Cursor rule removed: ${rulePath}\n`)
 }
 
-function uninstallGeminiHook(): void {
-  const configPath = join(process.cwd(), '.gemini', 'config.json')
+function uninstallGeminiHook(rootDir: string): void {
+  const configPath = join(rootDir, '.gemini', 'config.json')
 
   if (!existsSync(configPath)) {
     process.stderr.write(`  ℹ Gemini config not found: ${configPath}\n`)
@@ -91,8 +93,8 @@ function uninstallGeminiHook(): void {
   process.stderr.write(`  ✔ Gemini hook removed from ${configPath}\n`)
 }
 
-function uninstallClineHook(): void {
-  const rulePath = join(process.cwd(), '.clinerules')
+function uninstallClineHook(rootDir: string): void {
+  const rulePath = join(rootDir, '.clinerules')
 
   if (!existsSync(rulePath)) {
     process.stderr.write(`  ℹ Cline rules file not found: ${rulePath}\n`)
@@ -115,21 +117,24 @@ function uninstallClineHook(): void {
   }
 }
 
-const UNINSTALLERS: Record<HookProvider, (scope: string) => void> = {
+const UNINSTALLERS: Record<HookProvider, (rootDir: string) => void> = {
   claude: uninstallClaudeHook,
-  cursor: () => uninstallCursorHook(),
-  gemini: () => uninstallGeminiHook(),
-  cline: () => uninstallClineHook(),
+  cursor: uninstallCursorHook,
+  gemini: uninstallGeminiHook,
+  cline: uninstallClineHook,
 }
 
 /**
  * Uninstall a deep-slop hook from a provider's configuration.
+ *
+ * @param provider - Which provider to uninstall ('claude'|'cursor'|'gemini'|'cline')
+ * @param rootDir - Project root directory where provider configs live
  */
-export async function uninstallHook(provider: HookProvider, scope: string): Promise<void> {
-  const uninstaller = UNINSTALLERS[provider]
+export async function uninstallHook(provider: string, rootDir: string): Promise<void> {
+  const uninstaller = UNINSTALLERS[provider as HookProvider]
   if (!uninstaller) {
-    throw new Error(`Unknown hook provider: ${provider}`)
+    throw new Error(`Unknown hook provider: ${provider}. Supported: claude, cursor, gemini, cline`)
   }
 
-  uninstaller(scope)
+  uninstaller(rootDir)
 }

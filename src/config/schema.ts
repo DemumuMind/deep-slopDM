@@ -16,6 +16,7 @@ export const EngineNameSchema = z.enum([
   'meta-quality',
   'lint-external',
   'arch-rules',
+  'knip',
 ])
 
 /** Quality thresholds schema */
@@ -64,6 +65,13 @@ export const I18nSchema = z.object({
   validateKeys: z.boolean(),
 }).passthrough()
 
+/** Scoring configuration schema */
+export const ScoringSchema = z.object({
+  mode: z.enum(['logarithmic', 'linear']).default('logarithmic'),
+  smoothing: z.number().default(20),
+  maxPerRule: z.number().default(40),
+}).default({ mode: 'logarithmic', smoothing: 20, maxPerRule: 40 })
+
 /** CI quality gate schema */
 export const CiSchema = z.object({
   failBelow: z.number().default(70),
@@ -85,7 +93,11 @@ export const RawConfigSchema = z.object({
   types: TypesSchema.optional(),
   deadCode: DeadCodeSchema.optional(),
   i18n: I18nSchema.optional(),
+  scoring: ScoringSchema.optional(),
+  telemetry: z.object({ enabled: z.boolean().default(false) }).optional(),
   exclude: z.array(z.string()).optional(),
+  /** Ignore patterns (gitignore-style, loaded from .deep-slopignore and config) */
+  ignore: z.array(z.string()).optional(),
   ci: CiSchema.optional(),
   extends: z.string().optional(),
   /** Per-rule severity overrides (e.g. { "ast-slop/narrative-comment": "off" }) */
@@ -111,8 +123,14 @@ export const DeepSlopConfigSchema = z.object({
   deadCode: DeadCodeSchema,
   /** i18n config */
   i18n: I18nSchema,
+  /** Scoring config */
+  scoring: ScoringSchema,
+  /** Telemetry config */
+  telemetry: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
   /** Exclude patterns */
   exclude: z.array(z.string()),
+  /** Ignore patterns (gitignore-style, from .deep-slopignore and config) */
+  ignore: z.array(z.string()).default([]),
   /** CI quality gate */
   ci: CiSchema,
   /** Per-rule severity overrides (e.g. { "ast-slop/narrative-comment": "off" }) */

@@ -5,7 +5,7 @@ import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
 import { LiveGrid } from '../ui/live-grid.js'
 
-/** Registry of all 14 engines (loaded lazily) */
+/** Registry of all 15 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "ast-slop": () => import("../engines/ast-slop/index.js").then((m) => m.astSlopEngine),
   "import-intelligence": () => import("../engines/import-intelligence/index.js").then((m) => m.importIntelligenceEngine),
@@ -21,6 +21,7 @@ const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "meta-quality": () => import("../engines/meta-quality/index.js").then((m) => m.metaQualityEngine),
   "lint-external": () => import("../engines/lint-external/index.js").then((m) => m.lintExternalEngine),
   "arch-rules": () => import("../engines/arch-rules/index.js").then((m) => m.archRulesEngine),
+  "knip": () => import("../engines/knip/index.js").then((m) => m.knipEngine),
 };
 
 export interface OrchestratorCallbacks {

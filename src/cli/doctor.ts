@@ -26,6 +26,7 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'meta-quality': '../engines/meta-quality/index.js',
   'arch-rules': '../engines/arch-rules/index.js',
   'lint-external': '../engines/lint-external/index.js',
+  'knip': '../engines/knip/index.js',
 }
 
 /** ESLint config file candidates */
