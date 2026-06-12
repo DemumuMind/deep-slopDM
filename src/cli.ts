@@ -7,6 +7,8 @@ import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discove
 import { getChangedFiles, getStagedFiles, baseRefExists, isGitRepo, filterToChanged } from "./utils/git-diff.js";
 import { DEFAULT_CONFIG, type DeepSlopConfig } from "./types/index.js";
 import { applyRuleSeverities, type RuleSeverityOverride } from "./scoring/rule-overrides.js";
+import { assessCoverage } from './utils/coverage-gate.js'
+import { computeExitCode } from './utils/exit-code.js'
 import { formatOutput } from "./output/formatter.js";
 import { generateSarif } from "./output/sarif.js";
 import { APP_VERSION } from "./version.js";
@@ -28,11 +30,18 @@ import { detectAllProviders } from "./agents/providers.js";
 
 type OutputFormat = 'human' | 'json' | 'sarif'
 
+/** Parse an optional integer option value */
+function parseOptInt(value: string | undefined): number | undefined {
+  if (value === undefined) return undefined
+  const parsed = parseInt(value, 10)
+  return Number.isNaN(parsed) ? undefined : parsed
+}
+
 const program = new Command();
 
 program
   .name("deep-slop")
-  .description("Deep AI slop detection — 12 engines, AST-powered, with alternative import paths")
+  .description("Deep AI slop detection — 14 engines, AST-powered, with alternative import paths")
   .version(APP_VERSION);
 
 // ── SCAN ────────────────────────────────────────────────
@@ -167,7 +176,7 @@ program
     }
 
     // CI gate
-    if (config.ci?.failBelow && result.score < config.ci.failBelow) {
+    if (config.ci.failBelow && result.score < config.ci.failBelow) {
       console.error(`\n  ❌ Score ${result.score} is below threshold ${config.ci.failBelow}`);
       process.exit(1);
     }
@@ -278,15 +287,27 @@ program
 // ── CI ──────────────────────────────────────────────────
 program
   .command("ci")
-  .description("CI mode: JSON output + quality gate")
+  .description("CI mode: quality gate with coverage-aware scoring")
   .argument("[path]", "project directory", ".")
-  .option("--fail-below <score>", "Fail if score below threshold", "70")
+  .option("--fail-below <n>", "Fail if score below threshold", parseOptInt)
+  .option("--human", "Human-readable output (shorthand for --format human)")
+  .option("--sarif", "SARIF 2.1.0 output (shorthand for --format sarif)")
+  .option("--format <json|human|sarif>", "Output format", 'json')
+  .option("--fail-on-errors", "Exit 1 if any error-severity diagnostics")
   .option("--changes", "Scan only changed files (from git)")
   .option("--staged", "Scan only staged files")
   .option("--base <ref>", "Diff against arbitrary ref (e.g. origin/main)")
+  .option("--exclude <patterns...>", "Exclude these paths")
+  .option("--engine <engines...>", "Run only these engines")
   .action(async (path: string, opts: Record<string, any>) => {
-    // CI mode is essentially scan --json with a quality gate
     const rootDir = resolve(path);
+
+    // Resolve output format
+    let format: OutputFormat = opts.format ?? 'json'
+    if (opts.human) format = 'human'
+    if (opts.sarif) format = 'sarif'
+
+    // Detect project
     const languages = await detectLanguages(rootDir);
     const frameworks = await detectFrameworks(rootDir);
     let files = await collectFiles(rootDir, languages);
@@ -321,11 +342,30 @@ program
       process.stderr.write(`  ${diffScope} file(s)\n`)
     }
 
+    // Build config — start from defaults, override with CLI
     const config: DeepSlopConfig = {
       ...DEFAULT_CONFIG,
-      ci: { failBelow: parseInt(opts.failBelow) },
-    };
+      exclude: [...DEFAULT_CONFIG.exclude, ...(opts.exclude ?? [])],
+    }
 
+    // Enable only selected engines
+    if (opts.engine) {
+      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
+        config.engines[name as keyof typeof config.engines] = false
+      }
+      for (const name of opts.engine) {
+        config.engines[name as keyof typeof config.engines] = true
+      }
+    }
+
+    // CI config overrides from CLI
+    const failBelow = opts.failBelow ?? config.ci.failBelow
+    const failOnErrors = opts.failOnErrors ?? config.ci.failOnErrors
+
+    // Assess coverage to determine scoreability
+    const coverageInfo = assessCoverage(languages, files.length)
+
+    // Run scan (no progress output in CI)
     const result = await runScan({
       rootDirectory: rootDir,
       languages,
@@ -334,11 +374,58 @@ program
       installedTools: {},
       config,
       diffScope,
-    });
+    })
 
-    console.log(JSON.stringify(result, null, 2));
-    process.exit(result.score < config.ci!.failBelow ? 1 : 0);
-  });
+    // Determine if any error-severity diagnostics exist
+    const hasErrors = (result.bySeverity.error ?? 0) > 0
+
+    // Output in the requested format
+    if (format === 'sarif') {
+      const sarifLog = generateSarif(result)
+      console.log(JSON.stringify(sarifLog, null, 2))
+    } else if (format === 'human') {
+      console.log(formatOutput(result))
+      // Append coverage and gate info
+      if (!coverageInfo.isScoreable) {
+        console.log(style('warn', `  ⚠  Score withheld: ${coverageInfo.reason}`))
+      }
+      if (hasErrors && failOnErrors) {
+        console.log(style('danger', `  ✖  ${result.bySeverity.error} error-severity diagnostic(s) found`))
+      }
+      if (coverageInfo.isScoreable && result.score < failBelow) {
+        console.log(style('danger', `  ✖  Score ${result.score} is below threshold ${failBelow}`))
+      }
+    } else {
+      // JSON (default) — include coverage info in the output
+      const output = {
+        ...result,
+        coverage: coverageInfo,
+        gate: {
+          failBelow,
+          failOnErrors,
+          scoreable: coverageInfo.isScoreable,
+          hasErrors,
+          score: coverageInfo.isScoreable ? result.score : null,
+        },
+      }
+      console.log(JSON.stringify(output, null, 2))
+    }
+
+    // Coverage warning on stderr (always, regardless of format)
+    if (!coverageInfo.isScoreable) {
+      process.stderr.write(`  ⚠  Coverage gate: ${coverageInfo.reason}\n`)
+    }
+
+    // Compute and exit with the appropriate code
+    const exitCode = computeExitCode({
+      hasErrors,
+      failOnErrors,
+      scoreable: coverageInfo.isScoreable,
+      score: result.score,
+      failBelow,
+    })
+    process.exit(exitCode)
+  })
 
 // ── RULES ───────────────────────────────────────────────
 import { getCatalog, findRule, type RuleInfo } from './engines/catalog.js'
@@ -1110,4 +1197,360 @@ agentCmd
     console.log('')
   })
 
-program.parse();
+// ── agent monitor ─────────────────────────────────────
+import {
+  runMonitorLoop,
+  spawnBackgroundMonitor,
+  listMonitors,
+  readMonitorState,
+  stopMonitor,
+  removeMonitorState,
+  type MonitorOptions,
+} from './agent/monitor.js'
+
+const monitorCmd = agentCmd
+  .command('monitor')
+  .description('Watch for git changes and auto-repair when score drops below target')
+
+monitorCmd
+  .command('start', { isDefault: true })
+  .description('Start monitoring a directory for changes')
+  .argument('[directory]', 'project directory', '.')
+  .option('--background', 'Spawn detached process and return immediately')
+  .option('--once', 'Single scan cycle then exit')
+  .option('--target-score <n>', 'Auto-repair when score drops below', '75')
+  .option('--repair', 'Auto-repair on regression')
+  .option('--interval <ms>', 'Polling interval in ms', '10000')
+  .option('--provider <name>', 'Agent provider to use', 'claude')
+  .option('--max-turns <n>', 'Max repair turns', '5')
+  .action(async (directory: string, opts: Record<string, any>) => {
+    const rootDir = resolve(directory)
+    const options: MonitorOptions = {
+      rootDir,
+      interval: parseInt(opts.interval ?? '10000', 10),
+      background: opts.background ?? false,
+      once: opts.once ?? false,
+      targetScore: parseInt(opts.targetScore ?? '75', 10),
+      repair: opts.repair ?? false,
+      provider: opts.provider ?? 'claude',
+      maxTurns: parseInt(opts.maxTurns ?? '5', 10),
+    }
+
+    if (options.background) {
+      const monitorId = spawnBackgroundMonitor(options)
+      console.log('')
+      console.log(separator())
+      console.log(styleBold('info', '  Monitor started in background'))
+      console.log(separator())
+      console.log(`  Monitor ID:  ${style('suggestion', monitorId)}`)
+      console.log(`  Root:        ${rootDir}`)
+      console.log(`  Interval:    ${options.interval}ms`)
+      console.log(`  Target:      ${options.targetScore}`)
+      console.log(`  Auto-repair: ${options.repair ? style('success', 'yes') : style('muted', 'no')}`)
+      console.log(separator())
+      console.log('')
+      return
+    }
+
+    try {
+      await runMonitorLoop(options)
+    } catch (err) {
+      console.log(`  ${styleBold('danger', 'Error:')} ${err instanceof Error ? err.message : String(err)}`)
+      process.exit(1)
+    }
+  })
+
+monitorCmd
+  .command('list')
+  .description('List all monitors')
+  .argument('[directory]', 'project directory', '.')
+  .action((directory: string) => {
+    const rootDir = resolve(directory)
+    const monitors = listMonitors(rootDir)
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  Monitors'))
+    console.log(separator())
+
+    if (monitors.length === 0) {
+      console.log(style('muted', '  No monitors found'))
+    } else {
+      for (const m of monitors) {
+        const statusIcon = m.status === 'running' ? style('success', '●') : m.status === 'error' ? style('danger', '✖') : style('muted', '○')
+        const scoreStr = m.lastScore !== null ? String(m.lastScore) : style('muted', '—')
+        console.log(`  ${statusIcon} ${style('info', m.id)}  score=${scoreStr}  cycles=${m.scanCycles}  repairs=${m.repairsTriggered}  pid=${m.pid}  ${style('muted', m.status)}`)
+      }
+    }
+
+    console.log(separator())
+    console.log('')
+  })
+
+monitorCmd
+  .command('show')
+  .description('Show details for a specific monitor')
+  .argument('<id>', 'Monitor ID')
+  .argument('[directory]', 'project directory', '.')
+  .action((id: string, directory: string) => {
+    const rootDir = resolve(directory)
+    const state = readMonitorState(rootDir, id)
+
+    if (!state) {
+      console.log(style('danger', `  Monitor not found: ${id}`))
+      process.exit(1)
+    }
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', `  Monitor: ${state.id}`))
+    console.log(separator())
+    console.log(`  Status:       ${state.status === 'running' ? style('success', 'running') : state.status === 'error' ? style('danger', 'error') : style('muted', 'stopped')}`)
+    console.log(`  Root:         ${state.rootDir}`)
+    console.log(`  PID:          ${state.pid}`)
+    console.log(`  Started:     ${state.startedAt}`)
+    console.log(`  Last score:   ${state.lastScore !== null ? state.lastScore : style('muted', '—')}`)
+    console.log(`  Scan cycles:  ${state.scanCycles}`)
+    console.log(`  Repairs:      ${state.repairsTriggered}`)
+    console.log(`  Interval:     ${state.options.interval}ms`)
+    console.log(`  Target:       ${state.options.targetScore}`)
+    console.log(`  Auto-repair:  ${state.options.repair ? 'yes' : 'no'}`)
+    console.log(`  Provider:     ${state.options.provider}`)
+    console.log(separator())
+    console.log('')
+  })
+
+monitorCmd
+  .command('stop')
+  .description('Stop a running monitor')
+  .argument('<id>', 'Monitor ID')
+  .argument('[directory]', 'project directory', '.')
+  .action((id: string, directory: string) => {
+    const rootDir = resolve(directory)
+    const stopped = stopMonitor(rootDir, id)
+
+    if (!stopped) {
+      console.log(style('danger', `  Monitor not found: ${id}`))
+      process.exit(1)
+    }
+
+    console.log('')
+    console.log(style('success', `  Monitor ${id} stopped`))
+    console.log('')
+  })
+
+// ── agent sessions ────────────────────────────────────
+import {
+  listSessions,
+  getSession,
+  generateSessionId,
+  appendSessionStep,
+  updateSession,
+  createSession,
+  type Session,
+} from './agent/sessions.js'
+
+agentCmd
+  .command('sessions')
+  .description('List all agent repair sessions')
+  .argument('[directory]', 'project directory', '.')
+  .action((directory: string) => {
+    const rootDir = resolve(directory)
+    const sessions = listSessions(rootDir)
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  Agent Sessions'))
+    console.log(separator())
+
+    if (sessions.length === 0) {
+      console.log(style('muted', '  No sessions found'))
+    } else {
+      console.log(`  ${style('muted', 'ID'.padEnd(20))} ${style('muted', 'Phase'.padEnd(18))} ${style('muted', 'Score'.padEnd(12))} ${style('muted', 'Turns')}  ${style('muted', 'Provider')}`)
+      for (const s of sessions) {
+        const phaseStr = s.phase === 'done' ? style('success', s.phase)
+          : s.phase === 'error' ? style('danger', s.phase)
+          : s.phase === 'running' ? style('info', s.phase)
+          : s.phase === 'awaiting-decision' ? style('warn', s.phase)
+          : style('muted', s.phase)
+        const scoreDelta = s.finalScore - s.initialScore
+        const scoreStr = `${s.initialScore}→${s.finalScore}${scoreDelta >= 0 ? style('success', `+${scoreDelta}`) : style('danger', String(scoreDelta))}`
+        console.log(`  ${style('suggestion', s.id.padEnd(20))} ${phaseStr.padEnd(18 + 20)} ${scoreStr.padEnd(12 + 20)} ${String(s.turns).padEnd(6)} ${style('info', s.provider)}`)
+      }
+    }
+
+    console.log(separator())
+    console.log('')
+  })
+
+// ── agent show ────────────────────────────────────────
+agentCmd
+  .command('show')
+  .description('Show details for a specific agent session')
+  .argument('<id>', 'Session ID')
+  .argument('[directory]', 'project directory', '.')
+  .action((id: string, directory: string) => {
+    const rootDir = resolve(directory)
+    const detail = getSession(rootDir, id)
+
+    if (!detail) {
+      console.log(style('danger', `  Session not found: ${id}`))
+      process.exit(1)
+    }
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', `  Session: ${detail.id}`))
+    console.log(separator())
+    console.log(`  Provider:     ${style('info', detail.provider)}`)
+    console.log(`  Phase:        ${detail.phase === 'done' ? style('success', detail.phase) : detail.phase === 'error' ? style('danger', detail.phase) : style('info', detail.phase)}`)
+    console.log(`  Started:      ${detail.startTime}`)
+    if (detail.endTime) console.log(`  Ended:        ${detail.endTime}`)
+    const delta = detail.finalScore - detail.initialScore
+    const deltaStr = delta >= 0 ? style('success', `+${delta}`) : style('danger', String(delta))
+    console.log(`  Score:        ${detail.initialScore} → ${detail.finalScore} (${deltaStr})`)
+    console.log(`  Target:       ${detail.targetScore}`)
+    console.log(`  Turns:        ${detail.turns}/${detail.maxTurns}`)
+    console.log(`  Files:        ${detail.filesCount} modified`)
+    if (detail.error) console.log(`  Error:        ${style('danger', detail.error)}`)
+
+    if (detail.steps.length > 0) {
+      console.log('')
+      console.log(style('muted', '  Steps:'))
+      for (const step of detail.steps) {
+        const icon = step.type === 'scan' ? '🔍'
+          : step.type === 'fix' ? '🔧'
+          : step.type === 'rollback' ? '↩'
+          : step.type === 'commit' ? '📦'
+          : step.type === 'verify' ? '✓'
+          : step.type === 'provider-call' ? '⚡'
+          : step.type === 'file-edit' ? '✎'
+          : '·'
+        const timeStr = step.timestamp.split('T')[1]?.slice(0, 8) ?? ''
+        const scoreStr = step.score !== undefined ? ` score=${step.score}` : ''
+        console.log(`    ${icon} ${style('muted', timeStr)} ${step.description}${style('muted', scoreStr)}`)
+      }
+    }
+
+    if (detail.files.length > 0) {
+      console.log('')
+      console.log(style('muted', '  Modified files:'))
+      for (const f of detail.files) {
+        console.log(`    ${style('suggestion', f)}`)
+      }
+    }
+
+    console.log(separator())
+    console.log('')
+  })
+
+// ── agent apply ───────────────────────────────────────
+agentCmd
+  .command('apply')
+  .description('Apply changes from a completed session (re-run repair with same parameters)')
+  .argument('<id>', 'Session ID')
+  .argument('[directory]', 'project directory', '.')
+  .option('--in-place', 'Edit current tree (no worktree isolation)')
+  .option('--commit', 'Git commit after each improvement')
+  .action(async (id: string, directory: string, opts: Record<string, any>) => {
+    const rootDir = resolve(directory)
+    const detail = getSession(rootDir, id)
+
+    if (!detail) {
+      console.log(style('danger', `  Session not found: ${id}`))
+      process.exit(1)
+    }
+
+    if (detail.phase !== 'done') {
+      console.log(style('warn', `  Session ${id} is not completed (phase: ${detail.phase}). Cannot apply.`))
+      process.exit(1)
+    }
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', `  Re-applying session: ${id}`))
+    console.log(separator())
+
+    try {
+      const result = await runRepairLoop({
+        rootDir,
+        provider: detail.provider,
+        targetScore: detail.targetScore,
+        maxTurns: detail.maxTurns,
+        inPlace: opts.inPlace ?? true,
+        dryRun: false,
+        apply: true,
+        commit: opts.commit ?? true,
+        pr: false,
+      })
+
+      console.log('')
+      console.log(separator())
+      console.log(styleBold('info', '  Apply Summary'))
+      console.log(separator())
+      console.log(`  Initial score: ${result.initialScore}`)
+      console.log(`  Final score:   ${styleBold(result.finalScore >= result.initialScore ? 'success' : 'danger', String(result.finalScore))}`)
+      console.log(`  Turns used:    ${result.turnsUsed}`)
+      console.log(`  Files changed: ${result.filesModified.length}`)
+      console.log(separator())
+      console.log('')
+    } catch (err) {
+      console.log(`  ${styleBold('danger', 'Error:')} ${err instanceof Error ? err.message : String(err)}`)
+      process.exit(1)
+    }
+  })
+
+// ── agent stop ────────────────────────────────────────
+agentCmd
+  .command('stop')
+  .description('Stop a running agent session (sets phase to error)')
+  .argument('<id>', 'Session ID')
+  .argument('[directory]', 'project directory', '.')
+  .action((id: string, directory: string) => {
+    const rootDir = resolve(directory)
+    const detail = getSession(rootDir, id)
+
+    if (!detail) {
+      console.log(style('danger', `  Session not found: ${id}`))
+      process.exit(1)
+    }
+
+    if (detail.phase !== 'running' && detail.phase !== 'starting') {
+      console.log(style('warn', `  Session ${id} is not running (phase: ${detail.phase})`))
+      return
+    }
+
+    updateSession(rootDir, id, {
+      phase: 'error',
+      endTime: new Date().toISOString(),
+      error: 'Stopped by user',
+    })
+
+    console.log('')
+    console.log(style('success', `  Session ${id} stopped`))
+    console.log('')
+  })
+
+// ── NO-ARGS: interactive menu ──────────────────────────
+import { interactiveMenu } from './ui/interactive.js'
+
+// When no subcommand is given, launch the interactive TUI menu
+const originalParse = program.parse.bind(program)
+program.parse = function (argv?: readonly string[]) {
+  const args = argv ?? process.argv
+  // Check if a subcommand was provided (skip node + script name)
+  const subArgs = args.slice(2)
+  const hasSubcommand = subArgs.length > 0 && !subArgs[0].startsWith('-')
+
+  if (!hasSubcommand) {
+    // No subcommand → launch interactive menu
+    interactiveMenu().catch(() => {
+      process.exit(1)
+    })
+    return program as any
+  }
+
+  return originalParse(args)
+}
+
+program.parse()

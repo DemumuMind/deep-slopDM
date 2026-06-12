@@ -60,6 +60,9 @@ const labels: Record<string, string> = {
   'security-deep/prototype-pollution': 'Prototype Pollution',
   'security-deep/ssrf-risk': 'SSRF Risk',
   'security-deep/hardcoded-secret': 'Hardcoded Secret',
+  'security-deep/dependency-vulnerability': 'Dependency Vulnerability',
+  'security-deep/xss-risk': 'XSS Risk',
+  'security-deep/unsafe-html': 'Unsafe HTML',
 
   // syntax-deep
   'syntax-deep/bom-present': 'BOM Present',
@@ -125,6 +128,11 @@ const labels: Record<string, string> = {
   'meta-quality/quality-gate-failed': 'Quality Gate Failed',
   'meta-quality/quality-gate-passed': 'Quality Gate Passed',
   'meta-quality/missing-config': 'Missing Config',
+
+  // lint-external
+  'lint-external/ruff': 'Ruff Lint (Python)',
+  'lint-external/golangci': 'golangci-lint (Go)',
+  'lint-external/clippy': 'Clippy Lint (Rust)',
 }
 
 /**

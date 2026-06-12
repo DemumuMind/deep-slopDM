@@ -233,7 +233,7 @@ export const metaQualityEngine: Engine = {
     const gateDiags = qualityGate(
       join(rootDir, "package.json"),
       100, // default score (will be overridden by orchestrator)
-      context.config.ci?.failBelow,
+      context.config.ci.failBelow,
     );
     diagnostics.push(...gateDiags);
 

@@ -12,8 +12,8 @@ export const DEFAULT_CONFIG: DeepSlopConfig = {
     maxCoupling: 10,
   },
   security: {
-    audit: true,
-    auditTimeout: 60,
+    audit: false,
+    auditTimeout: 25000,
     owasp: true,
   },
   imports: {
@@ -38,5 +38,10 @@ export const DEFAULT_CONFIG: DeepSlopConfig = {
     validateKeys: false,
   },
   exclude: ['node_modules', '.git', 'dist', 'build', 'coverage', 'tmp-*'],
+  ci: {
+    failBelow: 70,
+    format: 'json',
+    failOnErrors: true,
+  },
   rules: {},
 }

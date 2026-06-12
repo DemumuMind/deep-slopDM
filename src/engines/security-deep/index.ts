@@ -8,6 +8,9 @@ import type {
   FixResult,
 } from "../../types/index.js";
 import { readFileContent, toLines } from "../../utils/file-utils.js";
+import { npmAudit, pnpmAudit, pipAudit, goVulnCheck, cargoAudit } from "../../security/audit.js";
+import { detectSecrets } from "../../security/secrets.js";
+import { detectHtmlSafety } from "../../security/html-safety.js";
 
 // ── Helper: build a diagnostic ──────────────────────────
 
@@ -768,7 +771,7 @@ function detectHardcodedSecret(
 export const securityDeepEngine: Engine = {
   name: "security-deep" as const,
   description:
-    "Security vulnerability detection: eval, innerHTML, SQL injection, shell injection, prototype pollution, SSRF, hardcoded secrets",
+    "Security vulnerability detection: eval, innerHTML, SQL injection, shell injection, prototype pollution, SSRF, hardcoded secrets, XSS risk, dependency audit",
   supportedLanguages: [
     "typescript",
     "javascript",
@@ -784,6 +787,8 @@ export const securityDeepEngine: Engine = {
     const start = performance.now();
     const diagnostics: Diagnostic[] = [];
     const files = context.files ?? [];
+    const rootDir = context.rootDirectory;
+    const config = context.config;
 
     for (const filePath of files) {
       try {
@@ -793,7 +798,7 @@ export const securityDeepEngine: Engine = {
         // Rule 1: eval / new Function / timer-with-string
         diagnostics.push(...detectEvalUsage(filePath, lines));
 
-        // Rule 2: innerHTML / document.write
+        // Rule 2: innerHTML / document.write (legacy inline rule)
         diagnostics.push(...detectInnerHTML(filePath, lines));
 
         // Rule 3: SQL injection via concatenation
@@ -808,10 +813,41 @@ export const securityDeepEngine: Engine = {
         // Rule 6: SSRF risk
         diagnostics.push(...detectSSRF(filePath, lines));
 
-        // Rule 7: Hardcoded secrets
+        // Rule 7: Hardcoded secrets (extended via secrets module)
         diagnostics.push(...detectHardcodedSecret(filePath, lines));
+
+        // New: Extended hardcoded secret detection (from secrets.ts)
+        diagnostics.push(...detectSecrets(filePath, lines));
+
+        // New: XSS / HTML injection detection (from html-safety.ts)
+        diagnostics.push(...detectHtmlSafety(filePath, lines));
       } catch {
         // skip unreadable files
+      }
+    }
+
+    // New: Dependency vulnerability audit (only if config security.audit is true)
+    if (config.security?.audit) {
+      const auditTimeout = config.security?.auditTimeout ?? 25000;
+
+      // npm/pnpm audit for JS/TS projects
+      if (context.languages.includes('typescript') || context.languages.includes('javascript')) {
+        diagnostics.push(...npmAudit(rootDir, auditTimeout));
+      }
+
+      // pip-audit for Python projects
+      if (context.languages.includes('python')) {
+        diagnostics.push(...pipAudit(rootDir, auditTimeout));
+      }
+
+      // govulncheck for Go projects
+      if (context.languages.includes('go')) {
+        diagnostics.push(...goVulnCheck(rootDir, auditTimeout));
+      }
+
+      // cargo audit for Rust projects
+      if (context.languages.includes('rust')) {
+        diagnostics.push(...cargoAudit(rootDir, auditTimeout));
       }
     }
 

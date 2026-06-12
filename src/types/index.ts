@@ -3,7 +3,7 @@ import type { DeepSlopConfig } from '../config/schema.js'
 
 // ── Core Types ──────────────────────────────────────────
 
-/** All 12 engine identifiers */
+/** All engine identifiers (14 built-in) */
 export type EngineName =
   | "ast-slop"
   | "import-intelligence"
@@ -16,7 +16,9 @@ export type EngineName =
   | "perf-hints"
   | "i18n-lint"
   | "config-lint"
-  | "meta-quality";
+  | "meta-quality"
+  | "arch-rules"
+  | "lint-external";
 
 /** Diagnostic severity levels */
 export type Severity = "error" | "warning" | "info" | "suggestion";

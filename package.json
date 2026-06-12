@@ -63,6 +63,7 @@
     "graphology": "^0.25.4",
     "js-yaml": "^4.2.0",
     "micromatch": "^4.0.8",
+    "minimatch": "^10.2.5",
     "picocolors": "^1.1.1",
     "tree-sitter-javascript": "^0.25.0",
     "tree-sitter-typescript": "^0.23.2",
@@ -73,6 +74,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/micromatch": "^4.0.10",
+    "@types/minimatch": "^6.0.0",
     "@types/node": "^25.6.0",
     "tsdown": "^0.20.3",
     "typescript": "^5.9.3",

@@ -24,6 +24,8 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'i18n-lint': '../engines/i18n-lint/index.js',
   'config-lint': '../engines/config-lint/index.js',
   'meta-quality': '../engines/meta-quality/index.js',
+  'arch-rules': '../engines/arch-rules/index.js',
+  'lint-external': '../engines/lint-external/index.js',
 }
 
 /** ESLint config file candidates */

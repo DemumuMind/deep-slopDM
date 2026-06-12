@@ -28,7 +28,7 @@ function configToYaml(config: DeepSlopConfig, strict: boolean): string {
   }
 
   if (strict) {
-    obj.ci = { failBelow: 75 }
+    obj.ci = { failBelow: 75, format: 'json', failOnErrors: true }
   }
 
   return yaml.dump(obj, { lineWidth: -1, noRefs: true })

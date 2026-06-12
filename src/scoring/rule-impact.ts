@@ -73,6 +73,9 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'security-deep/prototype-pollution':    tier('strict', 'Prototype pollution corrupts all object instances'),
   'security-deep/ssrf-risk':             tier('strict', 'SSRF enables internal network access from external input'),
   'security-deep/hardcoded-secret':      tier('strict', 'Hardcoded secrets leak credentials into source control'),
+  'security-deep/dependency-vulnerability': tier('strict', 'Dependency vulnerabilities expose known exploit vectors'),
+  'security-deep/xss-risk':              tier('strict', 'XSS risks enable cross-site scripting attacks'),
+  'security-deep/unsafe-html':           tier('strict', 'Unsafe HTML operations enable injection attacks'),
 
   // ── arch-constraints ────────────────────────────────
   'arch-constraints/high-coupling':       tier('maintainability', 'High coupling makes modules hard to change independently'),
@@ -116,6 +119,11 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'meta-quality/trend-analysis':   tier('advisory',  'Trend analysis is meta — helps track regressions over time'),
   'meta-quality/quality-gate':     tier('standard',  'Quality gate failures block CI, directly impacting delivery'),
   'meta-quality/config-check':     tier('mechanical', 'Config check issues are operational, not code quality'),
+
+  // ── lint-external ───────────────────────────────────
+  'lint-external/ruff':            tier('mechanical',  'Ruff findings are external Python lint issues'),
+  'lint-external/golangci':        tier('mechanical',  'golangci-lint findings are external Go lint issues'),
+  'lint-external/clippy':          tier('mechanical',  'Clippy findings are external Rust lint issues'),
 }
 
 /** Fallback impact for unknown rules */

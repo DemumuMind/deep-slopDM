@@ -3,8 +3,9 @@ import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Sever
 import { calculateScore } from '../scoring/index.js'
 import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
+import { LiveGrid } from '../ui/live-grid.js'
 
-/** Registry of all 12 engines (loaded lazily) */
+/** Registry of all 14 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "ast-slop": () => import("../engines/ast-slop/index.js").then((m) => m.astSlopEngine),
   "import-intelligence": () => import("../engines/import-intelligence/index.js").then((m) => m.importIntelligenceEngine),
@@ -18,6 +19,8 @@ const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "i18n-lint": () => import("../engines/i18n-lint/index.js").then((m) => m.i18nLintEngine),
   "config-lint": () => import("../engines/config-lint/index.js").then((m) => m.configLintEngine),
   "meta-quality": () => import("../engines/meta-quality/index.js").then((m) => m.metaQualityEngine),
+  "lint-external": () => import("../engines/lint-external/index.js").then((m) => m.lintExternalEngine),
+  "arch-rules": () => import("../engines/arch-rules/index.js").then((m) => m.archRulesEngine),
 };
 
 export interface OrchestratorCallbacks {

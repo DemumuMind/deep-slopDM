@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** All 12 engine identifiers */
+/** All engine identifiers */
 export const EngineNameSchema = z.enum([
   'ast-slop',
   'import-intelligence',
@@ -14,6 +14,8 @@ export const EngineNameSchema = z.enum([
   'i18n-lint',
   'config-lint',
   'meta-quality',
+  'lint-external',
+  'arch-rules',
 ])
 
 /** Quality thresholds schema */
@@ -64,8 +66,10 @@ export const I18nSchema = z.object({
 
 /** CI quality gate schema */
 export const CiSchema = z.object({
-  failBelow: z.number(),
-}).passthrough()
+  failBelow: z.number().default(70),
+  format: z.enum(['json', 'human', 'sarif']).default('json'),
+  failOnErrors: z.boolean().default(true),
+}).default({ failBelow: 70, format: 'json', failOnErrors: true })
 
 /**
  * Raw config schema — what users can provide in their config file.
@@ -110,7 +114,7 @@ export const DeepSlopConfigSchema = z.object({
   /** Exclude patterns */
   exclude: z.array(z.string()),
   /** CI quality gate */
-  ci: CiSchema.optional(),
+  ci: CiSchema,
   /** Per-rule severity overrides (e.g. { "ast-slop/narrative-comment": "off" }) */
   rules: z.record(z.string(), z.enum(['error', 'warning', 'info', 'off'])).default({}),
 }).passthrough()
