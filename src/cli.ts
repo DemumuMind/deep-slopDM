@@ -145,7 +145,7 @@ program
     }
 
     // Collect files
-    let files = await collectFiles(rootDir, languages, config.exclude, opts.include, config.ignore);
+    let files = await collectFiles(rootDir, languages, config.exclude, undefined, config.ignore, opts.include);
 
     // Diff-aware filtering
     let diffScope: string | undefined

@@ -951,7 +951,8 @@ function detectUnusedVariables(
   const allContent = content;
   for (const [name, info] of declarations) {
     // Skip underscore-prefixed (intentionally unused convention)
-    if (name.startsWith("_")) continue;
+    // Also handles bare _ (destructured placeholder)
+    if (name.startsWith('_')) continue;
     // Skip exported items (handled by unused-exports check)
     if (info.isExported) continue;
     // Skip React components (convention: PascalCase exported components)

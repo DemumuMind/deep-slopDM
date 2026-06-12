@@ -8,7 +8,7 @@
 // Detects structural / architectural issues: high coupling, layer violations,
 // god files, circular dependencies, deep nesting, and unstable dependencies.
 
-import { relative, resolve, dirname } from "node:path";
+import { relative, resolve, dirname, extname, basename } from "node:path";
 import type {
   Diagnostic,
   Engine,
@@ -49,6 +49,47 @@ function diag(opts: {
     suggestion: opts.suggestion,
     detail: opts.detail,
   };
+}
+
+// ── Context-aware threshold multipliers ────────────────────────
+
+interface ThresholdMultiplier {
+  fileLocMultiplier: number
+  functionLocMultiplier: number
+}
+
+/** Determine threshold multipliers based on file extension and naming convention */
+function getThresholdMultiplier(filePath: string): ThresholdMultiplier {
+  const ext = extname(filePath)
+  const name = basename(filePath, ext)
+
+  // .d.ts files: exempt from size checks
+  if (filePath.endsWith('.d.ts')) {
+    return { fileLocMultiplier: Infinity, functionLocMultiplier: Infinity }
+  }
+
+  // Rust files: 2.5x file limit, 1.5x function limit
+  if (ext === '.rs') {
+    return { fileLocMultiplier: 2.5, functionLocMultiplier: 1.5 }
+  }
+
+  // Go files: 1.5x file limit
+  if (ext === '.go') {
+    return { fileLocMultiplier: 1.5, functionLocMultiplier: 1.0 }
+  }
+
+  // TSX/JSX files
+  if (ext === '.tsx' || ext === '.jsx') {
+    // PascalCase (React components): 1.5x file limit, 2.0x function limit
+    if (/^[A-Z][a-zA-Z0-9]+$/.test(name)) {
+      return { fileLocMultiplier: 1.5, functionLocMultiplier: 2.0 }
+    }
+    // Non-component TSX/JSX: 1.5x file limit
+    return { fileLocMultiplier: 1.5, functionLocMultiplier: 1.0 }
+  }
+
+  // Default: no multiplier
+  return { fileLocMultiplier: 1.0, functionLocMultiplier: 1.0 }
 }
 
 // ── 1. High Coupling ────────────────────────────────────────────────
@@ -595,16 +636,20 @@ export const archConstraintsEngine: Engine = {
       const imports = extractImports(content, "typescript");
       fileImportsMap.set(absPath, imports);
 
+      // Apply context-aware threshold multipliers per file
+      const multiplier = getThresholdMultiplier(relPath)
+      const effectiveFileLoc = Math.round(maxFileLoc * multiplier.fileLocMultiplier)
+
       // 1. High coupling
       diagnostics.push(...detectHighCoupling(imports, relPath, maxCoupling));
 
       // 2. Layer violations
       diagnostics.push(...detectLayerViolations(imports, relPath));
 
-      // 3. God file
+      // 3. God file (with context-aware file limit)
       const lineCount = lines.length;
       const exportCount = countExports(lines);
-      diagnostics.push(...detectGodFile(lineCount, exportCount, relPath, maxFileLoc));
+      diagnostics.push(...detectGodFile(lineCount, exportCount, relPath, effectiveFileLoc));
 
       // 5. Deep nesting
       diagnostics.push(...detectDeepNesting(lines, relPath, maxNesting));

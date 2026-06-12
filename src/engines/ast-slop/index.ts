@@ -11,7 +11,8 @@
 // regex remains the fallback when tree-sitter is unavailable.
 
 import { readFile } from "node:fs/promises";
-import { join, extname, relative } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join, extname, relative, resolve } from "node:path";
 import type {
   Diagnostic,
   Engine,
@@ -109,6 +110,81 @@ function isBareSpecifier(source: string): boolean {
 function scopedPackageName(source: string): string | null {
   const match = source.match(/^(@[^/]+\/[^/]+)/);
   return match ? match[1] : null;
+}
+
+// ── tsconfig path alias support ──────────────────────────
+
+interface TsconfigPaths {
+  baseUrl?: string
+  paths: Record<string, string[]>
+}
+
+/** Load tsconfig.json compilerOptions.paths + baseUrl from project root */
+function loadTsconfigPaths(rootDir: string): TsconfigPaths | null {
+  const tsconfigPath = join(rootDir, 'tsconfig.json')
+  if (!existsSync(tsconfigPath)) return null
+  try {
+    const raw = readFileSync(tsconfigPath, 'utf-8')
+    // Strip JSONC comments (single-line)
+    const stripped = raw.replace(/\/\/.*$/gm, '')
+    const parsed = JSON.parse(stripped)
+    const compilerOptions = parsed.compilerOptions ?? {}
+    const baseUrl: string | undefined = compilerOptions.baseUrl
+    const paths: Record<string, string[]> = compilerOptions.paths ?? {}
+    if (!baseUrl && Object.keys(paths).length === 0) return null
+    return { baseUrl, paths }
+  } catch {
+    return null
+  }
+}
+
+/** Check if an import source matches a tsconfig path alias.
+ *  Returns the resolved filesystem path if it matches, or null. */
+function resolveTsconfigAlias(
+  importSource: string,
+  tsconfigPaths: TsconfigPaths,
+  rootDir: string,
+): string | null {
+  const { baseUrl, paths } = tsconfigPaths
+  const baseDir = baseUrl ? resolve(rootDir, baseUrl) : rootDir
+
+  for (const [pattern, targets] of Object.entries(paths)) {
+    // Handle wildcard patterns like "@/*" → ["src/*"]
+    if (pattern.endsWith('/*')) {
+      const prefix = pattern.slice(0, -2) // e.g. "@"
+      if (importSource === prefix || importSource.startsWith(prefix + '/')) {
+        const suffix = importSource.slice(prefix.length + 1) // part after "@/"
+        for (const target of targets) {
+          const targetPrefix = target.endsWith('/*') ? target.slice(0, -2) : target
+          const resolved = resolve(baseDir, targetPrefix, suffix)
+          // Check if the resolved path exists (with .ts/.tsx/.js extensions)
+          if (existsSync(resolved) || existsSync(resolved + '.ts') || existsSync(resolved + '.tsx') || existsSync(resolved + '.js') || existsSync(resolved + '.jsx') || existsSync(resolved + '/index.ts') || existsSync(resolved + '/index.tsx') || existsSync(resolved + '/index.js')) {
+            return resolved
+          }
+        }
+      }
+    } else {
+      // Exact match pattern (no wildcard)
+      if (importSource === pattern) {
+        for (const target of targets) {
+          const resolved = resolve(baseDir, target)
+          if (existsSync(resolved) || existsSync(resolved + '.ts') || existsSync(resolved + '.tsx') || existsSync(resolved + '.js') || existsSync(resolved + '.jsx') || existsSync(resolved + '/index.ts') || existsSync(resolved + '/index.tsx') || existsSync(resolved + '/index.js')) {
+            return resolved
+          }
+        }
+      }
+    }
+  }
+
+  // Check baseUrl — if importSource resolves under baseUrl, consider it valid
+  if (baseUrl && !importSource.startsWith('@') && !importSource.startsWith('.')) {
+    const resolved = resolve(baseDir, importSource)
+    if (existsSync(resolved) || existsSync(resolved + '.ts') || existsSync(resolved + '.tsx') || existsSync(resolved + '.js') || existsSync(resolved + '/index.ts') || existsSync(resolved + '/index.tsx') || existsSync(resolved + '/index.js')) {
+      return resolved
+    }
+  }
+
+  return null
 }
 
 /** Load package.json dependencies (including devDependencies) */
@@ -779,12 +855,20 @@ function detectHallucinatedImports(
   filePath: string,
   language: Language,
   knownDeps: Set<string>,
+  tsconfigPaths: TsconfigPaths | null,
+  rootDir: string,
 ): Diagnostic[] {
   const results: Diagnostic[] = [];
   const imports = extractImports(content, language);
 
   for (const imp of imports) {
     if (!isBareSpecifier(imp.source)) continue;
+
+    // Check if this import matches a tsconfig path alias
+    if (tsconfigPaths) {
+      const resolved = resolveTsconfigAlias(imp.source, tsconfigPaths, rootDir)
+      if (resolved) continue
+    }
 
     let pkgName: string;
     if (imp.source.startsWith("@")) {
@@ -1937,6 +2021,7 @@ async function analyzeFile(
   filePath: string,
   rootDir: string,
   knownDeps: Set<string>,
+  tsconfigPaths: TsconfigPaths | null,
 ): Promise<Diagnostic[]> {
   const diagnostics: Diagnostic[] = [];
   const language = languageFromPath(filePath);
@@ -1970,7 +2055,7 @@ async function analyzeFile(
     diagnostics.push(...detectUnsafeCasts(lines, relPath));
   }
 
-  diagnostics.push(...detectHallucinatedImports(content, lines, relPath, language, knownDeps));
+  diagnostics.push(...detectHallucinatedImports(content, lines, relPath, language, knownDeps, tsconfigPaths, rootDir));
 
   // New extended AI-slop patterns (rules 11-20)
   diagnostics.push(...detectUnnecessaryAbstraction(content, lines, relPath, language));
@@ -2065,6 +2150,9 @@ export const astSlopEngine: Engine = {
       knownDeps = new Set([...knownDeps, ...pyDeps]);
     }
 
+    // Load tsconfig path aliases for hallucinated-import resolution
+    const tsconfigPaths = hasJS ? loadTsconfigPaths(context.rootDirectory) : null;
+
     // Analyze each file
     const allDiagnostics: Diagnostic[] = [];
     const batchSize = 20;
@@ -2072,7 +2160,7 @@ export const astSlopEngine: Engine = {
     for (let i = 0; i < files.length; i += batchSize) {
       const batch = files.slice(i, i + batchSize);
       const results = await Promise.all(
-        batch.map((filePath) => analyzeFile(filePath, context.rootDirectory, knownDeps)),
+        batch.map((filePath) => analyzeFile(filePath, context.rootDirectory, knownDeps, tsconfigPaths)),
       );
       for (const diags of results) {
         allDiagnostics.push(...diags);

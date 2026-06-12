@@ -140,6 +140,7 @@ export async function collectFiles(
   excludePatterns: string[] = [],
   includeFiles?: string[],
   ignorePatterns?: string[],
+  includePatterns?: string[],
 ): Promise<string[]> {
   if (includeFiles) {
     let files = includeFiles.map((f) => (f.startsWith('/') ? f : join(rootDir, f)))
@@ -173,6 +174,14 @@ export async function collectFiles(
     if (allIgnorePatterns.length > 0 && matchesIgnorePattern(relPath, allIgnorePatterns)) return
     const ext = extname(filePath)
     if (targetExts.has(ext)) {
+      // If --include patterns specified, only keep files matching at least one
+      if (includePatterns && includePatterns.length > 0) {
+        const matched = includePatterns.some((pat) =>
+          minimatch(relPath, pat, { dot: true }) ||
+          (!pat.includes('/') && minimatch(filePath.split('/').pop() ?? '', pat, { dot: true }))
+        )
+        if (!matched) return
+      }
       files.push(filePath)
     }
   }, excludeSet)

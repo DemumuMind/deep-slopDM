@@ -42,14 +42,39 @@ function configToYaml(config: DeepSlopConfig, strict: boolean): string {
   }
 
   if (strict) {
-    obj.ci = { failBelow: 75, format: 'json', failOnErrors: true }
+    // Enable ALL engines for enterprise strict mode
+    const allEngines = obj.engines as Record<string, boolean>
+    const strictEngines: Record<string, boolean> = {}
+    for (const key of Object.keys(allEngines)) {
+      strictEngines[key] = true
+    }
+    // Ensure security and arch-rules engines are explicitly enabled
+    strictEngines['security-deep'] = true
+    strictEngines['arch-rules'] = true
+    strictEngines['security'] = true
+    obj.engines = strictEngines
+
+    obj.ci = { failBelow: 85, format: 'json', failOnErrors: true }
+    obj.types = { ...config.types, flagAsAny: true, suggestTypes: true, flagDoubleAssertion: true }
+    // typecheck: true for strict mode
+    ;(obj as Record<string, unknown>).typecheck = true
   }
 
   return yaml.dump(obj, { lineWidth: -1, noRefs: true })
 }
 
 /** GitHub Actions CI workflow content */
-function ciWorkflowContent(): string {
+function ciWorkflowContent(strict: boolean): string {
+  const failBelow = strict ? 85 : 70
+  const extraSteps = strict ? `
+      - run: deep-slop scan --sarif --engine security-deep arch-rules . > deep-slop-security.sarif
+        if: always()
+      - uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: deep-slop-security.sarif
+          category: deep-slop-security` : ''
+
   return `name: deep-slop CI
 
 on:
@@ -67,20 +92,39 @@ jobs:
         with:
           node-version: 20
       - run: npm install -g deep-slop
-      - run: deep-slop ci --fail-below 70 .
+      - run: deep-slop ci --fail-below ${failBelow} .
       - run: deep-slop scan --sarif . > deep-slop-results.sarif
         if: always()
       - uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: deep-slop-results.sarif
-          category: deep-slop
+          category: deep-slop${extraSteps}
 `
 }
 
 export interface InitOptions {
   strict?: boolean
   preset?: string
+}
+
+/** Hook config content for strict mode with accountability metadata */
+function hookConfigContent(): string {
+  return `# deep-slop hook configuration
+# Accountability metadata for CI integration
+hooks:
+  pre-commit:
+    command: deep-slop scan --changes --severity warning
+    timeout: 60
+    accountable: true
+  pre-push:
+    command: deep-slop ci --fail-below 85
+    timeout: 120
+    accountable: true
+metadata:
+  initializedBy: deep-slop-init --strict
+  version: 1
+`
 }
 
 export function runInit(targetPath: string, opts: InitOptions = {}): void {
@@ -134,8 +178,19 @@ export function runInit(targetPath: string, opts: InitOptions = {}): void {
   if (existsSync(workflowPath)) {
     skipped.push(workflowPath)
   } else {
-    writeFileSync(workflowPath, ciWorkflowContent(), 'utf-8')
+    writeFileSync(workflowPath, ciWorkflowContent(!!opts.strict), 'utf-8')
     created.push(workflowPath)
+  }
+
+  // Create .deep-slop/hooks.yml for strict mode (accountability metadata)
+  if (opts.strict) {
+    const hookPath = join(configDir, 'hooks.yml')
+    if (existsSync(hookPath)) {
+      skipped.push(hookPath)
+    } else {
+      writeFileSync(hookPath, hookConfigContent(), 'utf-8')
+      created.push(hookPath)
+    }
   }
 
   // Print results
@@ -158,7 +213,8 @@ export function runInit(targetPath: string, opts: InitOptions = {}): void {
 
   if (opts.strict) {
     console.log()
-    console.log(`  ${style('suggestion', '→')} Strict mode: maxFunctionLoc=30, maxFileLoc=200, failBelow=75`)
+    console.log(`  ${style('suggestion', '→')} Strict mode: ALL engines enabled, failBelow=85, typecheck=true`)
+    console.log(`  ${style('suggestion', '→')} Accountability hooks configured in .deep-slop/hooks.yml`)
   }
 
   if (opts.preset) {

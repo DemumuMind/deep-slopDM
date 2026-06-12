@@ -141,6 +141,41 @@ export function formatOutput(result: ScanResult): string {
     lines.push('')
   }
 
+  // Top 10 findings section
+  if (allDiags.length > 0) {
+    lines.push(separator())
+    lines.push(styleBold('info', '  Top findings'))
+    lines.push('')
+
+    // Aggregate by rule
+    const ruleAgg = new Map<string, { count: number, severity: Severity, fixable: number }>()
+    for (const d of allDiags) {
+      const existing = ruleAgg.get(d.rule)
+      if (!existing) {
+        ruleAgg.set(d.rule, { count: 1, severity: d.severity, fixable: d.fixable ? 1 : 0 })
+      } else {
+        existing.count++
+        // Keep worst severity
+        if (SEV_ORDER[d.severity] < SEV_ORDER[existing.severity]) {
+          existing.severity = d.severity
+        }
+        if (d.fixable) existing.fixable++
+      }
+    }
+
+    const topFindings = Array.from(ruleAgg.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .slice(0, 10)
+
+    for (const [ruleId, info] of topFindings) {
+      const label = ruleLabel(ruleId)
+      const badge = severityBadge(info.severity)
+      const fixStr = info.fixable > 0 ? style('success', ` (${info.fixable} fixable)`) : ''
+      lines.push(`    ${badge} ${styleBold('warn', label)} ${style('muted', `(${info.count})`)}${fixStr}`)
+    }
+    lines.push('')
+  }
+
   // Final summary
   lines.push(separator())
   lines.push(`  ${scoreLabel(result.score)} ${result.score}/100 — ${result.totalDiagnostics} total diagnostics`)
