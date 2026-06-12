@@ -144,6 +144,55 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'format-lint/inconsistent-semicolons':    tier('style',      'Inconsistent semicolons create diff noise and style ambiguity'),
   'format-lint/blank-line-cluster':         tier('style',      'Excessive blank lines waste vertical space'),
   'format-lint/trailing-comma-inconsistency': tier('mechanical', 'Inconsistent trailing commas create diff noise and refactoring errors'),
+
+  // ── framework-lint — Next.js ────────────────────────
+  'nextjs/misplaced-use-client':       tier('mechanical',      "Unnecessary 'use client' increases client bundle size"),
+  'nextjs/missing-use-client':         tier('strict',          "Missing 'use client' causes runtime errors with React hooks"),
+  'nextjs/pages-router-in-app':        tier('maintainability', 'Pages Router APIs are deprecated in App Router projects'),
+  'nextjs/next-router-vs-navigation':  tier('maintainability', 'next/router is deprecated in App Router — use next/navigation'),
+  'nextjs/image-missing-dimensions':   tier('mechanical',      'Missing Image dimensions cause layout shift'),
+  'nextjs/metadata-in-client':         tier('strict',          'Metadata exports in client components are ignored by Next.js'),
+  'nextjs/hardcoded-env':              tier('mechanical',      'Hardcoded URLs should use environment variables for portability'),
+  'nextjs/link-without-aria':          tier('advisory',        'Links without accessible text fail a11y standards'),
+
+  // ── framework-lint — Tailwind ───────────────────────
+  'tailwind/apply-anti-pattern':       tier('maintainability', '@apply negates Tailwind utility-first approach'),
+  'tailwind/inline-style-conflict':    tier('maintainability', 'Mixing inline styles with Tailwind creates conflicting styling sources'),
+  'tailwind/important-modifier':       tier('style',           '!important modifier in Tailwind indicates specificity issues'),
+  'tailwind/duplicate-utilities':     tier('maintainability', 'Conflicting utilities in same className indicate copy-paste errors'),
+  'tailwind/magic-values':             tier('advisory',        'Arbitrary values should use theme scale for consistency'),
+  'tailwind/incomplete-flex':          tier('style',           'Bare flex without alignment likely incomplete'),
+  'tailwind/overloaded-classname':     tier('advisory',        'Overloaded className strings should be extracted into components'),
+
+  // ── markup-lint — JSON ────────────────────────────────
+  'json/trailing-comma':             tier('strict',       'Trailing commas make JSON invalid per RFC 8259'),
+  'json/duplicate-keys':             tier('strict',       'Duplicate keys in JSON objects cause silent data loss'),
+  'json/inconsistent-spacing':       tier('style',        'Mixed compact/expanded formatting is cosmetic'),
+  'json/deep-nesting':              tier('maintainability', 'Deep nesting makes JSON hard to read and maintain'),
+
+  // ── markup-lint — YAML ───────────────────────────────
+  'yaml/tab-indent':                 tier('strict',       'Tab indentation is invalid in YAML — parsers reject it'),
+  'yaml/duplicate-keys':             tier('strict',       'Duplicate keys in YAML mappings cause silent data loss'),
+  'yaml/complex-anchor':             tier('advisory',     'Complex anchor/alias chains are hard to trace'),
+  'yaml/multi-doc-unseparated':      tier('mechanical',   'Missing --- separator between documents causes ambiguity'),
+
+  // ── markup-lint — CSS ────────────────────────────────
+  'css/unused-selector':            tier('mechanical',   'Unused CSS selectors bloat stylesheets'),
+  'css/important-overuse':          tier('maintainability', '!important overuse indicates specificity conflicts'),
+  'css/duplicate-property':         tier('mechanical',   'Duplicate properties in same rule are accidental'),
+  'css/universal-selector':         tier('advisory',     'Universal selector * has performance impact'),
+
+  // ── markup-lint — HTML ────────────────────────────────
+  'html/missing-alt':               tier('strict',       'Missing alt on <img> fails WCAG 1.1.1 accessibility'),
+  'html/missing-lang':             tier('maintainability', 'Missing lang on <html> fails WCAG 3.1.1'),
+  'html/deprecated-tag':            tier('mechanical',   'Deprecated HTML tags are removed from HTML5 spec'),
+  'html/inline-event-handler':       tier('maintainability', 'Inline handlers violate CSP and mix behavior with structure'),
+
+  // ── markup-lint — Markdown ───────────────────────────
+  'md/broken-link':                 tier('mechanical',   'Empty or # links are broken references'),
+  'md/inconsistent-heading':         tier('style',        'Mixed heading styles reduce document consistency'),
+  'md/todo-in-doc':                 tier('advisory',     'TODO/FIXME markers in docs should be tracked externally'),
+  'md/missing-fenced-lang':         tier('advisory',     'Missing language on fenced blocks disables syntax highlighting'),
 }
 
 /** Fallback impact for unknown rules */

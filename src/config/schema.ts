@@ -30,6 +30,8 @@ export const EngineNameSchema = z.enum([
   'arch-rules',
   'knip',
   'format-lint',
+  'framework-lint',
+  'markup-lint',
 ])
 
 /** Quality thresholds schema */

@@ -153,6 +153,55 @@ const labels: Record<string, string> = {
   'format-lint/inconsistent-semicolons': 'Inconsistent Semicolons',
   'format-lint/blank-line-cluster': 'Blank Line Cluster',
   'format-lint/trailing-comma-inconsistency': 'Trailing Comma Inconsistency',
+
+  // framework-lint — Next.js
+  'nextjs/misplaced-use-client': 'Misplaced use client',
+  'nextjs/missing-use-client': 'Missing use client',
+  'nextjs/pages-router-in-app': 'Pages Router in App',
+  'nextjs/next-router-vs-navigation': 'next/router vs next/navigation',
+  'nextjs/image-missing-dimensions': 'Image Missing Dimensions',
+  'nextjs/metadata-in-client': 'Metadata in Client',
+  'nextjs/hardcoded-env': 'Hardcoded Environment URL',
+  'nextjs/link-without-aria': 'Link Without Aria',
+
+  // framework-lint — Tailwind
+  'tailwind/apply-anti-pattern': 'Apply Anti-pattern',
+  'tailwind/inline-style-conflict': 'Inline Style Conflict',
+  'tailwind/important-modifier': 'Important Modifier',
+  'tailwind/duplicate-utilities': 'Duplicate Utilities',
+  'tailwind/magic-values': 'Magic Values',
+  'tailwind/incomplete-flex': 'Incomplete Flex',
+  'tailwind/overloaded-classname': 'Overloaded ClassName',
+
+  // markup-lint — JSON
+  'json/trailing-comma': 'JSON Trailing Comma',
+  'json/duplicate-keys': 'JSON Duplicate Keys',
+  'json/inconsistent-spacing': 'JSON Inconsistent Spacing',
+  'json/deep-nesting': 'JSON Deep Nesting',
+
+  // markup-lint — YAML
+  'yaml/tab-indent': 'YAML Tab Indent',
+  'yaml/duplicate-keys': 'YAML Duplicate Keys',
+  'yaml/complex-anchor': 'YAML Complex Anchor',
+  'yaml/multi-doc-unseparated': 'YAML Multi-doc Unseparated',
+
+  // markup-lint — CSS
+  'css/unused-selector': 'CSS Unused Selector',
+  'css/important-overuse': 'CSS !important Overuse',
+  'css/duplicate-property': 'CSS Duplicate Property',
+  'css/universal-selector': 'CSS Universal Selector',
+
+  // markup-lint — HTML
+  'html/missing-alt': 'HTML Missing Alt',
+  'html/missing-lang': 'HTML Missing Lang',
+  'html/deprecated-tag': 'HTML Deprecated Tag',
+  'html/inline-event-handler': 'HTML Inline Event Handler',
+
+  // markup-lint — Markdown
+  'md/broken-link': 'MD Broken Link',
+  'md/inconsistent-heading': 'MD Inconsistent Heading',
+  'md/todo-in-doc': 'MD TODO in Doc',
+  'md/missing-fenced-lang': 'MD Missing Fenced Lang',
 }
 
 /**

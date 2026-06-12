@@ -40,6 +40,8 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'lint-external': '../engines/lint-external/index.js',
   'knip': '../engines/knip/index.js',
   'format-lint': '../engines/format-lint/index.js',
+  'framework-lint': '../engines/framework-lint/index.js',
+  'markup-lint': '../engines/markup-lint/index.js',
 }
 
 /** ESLint config file candidates */

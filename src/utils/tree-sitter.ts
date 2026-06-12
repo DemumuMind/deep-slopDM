@@ -4,24 +4,50 @@
 // deep-slop-ignore-start ast-slop/decorative-comment
 // deep-slop-ignore-start ast-slop/as-any
 // ── Tree-sitter AST Parsing Utility ─────────────────────
-// Lazy-loads web-tree-sitter + TypeScript and Python grammars.
+// Lazy-loads web-tree-sitter + TypeScript, Python, Go, Rust,
+// PHP, C#, and Swift grammars.
 // All exports return null on failure so the engine can fall back to regex.
 
 import type { Language as TSLanguage, Node as TSNode, Parser, Tree } from "web-tree-sitter";
 
-// ── Lazy singleton state ────────────────────────────────
+// ── Lazy singleton state (TypeScript / TSX) ────────────
 
 let parserInstance: Parser | null = null;
 let tsLang: TSLanguage | null = null;
 let tsxLang: TSLanguage | null = null;
-let pyLang: TSLanguage | null = null;
 let initPromise: Promise<boolean> | null = null;
 let initDone = false;
 let initOk = false;
 
 // ── Python grammar state ────────────────────────────────
+let pyLang: TSLanguage | null = null
 let pyInitDone = false
 let pyInitOk = false
+
+// ── Go grammar state ────────────────────────────────────
+let goLang: TSLanguage | null = null
+let goInitDone = false
+let goInitOk = false
+
+// ── Rust grammar state ──────────────────────────────────
+let rustLang: TSLanguage | null = null
+let rustInitDone = false
+let rustInitOk = false
+
+// ── PHP grammar state ────────────────────────────────────
+let phpLang: TSLanguage | null = null
+let phpInitDone = false
+let phpInitOk = false
+
+// ── C# grammar state ────────────────────────────────────
+let csharpLang: TSLanguage | null = null
+let csharpInitDone = false
+let csharpInitOk = false
+
+// ── Swift grammar state ─────────────────────────────────
+let swiftLang: TSLanguage | null = null
+let swiftInitDone = false
+let swiftInitOk = false
 
 /**
  * Attempt to initialise web-tree-sitter with the TypeScript grammar.
@@ -107,6 +133,166 @@ export async function initPythonParser(): Promise<boolean> {
   }
 }
 
+/**
+ * Attempt to load the Go grammar for tree-sitter.
+ * Returns true on success. Graceful fallback: returns false if
+ * tree-sitter-go is not installed.
+ */
+export async function initGoParser(): Promise<boolean> {
+  if (goInitDone) return goInitOk
+  if (!initOk) {
+    const baseOk = await initParser()
+    if (!baseOk) {
+      goInitDone = true
+      goInitOk = false
+      return false
+    }
+  }
+
+  try {
+    const goWasm = require.resolve(
+      'tree-sitter-go/go.wasm',
+    )
+    const wt = await import('web-tree-sitter')
+    goLang = await wt.Language.load(goWasm)
+    goInitDone = true
+    goInitOk = true
+    return true
+  } catch {
+    goInitDone = true
+    goInitOk = false
+    return false
+  }
+}
+
+/**
+ * Attempt to load the Rust grammar for tree-sitter.
+ * Returns true on success. Graceful fallback: returns false if
+ * tree-sitter-rust is not installed.
+ */
+export async function initRustParser(): Promise<boolean> {
+  if (rustInitDone) return rustInitOk
+  if (!initOk) {
+    const baseOk = await initParser()
+    if (!baseOk) {
+      rustInitDone = true
+      rustInitOk = false
+      return false
+    }
+  }
+
+  try {
+    const rustWasm = require.resolve(
+      'tree-sitter-rust/rust.wasm',
+    )
+    const wt = await import('web-tree-sitter')
+    rustLang = await wt.Language.load(rustWasm)
+    rustInitDone = true
+    rustInitOk = true
+    return true
+  } catch {
+    rustInitDone = true
+    rustInitOk = false
+    return false
+  }
+}
+
+/**
+ * Attempt to load the PHP grammar for tree-sitter.
+ * Returns true on success. Graceful fallback: returns false if
+ * tree-sitter-php is not installed.
+ */
+export async function initPhpParser(): Promise<boolean> {
+  if (phpInitDone) return phpInitOk
+  if (!initOk) {
+    const baseOk = await initParser()
+    if (!baseOk) {
+      phpInitDone = true
+      phpInitOk = false
+      return false
+    }
+  }
+
+  try {
+    const phpWasm = require.resolve(
+      'tree-sitter-php/php.wasm',
+    )
+    const wt = await import('web-tree-sitter')
+    phpLang = await wt.Language.load(phpWasm)
+    phpInitDone = true
+    phpInitOk = true
+    return true
+  } catch {
+    phpInitDone = true
+    phpInitOk = false
+    return false
+  }
+}
+
+/**
+ * Attempt to load the C# grammar for tree-sitter.
+ * Returns true on success. Graceful fallback: returns false if
+ * tree-sitter-c-sharp is not installed.
+ */
+export async function initCsharpParser(): Promise<boolean> {
+  if (csharpInitDone) return csharpInitOk
+  if (!initOk) {
+    const baseOk = await initParser()
+    if (!baseOk) {
+      csharpInitDone = true
+      csharpInitOk = false
+      return false
+    }
+  }
+
+  try {
+    const csharpWasm = require.resolve(
+      'tree-sitter-c-sharp/c_sharp.wasm',
+    )
+    const wt = await import('web-tree-sitter')
+    csharpLang = await wt.Language.load(csharpWasm)
+    csharpInitDone = true
+    csharpInitOk = true
+    return true
+  } catch {
+    csharpInitDone = true
+    csharpInitOk = false
+    return false
+  }
+}
+
+/**
+ * Attempt to load the Swift grammar for tree-sitter.
+ * Returns true on success. Graceful fallback: returns false if
+ * tree-sitter-swift is not installed.
+ */
+export async function initSwiftParser(): Promise<boolean> {
+  if (swiftInitDone) return swiftInitOk
+  if (!initOk) {
+    const baseOk = await initParser()
+    if (!baseOk) {
+      swiftInitDone = true
+      swiftInitOk = false
+      return false
+    }
+  }
+
+  try {
+    const swiftWasm = require.resolve(
+      'tree-sitter-swift/swift.wasm',
+    )
+    const wt = await import('web-tree-sitter')
+    swiftLang = await wt.Language.load(swiftWasm)
+    swiftInitDone = true
+    swiftInitOk = true
+    return true
+  } catch {
+    swiftInitDone = true
+    swiftInitOk = false
+    return false
+  }
+}
+
 /** Check if tree-sitter is available and initialized */
 export function isAvailable(): boolean {
   return initOk && parserInstance !== null;
@@ -115,6 +301,31 @@ export function isAvailable(): boolean {
 /** Check if Python tree-sitter grammar is available */
 export function isPythonAvailable(): boolean {
   return pyInitOk && pyLang !== null
+}
+
+/** Check if Go tree-sitter grammar is available */
+export function isGoAvailable(): boolean {
+  return goInitOk && goLang !== null
+}
+
+/** Check if Rust tree-sitter grammar is available */
+export function isRustAvailable(): boolean {
+  return rustInitOk && rustLang !== null
+}
+
+/** Check if PHP tree-sitter grammar is available */
+export function isPhpAvailable(): boolean {
+  return phpInitOk && phpLang !== null
+}
+
+/** Check if C# tree-sitter grammar is available */
+export function isCsharpAvailable(): boolean {
+  return csharpInitOk && csharpLang !== null
+}
+
+/** Check if Swift tree-sitter grammar is available */
+export function isSwiftAvailable(): boolean {
+  return swiftInitOk && swiftLang !== null
 }
 
 // ── Types ──────────────────────────────────────────────
@@ -143,11 +354,28 @@ export interface ASTRange {
 /**
  * Parse a source file into an AST tree.
  * Returns null if tree-sitter is not available or parsing fails.
+ *
+ * When `filePath` is provided, routes to the correct language parser
+ * based on file extension (.go, .rs, .php, .cs, .swift, .py, .tsx, .jsx).
+ * When omitted, parses as TypeScript (or TSX when `isTsx` is true).
  */
 export async function parseFile(
   content: string,
   isTsx = false,
+  filePath?: string,
 ): Promise<ASTNode | null> {
+  // Route to language-specific parser when filePath is provided
+  if (filePath) {
+    const ext = filePath.toLowerCase()
+    if (ext.endsWith('.go')) return parseGoFile(content)
+    if (ext.endsWith('.rs')) return parseRustFile(content)
+    if (ext.endsWith('.php')) return parsePhpFile(content)
+    if (ext.endsWith('.cs')) return parseCsharpFile(content)
+    if (ext.endsWith('.swift')) return parseSwiftFile(content)
+    if (ext.endsWith('.py')) return parsePython(content)
+  }
+
+  // Default: TypeScript / TSX
   if (!parserInstance || (!tsLang && !tsxLang)) {
     const ok = await initParser();
     if (!ok) return null;
@@ -189,7 +417,235 @@ export async function parsePython(content: string): Promise<ASTNode | null> {
   }
 }
 
+/**
+ * Parse Go source content into an AST tree.
+ * Returns null if tree-sitter-go is not available or parsing fails.
+ */
+export async function parseGoFile(content: string): Promise<ASTNode | null> {
+  if (!goLang) {
+    const ok = await initGoParser()
+    if (!ok) return null
+  }
+
+  if (!parserInstance) {
+    const ok = await initParser()
+    if (!ok) return null
+  }
+
+  try {
+    parserInstance!.setLanguage(goLang!)
+    const tree = parserInstance!.parse(content)
+    if (!tree) return null
+    return convertNode(tree.rootNode, null)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse Rust source content into an AST tree.
+ * Returns null if tree-sitter-rust is not available or parsing fails.
+ */
+export async function parseRustFile(content: string): Promise<ASTNode | null> {
+  if (!rustLang) {
+    const ok = await initRustParser()
+    if (!ok) return null
+  }
+
+  if (!parserInstance) {
+    const ok = await initParser()
+    if (!ok) return null
+  }
+
+  try {
+    parserInstance!.setLanguage(rustLang!)
+    const tree = parserInstance!.parse(content)
+    if (!tree) return null
+    return convertNode(tree.rootNode, null)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse PHP source content into an AST tree.
+ * Returns null if tree-sitter-php is not available or parsing fails.
+ */
+export async function parsePhpFile(content: string): Promise<ASTNode | null> {
+  if (!phpLang) {
+    const ok = await initPhpParser()
+    if (!ok) return null
+  }
+
+  if (!parserInstance) {
+    const ok = await initParser()
+    if (!ok) return null
+  }
+
+  try {
+    parserInstance!.setLanguage(phpLang!)
+    const tree = parserInstance!.parse(content)
+    if (!tree) return null
+    return convertNode(tree.rootNode, null)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse C# source content into an AST tree.
+ * Returns null if tree-sitter-c-sharp is not available or parsing fails.
+ */
+export async function parseCsharpFile(content: string): Promise<ASTNode | null> {
+  if (!csharpLang) {
+    const ok = await initCsharpParser()
+    if (!ok) return null
+  }
+
+  if (!parserInstance) {
+    const ok = await initParser()
+    if (!ok) return null
+  }
+
+  try {
+    parserInstance!.setLanguage(csharpLang!)
+    const tree = parserInstance!.parse(content)
+    if (!tree) return null
+    return convertNode(tree.rootNode, null)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Parse Swift source content into an AST tree.
+ * Returns null if tree-sitter-swift is not available or parsing fails.
+ */
+export async function parseSwiftFile(content: string): Promise<ASTNode | null> {
+  if (!swiftLang) {
+    const ok = await initSwiftParser()
+    if (!ok) return null
+  }
+
+  if (!parserInstance) {
+    const ok = await initParser()
+    if (!ok) return null
+  }
+
+  try {
+    parserInstance!.setLanguage(swiftLang!)
+    const tree = parserInstance!.parse(content)
+    if (!tree) return null
+    return convertNode(tree.rootNode, null)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Generic file parser that routes to the correct language parser
+ * based on file extension. Returns null if the appropriate grammar
+ * is not available or parsing fails.
+ */
+export async function parseAnyFile(
+  filePath: string,
+  content: string,
+): Promise<ASTNode | null> {
+  const ext = filePath.toLowerCase()
+
+  if (ext.endsWith('.go')) return parseGoFile(content)
+  if (ext.endsWith('.rs')) return parseRustFile(content)
+  if (ext.endsWith('.php')) return parsePhpFile(content)
+  if (ext.endsWith('.cs')) return parseCsharpFile(content)
+  if (ext.endsWith('.swift')) return parseSwiftFile(content)
+  if (ext.endsWith('.py')) return parsePython(content)
+
+  // TypeScript / JavaScript variants
+  const isTsx = ext.endsWith('.tsx') || ext.endsWith('.jsx')
+  return parseFile(content, isTsx)
+}
+
 // ── Node helpers (TypeScript) ──────────────────────────
+
+/**
+ * Parse a TypeScript/TSX file and return a specific AST node
+ * selected by a visitor callback. Returns null on failure or
+ * when the visitor never returns a node.
+ */
+export async function getASTNode(
+  content: string,
+  isTsx: boolean,
+  selector: (root: ASTNode) => ASTNode | null,
+): Promise<ASTNode | null> {
+  const root = await parseFile(content, isTsx)
+  if (!root) return null
+  return selector(root)
+}
+
+/**
+ * Parse a Go file and return a specific AST node
+ * selected by a visitor callback.
+ */
+export async function getGoASTNode(
+  content: string,
+  selector: (root: ASTNode) => ASTNode | null,
+): Promise<ASTNode | null> {
+  const root = await parseGoFile(content)
+  if (!root) return null
+  return selector(root)
+}
+
+/**
+ * Parse a Rust file and return a specific AST node
+ * selected by a visitor callback.
+ */
+export async function getRustASTNode(
+  content: string,
+  selector: (root: ASTNode) => ASTNode | null,
+): Promise<ASTNode | null> {
+  const root = await parseRustFile(content)
+  if (!root) return null
+  return selector(root)
+}
+
+/**
+ * Parse a PHP file and return a specific AST node
+ * selected by a visitor callback.
+ */
+export async function getPhpASTNode(
+  content: string,
+  selector: (root: ASTNode) => ASTNode | null,
+): Promise<ASTNode | null> {
+  const root = await parsePhpFile(content)
+  if (!root) return null
+  return selector(root)
+}
+
+/**
+ * Parse a C# file and return a specific AST node
+ * selected by a visitor callback.
+ */
+export async function getCsharpASTNode(
+  content: string,
+  selector: (root: ASTNode) => ASTNode | null,
+): Promise<ASTNode | null> {
+  const root = await parseCsharpFile(content)
+  if (!root) return null
+  return selector(root)
+}
+
+/**
+ * Parse a Swift file and return a specific AST node
+ * selected by a visitor callback.
+ */
+export async function getSwiftASTNode(
+  content: string,
+  selector: (root: ASTNode) => ASTNode | null,
+): Promise<ASTNode | null> {
+  const root = await parseSwiftFile(content)
+  if (!root) return null
+  return selector(root)
+}
 
 /**
  * Find all descendant nodes of a given type.

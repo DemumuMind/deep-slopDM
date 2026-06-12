@@ -31,7 +31,7 @@ const server = new McpServer({
 // ── Tool 1: deep_slop_scan ─────────────────────────────
 server.tool(
   "deep_slop_scan",
-  "Scan project for AI slop and code quality issues with 13 engines",
+  "Scan project for AI slop and code quality issues with 17 engines",
   {
     path: z.string().default(".").describe("Project directory to scan"),
     engines: z.array(z.string()).optional().describe("Only run these engines"),
@@ -216,7 +216,7 @@ server.tool(
 // ── Tool 4: deep_slop_engines ──────────────────────────
 server.tool(
   "deep_slop_engines",
-  "List all 12 detection engines and their descriptions",
+  "List all 13 detection engines and their descriptions",
   {},
   async () => {
     const engines = [
@@ -232,6 +232,8 @@ server.tool(
       { name: "i18n-lint", rules: 3, desc: "Hardcoded strings, missing translation keys, locale mismatches" },
       { name: "config-lint", rules: 3, desc: "tsconfig, ESLint, bundler configuration validation" },
       { name: "meta-quality", rules: 2, desc: "Scoring weights, trend analysis, diff scoring, quality gate" },
+      { name: "framework-lint", rules: 15, desc: "Framework-specific AI slop: Next.js client/server issues, Tailwind CSS anti-patterns" },
+      { name: "markup-lint", rules: 20, desc: "Quality checks for JSON, YAML, CSS, HTML, and Markdown files" },
     ]
 
     return {
