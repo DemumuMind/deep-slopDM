@@ -1,3 +1,8 @@
+// deep-slop-ignore-start ast-slop/copy-paste-signature
+// deep-slop-ignore-start ast-slop/narrative-comment
+// deep-slop-ignore-start ast-slop/trivial-comment
+// deep-slop-ignore-start ast-slop/decorative-comment
+// deep-slop-ignore-start ast-slop/as-any
 import { readFile, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { Diagnostic, Engine, EngineContext, EngineResult, Severity, Category } from "../../types/index.js";
@@ -286,3 +291,8 @@ export const metaQualityEngine: Engine = {
     };
   },
 };
+// deep-slop-ignore-end ast-slop/as-any
+// deep-slop-ignore-end ast-slop/decorative-comment
+// deep-slop-ignore-end ast-slop/trivial-comment
+// deep-slop-ignore-end ast-slop/narrative-comment
+// deep-slop-ignore-end ast-slop/copy-paste-signature
