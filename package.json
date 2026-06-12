@@ -8,8 +8,15 @@
     "deep-slop-mcp": "./dist/mcp.js"
   },
   "files": [
-    "dist",
-    "scripts"
+    "dist/cli.js",
+    "dist/mcp.js",
+    "dist/index.js",
+    "dist/version.js",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "scripts",
+    "!dist/**/*.test.*",
+    "!dist/**/*.test.js.map"
   ],
   "exports": {
     ".": {
