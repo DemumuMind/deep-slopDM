@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Build
+        run: pnpm build
+
+      - name: deep-slop scan
+        run: node dist/cli.js scan . --engine syntax-deep config-lint --exclude node_modules dist
+
+      - name: deep-slop CI quality gate (fail below 50)
+        run: node dist/cli.js ci . --fail-below 50
