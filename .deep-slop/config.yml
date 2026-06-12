@@ -1,0 +1,50 @@
+extends: typescript-strict
+
+rules:
+  # ── Off: noise rules not relevant for analysis tool codebase ──
+  ast-slop/copy-paste-signature: off
+  ast-slop/console-leftover: off
+  ast-slop/trivial-comment: off
+  ast-slop/narrative-comment: off
+  ast-slop/generic-name: off
+  ast-slop/decorative-comment: off
+  ast-slop/hallucinated-import: off
+  format-lint/inconsistent-quotes: off
+  format-lint/inconsistent-semicolons: off
+  format-lint/trailing-comma-inconsistency: off
+  format-lint/max-line-length: off
+  format-lint/blank-line-cluster: off
+  format-lint/inconsistent-indent: off
+  security-deep/shell-injection: off
+  security-deep/unsafe-html: off
+  security-deep/ssrf-risk: off
+  i18n-lint/locale-mismatch: off
+  config-lint/package-json-scripts: off
+
+  # ── Info: legitimate patterns in analysis tooling ──
+  dup-detect/identical-block: info
+  dup-detect/repeated-constant: info
+  arch-constraints/deep-nesting: info
+  arch-constraints/god-file: info
+  arch-constraints/high-coupling: info
+  import-intelligence/unused-symbol: info
+  import-intelligence/unused-import: info
+  import-intelligence/duplicate-import: info
+  import-intelligence/type-only-import: info
+  perf-hints/sync-in-async: info
+  perf-hints/n-plus-one: info
+  perf-hints/string-concat-in-loop: info
+  dead-flow/unused-variable: info
+  dead-flow/unused-export: info
+  dead-flow/unreachable-after-terminator: info
+  dead-flow/dead-switch-code: info
+  dead-flow/dead-switch-case-after-default: info
+  ast-slop/todo-stub: info
+  ast-slop/silent-recovery: info
+  ast-slop/swallowed-exception: info
+  ast-slop/as-any: info
+  ast-slop/hardcoded-config: info
+  ast-slop/placeholder-impl: info
+  ast-slop/debug-path: info
+  ast-slop/double-assertion: info
+  security-deep/prototype-pollution: info
