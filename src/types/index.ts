@@ -174,6 +174,8 @@ export interface ScanResult {
   bySeverity: Record<Severity, number>;
   /** By engine */
   byEngine: Record<EngineName, number>;
+  /** Number of diagnostics suppressed by deep-slop-ignore directives */
+  suppressedCount: number;
   /** Project metadata */
   meta: {
     rootDirectory: string;

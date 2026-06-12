@@ -42,6 +42,8 @@ export interface FixResult {
   rolledBack: boolean
   /** Errors encountered during fix application */
   errors: string[]
+  /** Diff hunks for dry-run display (populated when dryRun=true) */
+  diffs: FixDiff[]
 }
 
 /** Options for the fix pipeline */
@@ -54,6 +56,24 @@ export interface FixOptions {
   verify: boolean
   /** If true, show detailed plan with before/after snippets and confirmation prompt */
   plan?: boolean
+  /** If set, only fix diagnostics matching these rule IDs (e.g. ['ast-slop/console-leftover']) */
+  rules?: string[]
+}
+
+/** A single diff hunk for dry-run display */
+export interface FixDiff {
+  /** File path relative to root */
+  filePath: string
+  /** Rule that produced this fix */
+  rule: string
+  /** Line being changed (1-based) */
+  line: number
+  /** Original content of the line(s) */
+  before: string
+  /** Replacement content (empty string for deletions) */
+  after: string
+  /** Confidence of this fix */
+  confidence: number
 }
 
 /** A single item in the preview plan output */

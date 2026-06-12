@@ -27,6 +27,7 @@ function makeScanResult(score: number, diags: Diagnostic[]): ScanResult {
     totalDiagnostics: diags.length,
     bySeverity: { error: diags.length, warning: 0, info: 0, suggestion: 0 },
     byEngine: { 'ast-slop': diags.length } as Record<string, number>,
+    suppressedCount: 0,
     meta: {
       rootDirectory: '/test',
       languages: ['typescript'],

@@ -5,6 +5,8 @@ import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
 import { LiveGrid } from '../ui/live-grid.js'
 import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
+import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
+import { applySuppressDirectives } from '../utils/suppress.js'
 
 /** Registry of all 15 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
@@ -44,10 +46,24 @@ export async function runScan(
     await preloadFiles(context.files)
   }
 
+  // Discover and load plugins AFTER built-in engines
+  const pluginEngines = await discoverAndLoadPlugins(context.rootDirectory)
+
   // Determine which engines to run
   const enabledEngines = Object.entries(ENGINE_REGISTRY).filter(
     ([name]) => context.config.engines[name as EngineName] !== false,
   );
+
+  // Add plugin engines (loaded after built-ins)
+  for (const pluginEngine of pluginEngines) {
+    // Check if plugin is disabled via config
+    if (context.config.engines[pluginEngine.name] !== false) {
+      enabledEngines.push([
+        pluginEngine.name as EngineName,
+        () => Promise.resolve(pluginEngine),
+      ])
+    }
+  }
 
   const results: EngineResult[] = [];
   let completed = 0;
@@ -113,7 +129,28 @@ export async function runScan(
   const rawDiagnostics = results.flatMap((r) => r.diagnostics)
 
   // Apply per-rule severity overrides from config
-  const allDiagnostics = applyRuleSeverities(rawDiagnostics, context.config.rules || {})
+  let allDiagnostics = applyRuleSeverities(rawDiagnostics, context.config.rules || {})
+
+  // Apply suppress directives BEFORE scoring
+  // Read file contents for suppress parsing
+  const fileContents = new Map<string, string>()
+  if (context.files?.length) {
+    const { readFile: fsReadFile } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const uniquePaths = new Set(allDiagnostics.map((d) => d.filePath))
+    for (const relPath of uniquePaths) {
+      try {
+        const absPath = join(context.rootDirectory, relPath)
+        const content = await fsReadFile(absPath, 'utf-8')
+        fileContents.set(relPath, content)
+      } catch {
+        // File read failure — skip suppress for this file
+      }
+    }
+  }
+
+  const { filtered, suppressedCount } = applySuppressDirectives(allDiagnostics, fileContents)
+  allDiagnostics = filtered
 
   // Propagate adjusted diagnostics back into engine results
   for (const r of results) {
@@ -125,8 +162,8 @@ export async function runScan(
   const categoryScores: Record<Category, number> = {} as Record<Category, number>;
 
   for (const d of allDiagnostics) {
-    bySeverity[d.severity]++;
-    byEngine[d.engine] = (byEngine[d.engine] ?? 0) + 1;
+    bySeverity[d.severity]++
+    byEngine[d.engine] = (byEngine[d.engine] ?? 0) + 1
   }
 
   // Calculate score: density-aware logarithmic scoring
@@ -141,6 +178,7 @@ export async function runScan(
     totalDiagnostics: allDiagnostics.length,
     bySeverity,
     byEngine,
+    suppressedCount,
     meta: {
       rootDirectory: context.rootDirectory,
       languages: context.languages,

@@ -10,7 +10,7 @@ import type { FixOptions, FixResult, PlanPreviewResult, PlanPreviewItem } from '
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-export type { FixStep, FixPlan, FixResult, FixOptions, PlanPreviewItem, PlanPreviewResult } from './types.js'
+export type { FixStep, FixPlan, FixResult, FixOptions, FixDiff, PlanPreviewItem, PlanPreviewResult } from './types.js'
 
 /**
  * Run the fix pipeline on a set of diagnostics.
@@ -21,7 +21,7 @@ export type { FixStep, FixPlan, FixResult, FixOptions, PlanPreviewItem, PlanPrev
  *
  * @param diagnostics - All diagnostics from a scan
  * @param context - Engine context with project info
- * @param options - Fix pipeline options (mode, dryRun, verify)
+ * @param options - Fix pipeline options (mode, dryRun, verify, rules)
  * @returns FixResult with stats about what was changed
  */
 export async function runFix(
@@ -29,15 +29,15 @@ export async function runFix(
   context: EngineContext,
   options: FixOptions,
 ): Promise<FixResult> {
-  const { mode, dryRun, verify, plan: isPlan } = options
+  const { mode, dryRun, verify, plan: isPlan, rules } = options
   const rootDir = context.rootDirectory
 
   // Calculate score before fixes
   const fileCount = context.files?.length ?? 0
   const scoreBefore = calculateScore(diagnostics, fileCount).score
 
-  // Generate fix plan
-  const plan = generateFixPlan(diagnostics, mode)
+  // Generate fix plan (pass rules filter and rootDir for oldText resolution)
+  const plan = generateFixPlan(diagnostics, mode, rootDir, rules)
 
   if (plan.steps.length === 0) {
     return {
@@ -47,12 +47,13 @@ export async function runFix(
       scoreAfter: scoreBefore,
       rolledBack: false,
       errors: [],
+      diffs: [],
     }
   }
 
   // If plan mode, return detailed preview instead of applying
   if (isPlan) {
-    return generatePlanPreview(diagnostics, context, mode, scoreBefore, fileCount)
+    return generatePlanPreview(diagnostics, context, mode, scoreBefore, fileCount, rules)
   }
 
   // Apply fix plan
@@ -112,9 +113,10 @@ function generatePlanPreview(
   mode: 'safe' | 'force',
   scoreBefore: number,
   fileCount: number,
+  rules?: string[],
 ): FixResult {
   const rootDir = context.rootDirectory
-  const plan = generateFixPlan(diagnostics, mode)
+  const plan = generateFixPlan(diagnostics, mode, rootDir, rules)
 
   // Build preview items with before/after snippets
   const items: PlanPreviewItem[] = plan.steps.map((step) => {
@@ -172,6 +174,7 @@ function generatePlanPreview(
     scoreAfter: estimatedScoreAfter,
     rolledBack: false,
     errors: [JSON.stringify(previewData)],
+    diffs: [],
   }
 }
 

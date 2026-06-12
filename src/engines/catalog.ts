@@ -35,6 +35,7 @@ const FIXABLE_RULES = new Set([
   'dead-flow/unreachable-after-terminator',
   'dead-flow/unused-variable',
   'dead-flow/empty-block',
+  'dead-flow/empty-catch',
   'dead-flow/dead-switch-code',
   'dead-flow/dead-switch-case-after-default',
   'type-safety/as-any',

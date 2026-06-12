@@ -1,9 +1,11 @@
 // ── Fix Plan Generator ─────────────────────────────────
 // Groups fixable diagnostics by file, orders bottom-up,
-// and filters by confidence based on mode.
+// and filters by confidence based on mode and rules.
 
 import type { Diagnostic } from '../types/index.js'
 import type { FixPlan, FixStep } from './types.js'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 /** Minimum confidence for 'safe' mode */
 const SAFE_CONFIDENCE_THRESHOLD = 0.8
@@ -11,7 +13,9 @@ const SAFE_CONFIDENCE_THRESHOLD = 0.8
 /**
  * Generate a fix plan from a list of diagnostics.
  *
+ * - Filters by --rules if provided
  * - Groups fixable diagnostics by file
+ * - Reads file content to populate oldText for accurate diffs
  * - Orders steps by line number DESC (bottom-up to preserve offsets)
  * - 'safe' mode: only includes diagnostics with suggestion.confidence >= 0.8
  * - 'force' mode: includes all fixable diagnostics
@@ -19,15 +23,39 @@ const SAFE_CONFIDENCE_THRESHOLD = 0.8
 export function generateFixPlan(
   diagnostics: Diagnostic[],
   mode: 'safe' | 'force',
+  rootDir?: string,
+  rules?: string[],
 ): FixPlan {
   // Filter to fixable diagnostics with suggestions
-  const fixable = diagnostics.filter((d) => {
+  let fixable = diagnostics.filter((d) => {
     if (!d.fixable || !d.suggestion) return false
     if (mode === 'safe' && d.suggestion.confidence < SAFE_CONFIDENCE_THRESHOLD) {
       return false
     }
     return true
   })
+
+  // Apply --rule filter if provided
+  if (rules && rules.length > 0) {
+    const ruleSet = new Set(rules)
+    fixable = fixable.filter((d) => ruleSet.has(d.rule))
+  }
+
+  // Build file content cache for oldText resolution
+  const fileCache = new Map<string, string[]>()
+  const getFileLines = (filePath: string): string[] | null => {
+    if (fileCache.has(filePath)) return fileCache.get(filePath)!
+    if (!rootDir) return null
+    try {
+      const absolutePath = join(rootDir, filePath)
+      const content = readFileSync(absolutePath, 'utf-8')
+      const lines = content.split('\n')
+      fileCache.set(filePath, lines)
+      return lines
+    } catch {
+      return null
+    }
+  }
 
   // Build fix steps from diagnostics
   const steps: FixStep[] = fixable.map((d) => {
@@ -42,24 +70,33 @@ export function generateFixPlan(
     let oldText = ''
     let newText = suggestion.text
 
+    // Read actual file content for oldText when possible
+    const fileLines = getFileLines(d.filePath)
+    if (fileLines) {
+      const startIdx = Math.max(0, startLine - 1)
+      const endIdx = Math.min(fileLines.length - 1, endLine - 1)
+      if (startIdx <= endIdx && startIdx < fileLines.length) {
+        oldText = fileLines.slice(startIdx, endIdx + 1).join('\n')
+      }
+    }
+
     switch (suggestion.type) {
       case 'replace':
-        // oldText will be read from file at apply time; placeholder here
-        oldText = ''
+        // oldText already populated from file; newText from suggestion
         break
       case 'insert':
+        // For inserts, oldText is empty, newText is the suggestion
         oldText = ''
         break
       case 'delete':
-        // newText is empty for deletions; oldText from file at apply time
-        oldText = ''
+        // For deletes, oldText is the line content; newText is empty
         newText = ''
         break
       case 'refactor':
         // Refactor suggestions are manual; skip from auto-fix
         return null as unknown as FixStep
       default:
-        oldText = ''
+        break
     }
 
     return {

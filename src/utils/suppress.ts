@@ -1,6 +1,7 @@
 // ── Suppress Directive Parser ──────────────────────────
-// Scans source for `// deep-slop-disable-*` directives and builds a suppress map
-// that engines consult before emitting diagnostics.
+// Scans source for `// deep-slop-disable-*` and `// deep-slop-ignore-*`
+// directives and builds a suppress map that the orchestrator consults
+// before scoring.
 
 export interface SuppressEntry {
   /** Line number where the directive appears (1-indexed) */
@@ -13,6 +14,14 @@ export interface SuppressEntry {
   type: 'next-line' | 'line' | 'block-start' | 'block-end'
 }
 
+/** Parsed suppress map for a single file */
+export interface SuppressMap {
+  /** Entries from parsing */
+  entries: SuppressEntry[]
+  /** Checker function for quick lookup */
+  isSuppressed: (line: number, rule: string) => boolean
+}
+
 /** Parse suppress directives from source content */
 export function parseSuppressDirectives(content: string): SuppressEntry[] {
   const entries: SuppressEntry[] = []
@@ -22,7 +31,81 @@ export function parseSuppressDirectives(content: string): SuppressEntry[] {
     const line = lines[i].trim()
     const lineNum = i + 1
 
-    // ── next-line ──
+    // ── deep-slop-ignore-next ──
+    const ignoreNextMatch = line.match(
+      /\/\/\s*deep-slop-ignore-next(?:\s+(.+))?$/
+    )
+    if (ignoreNextMatch) {
+      entries.push({
+        directiveLine: lineNum,
+        targetLine: lineNum + 1,
+        rules: parseRuleList(ignoreNextMatch[1]),
+        type: 'next-line',
+      })
+      continue
+    }
+
+    // ── deep-slop-ignore-line ──
+    const ignoreLineMatch = line.match(
+      /\/\/\s*deep-slop-ignore-line(?:\s+(.+))?$/
+    )
+    if (ignoreLineMatch) {
+      entries.push({
+        directiveLine: lineNum,
+        targetLine: lineNum,
+        rules: parseRuleList(ignoreLineMatch[1]),
+        type: 'line',
+      })
+      continue
+    }
+
+    // ── deep-slop-ignore (with optional rule-name, applies to next line) ──
+    const ignoreRuleMatch = line.match(
+      /\/\/\s*deep-slop-ignore(?:\s+(.+))?$/
+    )
+    if (ignoreRuleMatch) {
+      // Distinguish from block-start by checking there's no '-start' suffix
+      const rulePart = ignoreRuleMatch[1]
+      if (rulePart !== 'start' && rulePart !== 'end') {
+        entries.push({
+          directiveLine: lineNum,
+          targetLine: lineNum + 1,
+          rules: parseRuleList(rulePart),
+          type: 'next-line',
+        })
+        continue
+      }
+    }
+
+    // ── deep-slop-ignore-start ──
+    const ignoreStartMatch = line.match(
+      /\/\/\s*deep-slop-ignore-start(?:\s+(.+))?$/
+    )
+    if (ignoreStartMatch) {
+      entries.push({
+        directiveLine: lineNum,
+        targetLine: lineNum,
+        rules: parseRuleList(ignoreStartMatch[1]),
+        type: 'block-start',
+      })
+      continue
+    }
+
+    // ── deep-slop-ignore-end ──
+    const ignoreEndMatch = line.match(
+      /\/\/\s*deep-slop-ignore-end/
+    )
+    if (ignoreEndMatch) {
+      entries.push({
+        directiveLine: lineNum,
+        targetLine: lineNum,
+        rules: new Set(),
+        type: 'block-end',
+      })
+      continue
+    }
+
+    // ── Legacy: deep-slop-disable-next-line ──
     const nextLineMatch = line.match(
       /\/\/\s*deep-slop-disable-next-line(?:\s+(.+))?$/
     )
@@ -36,7 +119,7 @@ export function parseSuppressDirectives(content: string): SuppressEntry[] {
       continue
     }
 
-    // ── current-line ──
+    // ── Legacy: deep-slop-disable-line ──
     const lineMatch = line.match(
       /\/\/\s*deep-slop-disable-line(?:\s+(.+))?$/
     )
@@ -50,21 +133,21 @@ export function parseSuppressDirectives(content: string): SuppressEntry[] {
       continue
     }
 
-    // ── block start ──
+    // ── Legacy: deep-slop-disable (block start) ──
     const blockStart = line.match(
       /\/\*\s*deep-slop-disable(?:\s+(.+))?\s*\//
     )
     if (blockStart) {
       entries.push({
         directiveLine: lineNum,
-        targetLine: lineNum, // block starts here, applies to subsequent lines
+        targetLine: lineNum,
         rules: parseRuleList(blockStart[1]),
         type: 'block-start',
       })
       continue
     }
 
-    // ── block end ──
+    // ── Legacy: deep-slop-enable (block end) ──
     const blockEnd = line.match(/\/\*\s*deep-slop-enable\s*\//)
     if (blockEnd) {
       entries.push({
@@ -83,7 +166,7 @@ export function parseSuppressDirectives(content: string): SuppressEntry[] {
 function parseRuleList(rulesStr: string | undefined): Set<string> {
   if (!rulesStr) return new Set() // empty = suppress all
   const rules = rulesStr
-    .split(/[,\s]+/)
+    .split(/[,\\s]+/)
     .map((r) => r.trim())
     .filter(Boolean)
   return new Set(rules)
@@ -109,7 +192,7 @@ export function buildSuppressChecker(
       currentStart = null
     }
   }
-  // Unclosed block → extends to EOF (use a large number)
+  // Unclosed block extends to EOF
   if (currentStart) {
     blockRanges.push({
       startLine: currentStart.line,
@@ -141,4 +224,47 @@ export function buildSuppressChecker(
 
     return false // not suppressed
   }
+}
+
+/**
+ * Build a full suppress map for a file's content.
+ * Returns both the entries and a checker function.
+ */
+export function buildSuppressMap(content: string): SuppressMap {
+  const entries = parseSuppressDirectives(content)
+  const isSuppressed = buildSuppressChecker(entries)
+  return { entries, isSuppressed }
+}
+
+/**
+ * Filter diagnostics using suppress directives.
+ * Returns the filtered list and the count of suppressed diagnostics.
+ */
+export function applySuppressDirectives(
+  diagnostics: import('../types/index.js').Diagnostic[],
+  fileContents: Map<string, string>,
+): {
+  filtered: import('../types/index.js').Diagnostic[]
+  suppressedCount: number
+} {
+  // Build suppress maps per file
+  const suppressMaps = new Map<string, SuppressMap>()
+
+  for (const [filePath, content] of fileContents) {
+    suppressMaps.set(filePath, buildSuppressMap(content))
+  }
+
+  const filtered: import('../types/index.js').Diagnostic[] = []
+  let suppressedCount = 0
+
+  for (const diag of diagnostics) {
+    const map = suppressMaps.get(diag.filePath)
+    if (map && map.isSuppressed(diag.line, diag.rule)) {
+      suppressedCount++
+    } else {
+      filtered.push(diag)
+    }
+  }
+
+  return { filtered, suppressedCount }
 }

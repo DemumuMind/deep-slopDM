@@ -28,6 +28,14 @@ import {
   extractImportFromNode,
   walkAST,
   isAvailable,
+  initPythonParser,
+  parsePython,
+  isPythonAvailable,
+  findPythonFunctions,
+  findPythonClasses,
+  findPythonImports,
+  detectPythonAIPatterns,
+  isPythonFunctionStub,
 } from "../../utils/tree-sitter.js";
 import type { ASTNode } from "../../utils/tree-sitter.js"
 
@@ -1832,6 +1840,90 @@ function dedupDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
   return results
 }
 
+// ── Python AST Detectors ──────────────────────────────
+
+/** Detect Python AI patterns using tree-sitter AST */
+function detectPythonAIPatternsAST(root: ASTNode, filePath: string): Diagnostic[] {
+  const diagnostics: Diagnostic[] = []
+  const patterns = detectPythonAIPatterns(root)
+
+  for (const p of patterns) {
+    const rule = p.type === 'python-stub-function'
+      ? 'ast-slop/placeholder-impl'
+      : p.type === 'python-bare-except'
+      ? 'ast-slop/swallowed-exception'
+      : p.type === 'python-todo-stub'
+      ? 'ast-slop/todo-stub'
+      : p.type === 'python-print-leftover'
+      ? 'ast-slop/console-leftover'
+      : 'ast-slop/placeholder-impl'
+
+    const severity: Severity = p.type === 'python-bare-except'
+      ? 'warning'
+      : p.type === 'python-print-leftover'
+      ? 'warning'
+      : p.type === 'python-stub-function'
+      ? 'warning'
+      : 'info'
+
+    diagnostics.push(diag({
+      filePath,
+      rule,
+      severity,
+      message: p.message,
+      help: p.type === 'python-stub-function'
+        ? 'Replace stub with actual implementation or use abc.ABC for abstract methods.'
+        : p.type === 'python-bare-except'
+        ? 'Catch specific exceptions instead of bare except. Use `except Exception as e:` at minimum.'
+        : p.type === 'python-todo-stub'
+        ? 'Resolve the TODO/FIXME or remove the comment.'
+        : 'Remove debug print() statements before committing.',
+      line: p.line,
+      column: 1,
+      fixable: p.type === 'python-print-leftover' || p.type === 'python-stub-function',
+      detail: { astConfirmed: true, patternType: p.type },
+    }))
+  }
+
+  // ── Python class with no methods (likely stub) ──
+  const classes = findPythonClasses(root)
+  for (const cls of classes) {
+    if (cls.methods.length === 0 && cls.bases.length === 0) {
+      diagnostics.push(diag({
+        filePath,
+        rule: 'ast-slop/placeholder-impl',
+        severity: 'info',
+        message: `Class '${cls.name}' has no methods or base classes — likely a placeholder`,
+        help: 'Implement the class, inherit from a base, or mark it as abstract with abc.ABC.',
+        line: cls.line,
+        column: 1,
+        fixable: false,
+        detail: { astConfirmed: true, patternType: 'python-empty-class' },
+      }))
+    }
+  }
+
+  // ── Python overly broad wildcard imports ──
+  const imports = findPythonImports(root)
+  for (const imp of imports) {
+    if (imp.symbols.includes('*')) {
+      diagnostics.push(diag({
+        filePath,
+        rule: 'ast-slop/placeholder-impl',
+        severity: 'info',
+        message: `Wildcard import from '${imp.module}' — pollutes namespace`,
+        help: 'Import only the specific symbols you need: `from module import symbol1, symbol2`',
+        line: imp.line,
+        column: 1,
+        fixable: false,
+        detail: { astConfirmed: true, patternType: 'python-wildcard-import' },
+      }))
+    }
+  }
+
+  return diagnostics
+}
+
 // ── File Analysis Orchestrator ──────────────────────────
 
 async function analyzeFile(
@@ -1907,6 +1999,21 @@ async function analyzeFile(
     }
     // Deduplicate: prefer AST-confirmed over regex on same line+rule
     return dedupDiagnostics(diagnostics)
+  }
+
+  // ── Python AST enhancement (optional, falls back to regex) ──
+  if (language === 'python') {
+    // Try to init Python grammar — graceful fallback if not installed
+    const pyAvailable = await initPythonParser()
+    if (pyAvailable && isPythonAvailable()) {
+      const astRoot = await parsePython(content)
+      if (astRoot) {
+        // Run Python AST-enhanced detectors
+        diagnostics.push(...detectPythonAIPatternsAST(astRoot, relPath))
+      }
+      // Deduplicate: prefer AST-confirmed over regex on same line+rule
+      return dedupDiagnostics(diagnostics)
+    }
   }
 
   return diagnostics

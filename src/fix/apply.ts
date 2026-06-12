@@ -3,7 +3,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
-import type { FixPlan, FixResult } from './types.js'
+import type { FixPlan, FixResult, FixDiff } from './types.js'
 
 /** Directory for backup copies of original files */
 const BACKUP_DIR = '.deep-slop/fix-backup'
@@ -11,18 +11,19 @@ const BACKUP_DIR = '.deep-slop/fix-backup'
 /**
  * Apply a fix plan to the project files.
  *
- * - If dryRun: return plan stats without modifying files
+ * - If dryRun: return plan with diff data without modifying files
  * - Creates backup copies in .deep-slop/fix-backup/
  * - Applies steps bottom-up (reverse line order within each file)
- * - Returns FixResult with files modified count
+ * - Returns FixResult with files modified count and diffs
  */
 export async function applyFixPlan(
   plan: FixPlan,
   rootDir: string,
   dryRun: boolean,
 ): Promise<FixResult> {
-  // Dry run: just return plan without modifying anything
+  // Dry run: return plan with diff data without modifying anything
   if (dryRun) {
+    const diffs = buildDryRunDiffs(plan, rootDir)
     return {
       filesModified: plan.fileCount,
       diagnosticsFixed: plan.diagnosticCount,
@@ -30,6 +31,7 @@ export async function applyFixPlan(
       scoreAfter: 0,
       rolledBack: false,
       errors: [],
+      diffs,
     }
   }
 
@@ -57,6 +59,7 @@ export async function applyFixPlan(
       scoreAfter: 0,
       rolledBack: false,
       errors,
+      diffs: [],
     }
   }
 
@@ -112,8 +115,12 @@ export async function applyFixPlan(
         }
       }
 
-      // If step has newText, replace the line range with it
-      if (step.newText !== undefined) {
+      // For delete operations (newText is empty), remove the lines entirely
+      if (step.newText === '') {
+        lines.splice(startIdx, endIdx - startIdx + 1)
+        applied++
+      } else if (step.newText !== undefined) {
+        // Replace/insert: splice in the new content
         const replacementLines = step.newText.split('\n')
         lines.splice(startIdx, endIdx - startIdx + 1, ...replacementLines)
         applied++
@@ -138,7 +145,51 @@ export async function applyFixPlan(
     scoreAfter: 0,
     rolledBack: false,
     errors,
+    diffs: [],
   }
+}
+
+/**
+ * Build diff data for dry-run display.
+ * Reads file content and builds before/after for each fix step.
+ */
+function buildDryRunDiffs(plan: FixPlan, rootDir: string): FixDiff[] {
+  const diffs: FixDiff[] = []
+
+  // Cache file reads
+  const fileCache = new Map<string, string[]>()
+
+  for (const step of plan.steps) {
+    let before = '(unable to read file)'
+
+    if (!fileCache.has(step.filePath)) {
+      try {
+        const absolutePath = join(rootDir, step.filePath)
+        const content = readFileSync(absolutePath, 'utf-8')
+        fileCache.set(step.filePath, content.split('\n'))
+      } catch {
+        fileCache.set(step.filePath, [])
+      }
+    }
+
+    const lines = fileCache.get(step.filePath)!
+    const startIdx = Math.max(0, step.startLine - 1)
+    const endIdx = Math.min(lines.length - 1, step.endLine - 1)
+    if (startIdx <= endIdx && lines.length > 0) {
+      before = lines.slice(startIdx, endIdx + 1).join('\n')
+    }
+
+    diffs.push({
+      filePath: step.filePath,
+      rule: step.rule,
+      line: step.startLine,
+      before,
+      after: step.newText || '',
+      confidence: step.confidence,
+    })
+  }
+
+  return diffs
 }
 
 /**

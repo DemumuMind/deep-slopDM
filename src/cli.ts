@@ -212,6 +212,7 @@ program
   .option("--dry-run", "Show what would be fixed without modifying files")
   .option("--verify", "Re-scan after fix and rollback if score worsened")
   .option("--plan", "Show detailed fix plan with before/after snippets and confirmation")
+  .option("--rule <rules...>", "Only fix these rule IDs (e.g. ast-slop/console-leftover)")
   .action(async (path: string, opts: Record<string, any>) => {
     const rootDir = resolve(path);
 
@@ -265,6 +266,7 @@ program
     const dryRun = opts.dryRun ?? false
     const verify = opts.verify ?? false
     const isPlan = opts.plan ?? false
+    const rules: string[] | undefined = opts.rule
 
     // Run fix pipeline
     const fixResult = await runFixPipeline(allDiagnostics, context, {
@@ -272,6 +274,7 @@ program
       dryRun: isPlan ? true : dryRun,
       verify: isPlan ? false : verify,
       plan: isPlan,
+      rules,
     })
 
     // Print fix result with colored output
@@ -287,6 +290,7 @@ program
         console.log(styleBold('info', '  Fix Plan Preview'))
         console.log(separator())
         console.log(`  Mode:            ${style('info', mode)}`)
+        if (rules && rules.length > 0) console.log(`  Rules:           ${style('suggestion', rules.join(', '))}`)
         console.log(`  Files affected:  ${style('suggestion', String(preview.filesAffected.length))}`)
         console.log(`  Diagnostics:     ${style('suggestion', String(preview.diagnosticsAddressed))} addressed`)
         console.log(`  Score:           ${String(preview.scoreBefore)} → ${preview.estimatedScoreAfter >= preview.scoreBefore ? style('success', String(preview.estimatedScoreAfter)) : style('danger', String(preview.estimatedScoreAfter))} (estimated)`)
@@ -331,9 +335,40 @@ program
     }
 
     console.log(`  Mode:          ${style('info', mode)}`)
+    if (rules && rules.length > 0) console.log(`  Rules:          ${style('suggestion', rules.join(', '))}`)
     console.log(`  Files:         ${style('suggestion', String(fixResult.filesModified))} modified`)
     console.log(`  Diagnostics:   ${style('suggestion', String(fixResult.diagnosticsFixed))} fixed`)
     console.log(`  Score:         ${String(fixResult.scoreBefore)} → ${fixResult.scoreAfter >= fixResult.scoreBefore ? style('success', String(fixResult.scoreAfter)) : style('danger', String(fixResult.scoreAfter))}`)
+
+    // Show diffs in dry-run mode
+    if (dryRun && fixResult.diffs.length > 0) {
+      console.log('')
+      console.log(style('muted', '  Changes:'))
+      // Group diffs by file
+      const byFile = new Map<string, typeof fixResult.diffs>()
+      for (const diff of fixResult.diffs) {
+        const group = byFile.get(diff.filePath) ?? []
+        group.push(diff)
+        byFile.set(diff.filePath, group)
+      }
+      for (const [filePath, fileDiffs] of byFile) {
+        console.log(`  ${style('info', filePath)}`)
+        for (const diff of fileDiffs) {
+          const confColor = diff.confidence >= 0.8 ? 'success' : diff.confidence >= 0.5 ? 'warn' : 'danger'
+          console.log(`    ${style('muted', `L${diff.line}`)} ${style('muted', diff.rule)} confidence=${style(confColor, String(diff.confidence))}`)
+          // Show before lines
+          for (const beforeLine of diff.before.split('\n')) {
+            console.log(`    ${style('danger', '-')} ${truncateSnippet(beforeLine, 70)}`)
+          }
+          // Show after lines (if not a deletion)
+          if (diff.after) {
+            for (const afterLine of diff.after.split('\n')) {
+              console.log(`    ${style('success', '+')} ${truncateSnippet(afterLine, 70)}`)
+            }
+          }
+        }
+      }
+    }
 
     if (fixResult.rolledBack) {
       console.log(`  ${styleBold('danger', 'ROLLED BACK')} — score worsened after fix, original files restored`)
@@ -1110,6 +1145,87 @@ hookCmd
     console.log(`  Score:       ${styleBold(result.score >= 75 ? 'success' : result.score >= 50 ? 'warn' : 'danger', String(result.score))} (${scoreLabel(result.score)})`)
     console.log(`  Diagnostics: ${result.totalDiagnostics} total`)
     console.log(`  File:        ${join(rootDir, '.deep-slop', 'baseline.json')}`)
+    console.log(separator())
+    console.log('')
+  })
+
+// ── PLUGIN ──────────────────────────────────────────────
+const pluginCmd = program
+  .command('plugin')
+  .description('Manage deep-slop plugins')
+
+// ── plugin add ───────────────────────────────────────
+pluginCmd
+  .command('add')
+  .description('Install a plugin from a file path')
+  .argument('<source>', 'path to plugin .js or .mjs file')
+  .action(async (source: string) => {
+    const { installPlugin } = await import('./plugins/install.js')
+    const rootDir = process.cwd()
+    const result = await installPlugin(source, rootDir)
+
+    console.log('')
+    if (result.success) {
+      console.log(style('success', `  ✔ ${result.message}`))
+    } else {
+      console.log(style('danger', `  ✖ ${result.message}`))
+    }
+    console.log('')
+
+    if (!result.success) process.exit(1)
+  })
+
+// ── plugin remove ────────────────────────────────────
+pluginCmd
+  .command('remove')
+  .description('Remove an installed plugin')
+  .argument('<name>', 'plugin engine name or filename')
+  .action(async (name: string) => {
+    const { removePlugin } = await import('./plugins/install.js')
+    const rootDir = process.cwd()
+    const result = await removePlugin(name, rootDir)
+
+    console.log('')
+    if (result.success) {
+      console.log(style('success', `  ✔ ${result.message}`))
+    } else {
+      console.log(style('danger', `  ✖ ${result.message}`))
+    }
+    console.log('')
+
+    if (!result.success) process.exit(1)
+  })
+
+// ── plugin list ─────────────────────────────────────
+pluginCmd
+  .command('list')
+  .description('List installed plugins')
+  .action(async () => {
+    const { listPlugins } = await import('./plugins/list.js')
+    const rootDir = process.cwd()
+    const plugins = await listPlugins(rootDir)
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  deep-slop plugins'))
+    console.log(separator())
+
+    if (plugins.length === 0) {
+      console.log(style('muted', '  No plugins installed'))
+      console.log(style('muted', '  Run `deep-slop plugin add <path>` to install one'))
+    } else {
+      for (const p of plugins) {
+        const icon = p.loaded ? style('success', '✔') : style('danger', '✖')
+        const langs = p.languages.join(', ') || '(none)'
+        console.log(`  ${icon} ${styleBold('info', p.name)} ${style('muted', `— ${p.description}`)}`)
+        console.log(`    ${style('muted', `Languages: ${langs}`)}`)
+        console.log(`    ${style('muted', `Path: ${p.path}`)}`)
+        if (p.error) {
+          console.log(`    ${style('danger', `Error: ${p.error}`)}`)
+        }
+      }
+    }
+
     console.log(separator())
     console.log('')
   })

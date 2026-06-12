@@ -1,13 +1,19 @@
-import { readdir, stat } from "node:fs/promises";
-import { join, relative, extname } from "node:path";
+import { readdir, stat } from "node:fs/promises"
+import { join, relative, extname } from "node:path"
 import type {
   Engine,
   EngineContext,
   EngineResult,
   Diagnostic,
   Suggestion,
-} from "../../types/index.js";
-import { readFileContent, toLines } from "../../utils/file-utils.js";
+} from "../../types/index.js"
+import { readFileContent, toLines } from "../../utils/file-utils.js"
+import {
+  detectAllAST,
+  detectUnusedExportsASTWrapper,
+  parseWithTreeSitter,
+} from "./ast-detect.js"
+import type { ASTNode } from "../../utils/tree-sitter.js"
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -1009,9 +1015,31 @@ function detectEmptyBlocks(
       const isCatchOrFinally = /catch\b/.test(construct) || /finally\b/.test(construct);
 
       if (isCatchOrFinally) {
-        // Skip ALL empty catch blocks (common intentional pattern)
-        // and catch blocks with only comments inside
-        continue;
+        // Report empty catch blocks as fixable (add error handling)
+        const catchMatch = construct.match(/catch\s*\(\s*(\w+)\s*\)/)
+        const errorVar = catchMatch ? catchMatch[1] : 'error'
+        if (/catch\b/.test(construct) && innerContent === '') {
+          diagnostics.push(
+            makeDiagnostic({
+              filePath,
+              rule: "dead-flow/empty-block",
+              message: `Empty catch block — error is silently swallowed`,
+              line: lines[i].num,
+              severity: "warning",
+              fixable: true,
+              help: "Empty catch blocks silently swallow errors. Add console.error() or a TODO comment to handle the error.",
+              suggestion: {
+                type: "replace",
+                text: `${construct} { console.error(${errorVar}) }`,
+                range: { startLine: lines[i].num, startCol: 1, endLine: lines[i].num, endCol: lines[i].text.length + 1 },
+                confidence: 0.75,
+                reason: "Empty catch blocks hide errors. Adding console.error() ensures errors are at least logged.",
+              },
+            }),
+          )
+        }
+        // Skip finally blocks (common intentional pattern)
+        continue
       }
 
       if (innerContent !== "") {
@@ -1104,8 +1132,32 @@ function detectEmptyBlocks(
             (/^\s*}\s*catch\b/.test(lines[i - 1].text) || /^\s*}\s*finally\b/.test(lines[i - 1].text)));
         if (isCatchOrFinallyBlock && hasComment) continue;
 
-        // Skip empty catch blocks even without comments (common intentional pattern)
-        if (isCatchOrFinallyBlock && construct.startsWith("catch")) continue;
+        // Report empty catch blocks as fixable (add error handling)
+        if (isCatchOrFinallyBlock && construct.startsWith("catch") && !hasComment) {
+          const catchMatch = construct.match(/catch\s*\(\s*(\w+)\s*\)/)
+          const errorVar = catchMatch ? catchMatch[1] : 'error'
+          diagnostics.push(
+            makeDiagnostic({
+              filePath,
+              rule: "dead-flow/empty-block",
+              message: `Empty catch block — error is silently swallowed`,
+              line: lines[i].num,
+              severity: "warning",
+              fixable: true,
+              help: "Empty catch blocks silently swallow errors. Add console.error() or a TODO comment to handle the error.",
+              suggestion: {
+                type: "replace",
+                text: `${construct} {\n  console.error(${errorVar})\n}`,
+                range: { startLine: lines[i].num, startCol: 1, endLine: nextLine + 1, endCol: 1 },
+                confidence: 0.7,
+                reason: "Empty catch blocks hide errors. Adding console.error() ensures errors are at least logged.",
+              },
+            }),
+          )
+          continue
+        }
+
+        // Skip empty finally blocks
 
         diagnostics.push(
           makeDiagnostic({
@@ -1248,97 +1300,222 @@ function detectDeadSwitchCases(
   return diagnostics;
 }
 
+// ── AST/Regex dedup helper ─────────────────────────────
+
+/** Map of regex rule names that AST rules supersede.
+ *  When AST produces a result for one of these, the regex version is dropped. */
+const AST_SUPERSEDES_REGEX: Record<string, string> = {
+  'dead-flow/unreachable-after-terminator': 'dead-flow/unreachable-after-terminator',
+  'dead-flow/dead-conditional': 'dead-flow/dead-conditional',
+  'dead-flow/unused-variable': 'dead-flow/unused-variable',
+  'dead-flow/unused-export': 'dead-flow/unused-export',
+}
+
+/** AST-only rules that regex never produces */
+const AST_ONLY_RULES = new Set([
+  'dead-flow/dead-after-throw',
+  'dead-flow/dead-after-return',
+  'dead-flow/dead-after-break',
+])
+
+/** Build a dedup key for a diagnostic */
+function dedupKey(d: Diagnostic): string {
+  return `${d.filePath}:${d.line}:${d.rule}`
+}
+
+/** Merge AST and regex diagnostics, preferring AST when both match.
+ *  AST-only rules always pass through.
+ *  For rules that both AST and regex can produce, AST wins on same file+line. */
+function mergeASTAndRegex(
+  astDiags: Diagnostic[],
+  regexDiags: Diagnostic[],
+  astRulesRun: Set<string>,
+): Diagnostic[] {
+  const result: Diagnostic[] = []
+  const seen = new Set<string>()
+
+  // 1. Add all AST diagnostics first (they take priority)
+  for (const d of astDiags) {
+    const key = dedupKey(d)
+    if (!seen.has(key)) {
+      seen.add(key)
+      result.push(d)
+    }
+  }
+
+  // 2. Add regex diagnostics that don't collide with AST
+  //    Also skip regex rules that AST already ran (even if no AST diag at this line,
+  //    the AST result is authoritative — it found nothing, so nothing is there)
+  for (const d of regexDiags) {
+    const key = dedupKey(d)
+    if (seen.has(key)) continue
+
+    // If AST ran this rule for this file, skip the regex version entirely
+    // because AST is more accurate — a miss means no issue exists
+    const ruleBase = d.rule.replace('dead-flow/', '')
+    if (astRulesRun.has(ruleBase)) continue
+
+    seen.add(key)
+    result.push(d)
+  }
+
+  return result
+}
+
 // ── Main Engine ──────────────────────────────────────────
 
 export const deadFlowEngine: Engine = {
-  name: "dead-flow",
+  name: 'dead-flow',
   description:
-    "Detects dead/unreachable code using pattern analysis: unreachable code after terminators, dead conditionals, unused exports/variables, empty blocks, and dead switch cases",
-  supportedLanguages: ["typescript", "javascript"],
+    'Detects dead/unreachable code using AST (tree-sitter) with regex fallback: unreachable code after terminators, dead conditionals, unused exports/variables, empty blocks, and dead switch cases',
+  supportedLanguages: ['typescript', 'javascript'],
 
   async run(context: EngineContext): Promise<EngineResult> {
-    const start = Date.now();
-    const diagnostics: Diagnostic[] = [];
-    const { rootDirectory, config, files: specifiedFiles } = context;
+    const start = Date.now()
+    const diagnostics: Diagnostic[] = []
+    const { rootDirectory, config, files: specifiedFiles } = context
 
     // Collect files
     const filePaths = specifiedFiles
       ? specifiedFiles.filter(isRelevantFile)
-      : await collectFiles(rootDirectory, config.exclude);
+      : await collectFiles(rootDirectory, config.exclude)
 
     if (filePaths.length === 0) {
       return {
-        engine: "dead-flow",
+        engine: 'dead-flow',
         diagnostics: [],
         elapsed: Date.now() - start,
         skipped: true,
-        skipReason: "No TypeScript/JavaScript files found to analyze",
-      };
+        skipReason: 'No TypeScript/JavaScript files found to analyze',
+      }
     }
 
     // Read all files
-    const fileContents = new Map<string, string>();
+    const fileContents = new Map<string, string>()
     for (const fp of filePaths) {
       try {
-        const content = await readFileContent(fp);
-        fileContents.set(fp, content);
+        const content = await readFileContent(fp)
+        fileContents.set(fp, content)
       } catch {
         // Skip unreadable files
       }
     }
 
-    // Run per-file checks
+    // ── Phase 1: AST detection (per-file) ────────────────
+    const astDiagnostics: Diagnostic[] = []
+    const astMap = new Map<string, ASTNode>()  // For cross-file AST analysis
+    const perFileASTRules = new Map<string, Set<string>>()  // filePath -> rules AST ran
+    let astAvailable = false
+
     for (const [fp, content] of fileContents) {
-      const relPath = relative(rootDirectory, fp);
+      const relPath = relative(rootDirectory, fp)
+      try {
+        const astResult = await detectAllAST(content, relPath)
+        if (astResult) {
+          astAvailable = true
+          astDiagnostics.push(...astResult.diagnostics)
+          perFileASTRules.set(relPath, astResult.astRules)
+
+          // Also parse for cross-file analysis (unused exports)
+          const ast = await parseWithTreeSitter(content, relPath)
+          if (ast) astMap.set(relPath, ast)
+        }
+      } catch {
+        // AST parsing failed — will fall back to regex
+      }
+    }
+
+    // ── Phase 2: AST cross-file detection (unused exports) ──
+    let astExportDiags: Diagnostic[] = []
+    let astExportRulesRun = false
+    if (config.deadCode.unusedExports && astMap.size > 0) {
+      try {
+        const exportResult = await detectUnusedExportsASTWrapper(astMap, rootDirectory)
+        if (exportResult) {
+          astExportDiags = exportResult
+          astExportRulesRun = true
+        }
+      } catch {
+        // AST export detection failed — will fall back to regex
+      }
+    }
+
+    // ── Phase 3: Regex detection (fallback) ──────────────
+    const regexDiagnostics: Diagnostic[] = []
+
+    for (const [fp, content] of fileContents) {
+      const relPath = relative(rootDirectory, fp)
 
       // 1. Unreachable code after return/throw/break/continue
       if (config.deadCode.unreachableBranches) {
-        diagnostics.push(...detectUnreachableAfterTerminator(content, relPath));
+        regexDiagnostics.push(...detectUnreachableAfterTerminator(content, relPath))
       }
 
       // 2. Unreachable code after early returns in if/else
       if (config.deadCode.unreachableBranches) {
-        diagnostics.push(...detectUnreachableAfterIfElseReturn(content, relPath));
+        regexDiagnostics.push(...detectUnreachableAfterIfElseReturn(content, relPath))
       }
 
       // 3. Dead conditionals
       if (config.deadCode.unreachableBranches) {
-        diagnostics.push(...detectDeadConditionals(content, relPath));
+        regexDiagnostics.push(...detectDeadConditionals(content, relPath))
       }
 
       // 5. Unused variables
       if (config.deadCode.unusedVariables) {
-        diagnostics.push(...detectUnusedVariables(content, relPath));
+        regexDiagnostics.push(...detectUnusedVariables(content, relPath))
       }
 
       // 6. Empty blocks
-      diagnostics.push(...detectEmptyBlocks(content, relPath));
+      regexDiagnostics.push(...detectEmptyBlocks(content, relPath))
 
       // 7. Dead code in switch
       if (config.deadCode.unreachableBranches) {
-        diagnostics.push(...detectDeadSwitchCases(content, relPath));
+        regexDiagnostics.push(...detectDeadSwitchCases(content, relPath))
       }
     }
 
     // 4. Unused exports (cross-file analysis)
     if (config.deadCode.unusedExports) {
-      diagnostics.push(...detectUnusedExports(fileContents, rootDirectory));
+      regexDiagnostics.push(...detectUnusedExports(fileContents, rootDirectory))
     }
 
-    // Deduplicate diagnostics (same file + line + rule)
-    const seen = new Set<string>();
-    const unique = diagnostics.filter((d) => {
-      const key = `${d.filePath}:${d.line}:${d.rule}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    // ── Phase 4: Merge with dedup ───────────────────────
+    // Build the set of AST rules that were successfully run (globally)
+    const globalASTRules = new Set<string>()
+    if (astAvailable) {
+      globalASTRules.add('unreachable-after-terminator')
+      globalASTRules.add('unused-variable')
+      globalASTRules.add('dead-conditional')
+      globalASTRules.add('dead-after-throw')
+      globalASTRules.add('dead-after-return')
+      globalASTRules.add('dead-after-break')
+    }
+    if (astExportRulesRun) {
+      globalASTRules.add('unused-export')
+    }
+
+    // Combine AST and regex, preferring AST
+    let merged = mergeASTAndRegex(
+      [...astDiagnostics, ...astExportDiags],
+      regexDiagnostics,
+      globalASTRules,
+    )
+
+    // Final dedup (same file + line + rule)
+    const seen = new Set<string>()
+    const unique = merged.filter((d) => {
+      const key = `${d.filePath}:${d.line}:${d.rule}`
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
 
     return {
-      engine: "dead-flow",
+      engine: 'dead-flow',
       diagnostics: unique,
       elapsed: Date.now() - start,
       skipped: false,
-    };
+    }
   },
-};
+}

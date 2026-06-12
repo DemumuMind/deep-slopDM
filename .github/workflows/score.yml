@@ -1,0 +1,83 @@
+name: Score comment
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  commit-statuses: write
+
+jobs:
+  score:
+    name: Scan & comment score
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Run deep-slop scan
+        id: scan
+        run: |
+          npx deep-slop scan . --exclude node_modules dist > scan-output.txt 2>&1
+          cat scan-output.txt
+          # Extract the score line for the comment
+          SCORE_LINE=$(grep -iE 'score|total|overall' scan-output.txt | head -5 || true)
+          echo "score_line<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$SCORE_LINE" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          # Full output for comment body
+          {
+            echo "scan_output<<EOF"
+            cat scan-output.txt
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment score on commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha = context.sha;
+            const scoreLine = `${{ steps.scan.outputs.score_line }}`;
+            const fullOutput = `${{ steps.scan.outputs.scan_output }}`;
+            const shortSha = sha.substring(0, 7);
+
+            const body = `## 📊 Deep-slop scan — ${shortSha}\n\n${scoreLine}\n\n<details><summary>Full scan output</summary>\n\n\`\`\`\n${fullOutput}\n\`\`\`\n</details>`;
+
+            // Try to find an associated PR to comment on
+            const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: sha
+            });
+
+            if (prs.data.length > 0) {
+              // Comment on the PR
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prs.data[0].number,
+                body: body
+              });
+            } else {
+              // Create a commit comment instead
+              await github.rest.repos.createCommitComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                commit_sha: sha,
+                body: body
+              });
+            }
