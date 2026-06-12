@@ -136,6 +136,14 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'lint-external/ruff':            tier('mechanical',  'Ruff findings are external Python lint issues'),
   'lint-external/golangci':        tier('mechanical',  'golangci-lint findings are external Go lint issues'),
   'lint-external/clippy':          tier('mechanical',  'Clippy findings are external Rust lint issues'),
+
+  // ── format-lint ──────────────────────────────────────
+  'format-lint/inconsistent-indent':        tier('mechanical', 'Mixed indentation breaks rendering and tooling across editors'),
+  'format-lint/inconsistent-quotes':        tier('style',      'Mixed quote styles create diff noise and inconsistency'),
+  'format-lint/max-line-length':            tier('style',      'Long lines require scrolling and reduce readability'),
+  'format-lint/inconsistent-semicolons':    tier('style',      'Inconsistent semicolons create diff noise and style ambiguity'),
+  'format-lint/blank-line-cluster':         tier('style',      'Excessive blank lines waste vertical space'),
+  'format-lint/trailing-comma-inconsistency': tier('mechanical', 'Inconsistent trailing commas create diff noise and refactoring errors'),
 }
 
 /** Fallback impact for unknown rules */

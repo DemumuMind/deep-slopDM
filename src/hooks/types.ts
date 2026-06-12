@@ -54,6 +54,21 @@ export interface BaselineData {
   }
 }
 
+/** Dependency audit options (re-exported for convenience) */
+export type DepAuditOptions = import('./dep-audit.js').DepAuditOptions
+
+/** Dependency audit result (re-exported for convenience) */
+export type DepAuditResult = import('./dep-audit.js').DepAuditResult
+
+/** Sentinel check options (re-exported for convenience) */
+export type SentinelOptions = import('./sentinel.js').SentinelOptions
+
+/** Sentinel check result (re-exported for convenience) */
+export type SentinelCheckResult = import('./sentinel.js').SentinelCheckResult
+
+/** Sentinel issue (re-exported for convenience) */
+export type SentinelIssue = import('./sentinel.js').SentinelIssue
+
 // deep-slop-ignore-end perf-hints/n-plus-one
 // deep-slop-ignore-end arch-constraints/deep-nesting
 // deep-slop-ignore-end import-intelligence/unused-symbol

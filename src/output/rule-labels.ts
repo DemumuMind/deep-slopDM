@@ -145,6 +145,14 @@ const labels: Record<string, string> = {
   'lint-external/ruff': 'Ruff Lint (Python)',
   'lint-external/golangci': 'golangci-lint (Go)',
   'lint-external/clippy': 'Clippy Lint (Rust)',
+
+  // format-lint
+  'format-lint/inconsistent-indent': 'Inconsistent Indent',
+  'format-lint/inconsistent-quotes': 'Inconsistent Quotes',
+  'format-lint/max-line-length': 'Max Line Length',
+  'format-lint/inconsistent-semicolons': 'Inconsistent Semicolons',
+  'format-lint/blank-line-cluster': 'Blank Line Cluster',
+  'format-lint/trailing-comma-inconsistency': 'Trailing Comma Inconsistency',
 }
 
 /**

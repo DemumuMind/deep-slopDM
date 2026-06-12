@@ -21,6 +21,7 @@ import { detectAllProviders, runProvider } from '../agents/providers.js'
 import { createWorktree, applyWorktreeDiff, cleanupWorktree } from './worktree.js'
 import { detectLanguages, detectFrameworks, collectFiles } from '../utils/discover.js'
 import { DEFAULT_CONFIG, type DeepSlopConfig } from '../types/index.js'
+import { auditDependencies } from '../hooks/dep-audit.js'
 
 export interface RepairOptions {
   /** Root directory of the project */
@@ -111,10 +112,23 @@ async function scanForDiagnostics(dir: string) {
     config,
   })
 
+  // Also include dependency audit diagnostics
+  const depResult = auditDependencies({
+    rootDir: dir,
+    checkOutdated: false,
+    checkUnused: false,
+    timeout: 15_000,
+  })
+
+  const allDiagnostics = [
+    ...result.engines.flatMap((r) => r.diagnostics),
+    ...depResult.diagnostics,
+  ]
+
   return {
     score: result.score,
-    diagnostics: result.engines.flatMap((r) => r.diagnostics),
-    totalDiagnostics: result.totalDiagnostics,
+    diagnostics: allDiagnostics,
+    totalDiagnostics: result.totalDiagnostics + depResult.issuesFound,
   }
 }
 

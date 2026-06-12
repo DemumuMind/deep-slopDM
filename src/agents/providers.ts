@@ -121,6 +121,18 @@ export const AGENT_PROVIDERS: Record<string, AgentProvider> = {
     promptMode: 'stdin',
     detectCommand: 'antigravity --version',
   },
+  'dep-audit': {
+    command: 'deep-slop',
+    args: ['hook', 'audit', '--outdated'],
+    promptMode: 'arg',
+    detectCommand: 'deep-slop --version',
+  },
+  sentinel: {
+    command: 'deep-slop',
+    args: ['hook', 'sentinel', '--repair'],
+    promptMode: 'arg',
+    detectCommand: 'deep-slop --version',
+  },
 }
 
 /** Detect if an agent is available on the system */

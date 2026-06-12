@@ -31,6 +31,8 @@ import { uninstallHook } from "./hooks/uninstall.js";
 import { getHookStatus } from "./hooks/status.js";
 import { captureBaseline, readBaseline, checkQualityGate } from "./hooks/baseline.js";
 import type { HookProvider } from "./hooks/types.js";
+import { auditDependencies } from "./hooks/dep-audit.js";
+import { runSentinel, formatSentinelResults } from "./hooks/sentinel.js";
 import { formatWatchStatus, formatWatchScanResult, type WatchState } from "./watch/display.js"
 import { runRepairLoop, planRepair, type RepairResult } from "./agent/repair.js"
 import { detectAllProviders } from "./agents/providers.js"
@@ -1158,6 +1160,91 @@ hookCmd
     console.log(`  File:        ${join(rootDir, '.deep-slop', 'baseline.json')}`)
     console.log(separator())
     console.log('')
+  })
+
+// ── hook audit ───────────────────────────────────────
+hookCmd
+  .command('audit')
+  .description('Audit dependencies for issues (unpinned, deprecated, missing lockfile)')
+  .argument('[path]', 'project directory', '.')
+  .option('--outdated', 'Check for outdated packages (slower, requires npm/pnpm)')
+  .option('--no-outdated', 'Skip outdated package check (default)')
+  .action((pathArg: string, opts: Record<string, any>) => {
+    const rootDir = resolve(pathArg)
+
+    const result = auditDependencies({
+      rootDir,
+      checkOutdated: opts.outdated ?? false,
+      checkUnused: false,
+      timeout: 30_000,
+    })
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  Dependency Audit'))
+    console.log(separator())
+    console.log(`  Dependencies: ${result.totalDeps}`)
+    console.log(`  Issues:       ${result.issuesFound}`)
+
+    if (result.diagnostics.length > 0) {
+      console.log('')
+      for (const d of result.diagnostics) {
+        const sevIcon = d.severity === 'error' ? style('danger', '✖') : d.severity === 'warning' ? style('warn', '⚠') : style('info', 'ℹ')
+        console.log(`  ${sevIcon} ${d.message}`)
+        if (d.help) {
+          console.log(`    ${style('muted', d.help)}`)
+        }
+        if (d.suggestion) {
+          console.log(`    Fix: ${d.suggestion.text}`)
+        }
+      }
+    }
+
+    console.log(separator())
+    console.log('')
+
+    if (result.issuesFound > 0 && result.diagnostics.some((d) => d.severity === 'error')) {
+      process.exit(1)
+    }
+  })
+
+// ── hook sentinel ────────────────────────────────────
+hookCmd
+  .command('sentinel')
+  .description('Validate hook integrity and detect drift or tampering')
+  .option('--repair', 'Auto-repair detected issues')
+  .option('--no-repair', 'Do not auto-repair (default)')
+  .option('--no-command-check', 'Skip deep-slop command availability check')
+  .option('--claude', 'Only check Claude hooks')
+  .option('--cursor', 'Only check Cursor hooks')
+  .option('--gemini', 'Only check Gemini hooks')
+  .option('--cline', 'Only check Cline hooks')
+  .action((opts: Record<string, any>) => {
+    const providers: HookProvider[] = []
+    if (opts.claude) providers.push('claude')
+    if (opts.cursor) providers.push('cursor')
+    if (opts.gemini) providers.push('gemini')
+    if (opts.cline) providers.push('cline')
+
+    const results = runSentinel({
+      providers: providers.length > 0 ? providers : undefined,
+      autoRepair: opts.repair ?? false,
+      checkCommand: opts.commandCheck !== false,
+      rootDir: process.cwd(),
+    })
+
+    console.log('')
+    console.log(separator())
+    console.log(styleBold('info', '  Hook Sentinel'))
+    console.log(separator())
+    console.log(formatSentinelResults(results))
+    console.log(separator())
+    console.log('')
+
+    const hasErrors = results.some((r) => r.issues.some((i) => i.severity === 'error' && !i.repaired))
+    if (hasErrors) {
+      process.exit(1)
+    }
   })
 
 // ── PLUGIN ──────────────────────────────────────────────

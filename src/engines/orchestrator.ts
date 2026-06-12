@@ -13,7 +13,7 @@ import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
 import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
 import { applySuppressDirectives } from '../utils/suppress.js'
 
-/** Registry of all 15 engines (loaded lazily) */
+/** Registry of all 16 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "ast-slop": () => import("../engines/ast-slop/index.js").then((m) => m.astSlopEngine),
   "import-intelligence": () => import("../engines/import-intelligence/index.js").then((m) => m.importIntelligenceEngine),
@@ -30,6 +30,7 @@ const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "lint-external": () => import("../engines/lint-external/index.js").then((m) => m.lintExternalEngine),
   "arch-rules": () => import("../engines/arch-rules/index.js").then((m) => m.archRulesEngine),
   "knip": () => import("../engines/knip/index.js").then((m) => m.knipEngine),
+  "format-lint": () => import("../engines/format-lint/index.js").then((m) => m.formatLintEngine),
 };
 
 export interface OrchestratorCallbacks {

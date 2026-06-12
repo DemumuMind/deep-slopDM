@@ -29,6 +29,7 @@ export const EngineNameSchema = z.enum([
   'lint-external',
   'arch-rules',
   'knip',
+  'format-lint',
 ])
 
 /** Quality thresholds schema */

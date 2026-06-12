@@ -59,6 +59,11 @@ const FIXABLE_RULES = new Set([
   'dup-detect/repeated-constant',
   'i18n-lint/hardcoded-string-jsx',
   'i18n-lint/hardcoded-string-props',
+  'format-lint/inconsistent-indent',
+  'format-lint/inconsistent-quotes',
+  'format-lint/inconsistent-semicolons',
+  'format-lint/blank-line-cluster',
+  'format-lint/trailing-comma-inconsistency',
 ])
 
 /** Default severity per impact tier */

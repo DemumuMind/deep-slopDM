@@ -1,0 +1,41 @@
+name: 'deep-slop Quality Gate'
+description: 'Run deep-slop scan as a CI quality gate'
+inputs:
+  version:
+    description: 'deep-slop version to install'
+    required: false
+    default: 'latest'
+  fail-below:
+    description: 'Minimum score to pass (0-100)'
+    required: false
+    default: '70'
+  path:
+    description: 'Path to scan'
+    required: false
+    default: '.'
+  exclude:
+    description: 'Comma-separated patterns to exclude'
+    required: false
+    default: 'node_modules,dist,coverage'
+  json:
+    description: 'Output results as JSON'
+    required: false
+    default: 'false'
+runs:
+  using: 'composite'
+  steps:
+    - name: Install deep-slop
+      shell: bash
+      run: |
+        npm install -g deep-slop@${{ inputs.version }} 2>/dev/null || npx deep-slop@${{ inputs.version }} --version
+    - name: Run deep-slop
+      shell: bash
+      run: |
+        ARGS="ci ${{ inputs.path }} --fail-below ${{ inputs.fail-below }}"
+        if [ -n "${{ inputs.exclude }}" ]; then
+          ARGS="$ARGS --exclude ${{ inputs.exclude }}"
+        fi
+        if [ "${{ inputs.json }}" = "true" ]; then
+          ARGS="$ARGS --json"
+        fi
+        npx deep-slop@${{ inputs.version }} $ARGS

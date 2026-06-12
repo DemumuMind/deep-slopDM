@@ -39,6 +39,7 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'arch-rules': '../engines/arch-rules/index.js',
   'lint-external': '../engines/lint-external/index.js',
   'knip': '../engines/knip/index.js',
+  'format-lint': '../engines/format-lint/index.js',
 }
 
 /** ESLint config file candidates */
