@@ -70,7 +70,7 @@ const program = new Command();
 
 program
   .name("deep-slop")
-  .description("Deep AI slop detection — 17 engines, AST-powered, with alternative import paths")
+  .description("Deep AI slop detection — 22 engines, AST-powered, with alternative import paths")
   .version(APP_VERSION);
 
 // ── SCAN ────────────────────────────────────────────────

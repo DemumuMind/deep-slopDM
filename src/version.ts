@@ -10,7 +10,7 @@
 // deep-slop-ignore-start arch-constraints/deep-nesting
 // deep-slop-ignore-start perf-hints/n-plus-one
 
-export const APP_VERSION = '1.0.0'
+export const APP_VERSION = '1.4.0'
 
 // deep-slop-ignore-end perf-hints/n-plus-one
 // deep-slop-ignore-end arch-constraints/deep-nesting
