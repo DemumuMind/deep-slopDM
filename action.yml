@@ -1,0 +1,36 @@
+name: deep-slop — Deep AI Code Quality Gate
+description: Scan for AI slop, dead code, security issues, import problems, and architectural constraints with 12 AST-powered engines
+branding:
+  icon: shield
+  color: blue
+inputs:
+  directory:
+    description: Directory to scan
+    default: "."
+  node-version:
+    description: Node.js version
+    default: "20"
+  format:
+    description: Output format (human, json, sarif)
+    default: "sarif"
+  fail-below:
+    description: Fail if score below threshold (0-100)
+    default: "50"
+  version:
+    description: deep-slop CLI version
+    default: "latest"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+    - name: Run deep-slop
+      shell: bash
+      run: |
+        TMPDIR=$(mktemp -d)
+        cd "$TMPDIR"
+        npm init -y >/dev/null 2>&1
+        npm install --save-dev deep-slop@${{ inputs.version }} >/dev/null 2>&1
+        npx deep-slop ci ${{ inputs.directory }} --fail-below ${{ inputs.fail-below }} --format ${{ inputs.format }}
+        rm -rf "$TMPDIR"

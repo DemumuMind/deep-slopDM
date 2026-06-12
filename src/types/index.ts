@@ -1,3 +1,6 @@
+// ── Configuration (imported from Zod schema) ───────────
+import type { DeepSlopConfig } from '../config/schema.js'
+
 // ── Core Types ──────────────────────────────────────────
 
 /** All 12 engine identifiers */
@@ -145,109 +148,11 @@ export interface FixResult {
 
 // ── Configuration ───────────────────────────────────────
 
-export interface DeepSlopConfig {
-  /** Which engines are enabled (default: all) */
-  engines: Partial<Record<EngineName, boolean>>;
-  /** Quality thresholds */
-  quality: {
-    maxFunctionLoc: number;
-    maxFileLoc: number;
-    maxNesting: number;
-    maxParams: number;
-    maxCyclomatic: number;
-    maxCoupling: number;
-  };
-  /** Security engine config */
-  security: {
-    audit: boolean;
-    auditTimeout: number;
-    owasp: boolean;
-  };
-  /** Import intelligence config */
-  imports: {
-    /** Suggest alternative (tree-shakeable) imports */
-    suggestAlternatives: boolean;
-    /** Detect and optimize barrel files */
-    optimizeBarrels: boolean;
-    /** Validate tsconfig path aliases */
-    validateAliases: boolean;
-    /** Build and analyze import graph */
-    buildGraph: boolean;
-    /** Max circular dependency depth to report */
-    maxCircularDepth: number;
-  };
-  /** Type safety config */
-  types: {
-    /** Flag `as any` casts */
-    flagAsAny: boolean;
-    /** Suggest concrete types (requires tsc) */
-    suggestTypes: boolean;
-    /** Flag double assertions `as unknown as X` */
-    flagDoubleAssertion: boolean;
-  };
-  /** Dead code config */
-  deadCode: {
-    /** Detect unreachable branches */
-    unreachableBranches: boolean;
-    /** Detect unused exports */
-    unusedExports: boolean;
-    /** Detect unused variables */
-    unusedVariables: boolean;
-  };
-  /** i18n config */
-  i18n: {
-    /** Detect hardcoded strings in JSX */
-    hardcodedStrings: boolean;
-    /** Validate translation keys */
-    validateKeys: boolean;
-  };
-  /** Exclude patterns */
-  exclude: string[];
-  /** CI quality gate */
-  ci?: {
-    failBelow: number;
-  };
-}
+// Re-export DeepSlopConfig from the Zod-validated config schema
+export type { DeepSlopConfig } from '../config/schema.js'
 
-/** Default configuration */
-export const DEFAULT_CONFIG: DeepSlopConfig = {
-  engines: {},
-  quality: {
-    maxFunctionLoc: 50,
-    maxFileLoc: 300,
-    maxNesting: 4,
-    maxParams: 5,
-    maxCyclomatic: 10,
-    maxCoupling: 10,
-  },
-  security: {
-    audit: true,
-    auditTimeout: 60,
-    owasp: true,
-  },
-  imports: {
-    suggestAlternatives: true,
-    optimizeBarrels: true,
-    validateAliases: true,
-    buildGraph: true,
-    maxCircularDepth: 5,
-  },
-  types: {
-    flagAsAny: true,
-    suggestTypes: true,
-    flagDoubleAssertion: true,
-  },
-  deadCode: {
-    unreachableBranches: true,
-    unusedExports: true,
-    unusedVariables: true,
-  },
-  i18n: {
-    hardcodedStrings: true,
-    validateKeys: false,
-  },
-  exclude: ["node_modules", ".git", "dist", "build", "coverage", "tmp-*"],
-};
+// Re-export DEFAULT_CONFIG from config defaults
+export { DEFAULT_CONFIG } from '../config/defaults.js'
 
 // ── Scoring ─────────────────────────────────────────────
 

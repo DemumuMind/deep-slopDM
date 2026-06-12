@@ -6,10 +6,11 @@ import { z } from "zod";
 import { runScan, runFix } from "./engines/orchestrator.js";
 import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js";
 import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName } from "./types/index.js";
+import { APP_VERSION } from "./version.js";
 
 const server = new McpServer({
   name: "deep-slop",
-  version: "0.1.0",
+  version: APP_VERSION,
 });
 
 // ── Tool 1: deep_slop_scan ─────────────────────────────

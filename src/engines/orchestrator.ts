@@ -1,5 +1,6 @@
-import { performance } from "node:perf_hooks";
-import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Severity, Category, Diagnostic } from "../types/index.js";
+import { performance } from 'node:perf_hooks'
+import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Severity, Category, Diagnostic } from '../types/index.js'
+import { calculateScore } from '../scoring/index.js'
 
 /** Registry of all 12 engines (loaded lazily) */
 const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
@@ -107,8 +108,10 @@ export async function runScan(
     byEngine[d.engine] = (byEngine[d.engine] ?? 0) + 1;
   }
 
-  // Calculate score: weighted penalty system
-  const score = calculateScore(allDiagnostics);
+  // Calculate score: density-aware logarithmic scoring
+  const fileCount = context.files?.length ?? 0
+  const scoringResult = calculateScore(allDiagnostics, fileCount)
+  const score = scoringResult.score
 
   return {
     engines: results,
@@ -127,19 +130,6 @@ export async function runScan(
   };
 }
 
-/** Weighted scoring: errors hurt most, suggestions are mild */
-function calculateScore(diagnostics: Diagnostic[]): number {
-  const WEIGHTS: Record<Severity, number> = {
-    error: 10,
-    warning: 3,
-    info: 1,
-    suggestion: 0.5,
-  };
-
-  const totalPenalty = diagnostics.reduce((sum: number, d: Diagnostic) => sum + WEIGHTS[d.severity], 0);
-  // Score from 100, subtract penalty, clamp to 0
-  return Math.max(0, Math.round(100 - totalPenalty));
-}
 
 /** Run auto-fix for a specific engine */
 export async function runFix(

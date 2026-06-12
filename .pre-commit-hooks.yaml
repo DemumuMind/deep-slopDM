@@ -1,0 +1,7 @@
+- id: deep-slop
+  name: deep-slop
+  description: Deep AI slop detection — 12 engines, AST-powered, alternative import paths
+  entry: deep-slop scan --staged
+  language: node
+  pass_filenames: false
+  require_serial: true
