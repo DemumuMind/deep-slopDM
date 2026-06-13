@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ScanResult, ScanDiagnostic } from './scanner';
+import type { ScanResult, ScanDiagnostic } from './scanner';
 
 const severityMap: Record<string, vscode.DiagnosticSeverity> = {
   error: vscode.DiagnosticSeverity.Error,

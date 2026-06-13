@@ -1,0 +1,64 @@
+{
+  "name": "deep-slop-vscode",
+  "displayName": "Deep Slop",
+  "description": "AI slop detection for VS Code",
+  "version": "0.1.0",
+  "publisher": "deep-slop",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages",
+    "Machine Learning"
+  ],
+  "keywords": [
+    "ai",
+    "slop",
+    "code quality",
+    "linter",
+    "deep-slop"
+  ],
+  "activationEvents": [
+    "onCommand:deep-slop.scanFile",
+    "onCommand:deep-slop.scanWorkspace"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "deep-slop.scanFile",
+        "title": "Scan Active File",
+        "category": "Deep Slop"
+      },
+      {
+        "command": "deep-slop.scanWorkspace",
+        "title": "Scan Workspace",
+        "category": "Deep Slop"
+      }
+    ],
+    "configuration": {
+      "title": "Deep Slop",
+      "properties": {
+        "deep-slop.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the deep-slop CLI binary. If empty, the extension will try to resolve a local node_modules/.bin/deep-slop."
+        },
+        "deep-slop.failBelow": {
+          "type": "number",
+          "default": 70,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Score threshold below which the status bar will be highlighted as an error."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "echo \"Error: no tests specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0"
+  }
+}

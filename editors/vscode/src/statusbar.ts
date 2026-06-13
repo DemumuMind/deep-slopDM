@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { ScanResult } from './scanner';
+import type { ScanResult } from './scanner';
 
 /**
  * Create the deep-slop status bar item.

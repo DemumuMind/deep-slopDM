@@ -3,12 +3,12 @@ import { Command } from "commander";
 import { resolve, relative, join } from "node:path";
 import { execSync } from "node:child_process";
 import { runScan } from "./engines/orchestrator.js";
-import { runFix as runFixPipeline } from "./fix/index.js";
-import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js";
+import { runFix as runFixPipeline, extractPlanPreview, type PlanPreviewResult } from "./fix/index.js";
+import { detectLanguages, detectFrameworks, collectFiles, projectInfo } from "./utils/discover.js";
 import { getChangedFiles, getStagedFiles, baseRefExists, isGitRepo, filterToChanged } from "./utils/git-diff.js";
 import { DEFAULT_CONFIG, type DeepSlopConfig, ALL_ENGINE_NAMES } from "./types/index.js";
 import { loadConfig } from "./config/index.js";
-import { applyRuleSeverities, type RuleSeverityOverride } from "./scoring/rule-overrides.js";
+import type { RuleSeverityOverride } from "./scoring/rule-overrides.js";
 import { assessCoverage } from './utils/coverage-gate.js'
 import { computeExitCode } from './utils/exit-code.js'
 import { formatOutput } from "./output/formatter.js";
@@ -37,12 +37,8 @@ import { suggestClosest } from "./ui/suggest.js"
 import { renderHomeScreen } from "./ui/home.js"
 import { renderCommandReference } from "./ui/command-reference.js"
 import { trackEvent, isTelemetryEnabled } from "./telemetry/index.js"
-import { estimateCost } from "./agents/pricing.js"
 import { setProviderPreference } from "./agent/use.js"
-import { projectInfo, detectPackageManager, detectInstalledLinters, detectTestFramework, detectCI, computeCoverage } from "./utils/discover.js"
-import { extractPlanPreview, type PlanPreviewResult } from "./fix/index.js";
 import { detectGitHubRepo, generateBadgeUrl, generateBadgeMarkdown, scoreColor } from "./badge/index.js";
-import { PRESETS, getPreset, listPresets } from "./config/presets.js";
 
 type OutputFormat = 'human' | 'json' | 'sarif'
 

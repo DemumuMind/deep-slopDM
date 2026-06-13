@@ -1,8 +1,6 @@
 // ── Agent Provider Pricing ─────────────────────────────
 // Token price estimates per provider (per 1M tokens)
 
-import type { AgentProvider } from './providers.js'
-
 /** Token prices per 1M tokens (USD) */
 export const TOKEN_PRICES: Record<string, { input: number; output: number }> = {
   claude: { input: 3.0, output: 15.0 },
