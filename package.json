@@ -26,11 +26,11 @@
   },
   "scripts": {
     "dev": "tsdown --watch",
-    "build": "rm -rf dist && NODE_ENV=production tsdown && npx esbuild dist/cli.js --bundle --platform=node --format=esm --outfile=dist/deep-slop-bundled.js --external:web-tree-sitter --external:tree-sitter-typescript --external:tree-sitter-python --external:tree-sitter-go --external:tree-sitter-rust --external:tree-sitter-php --external:tree-sitter-c-sharp --external:tree-sitter-swift --banner:js='import{createRequire}from\"node:module\";const require=createRequire(import.meta.url);'",
+    "build": "rm -rf dist && NODE_ENV=production tsdown && npx esbuild src/cli.ts --bundle --platform=node --format=esm --outfile=dist/deep-slop-bundled.js --external:web-tree-sitter --external:tree-sitter-typescript --external:tree-sitter-python --external:tree-sitter-go --external:tree-sitter-rust --external:tree-sitter-php --external:tree-sitter-c-sharp --external:tree-sitter-swift --banner:js='import{createRequire}from\"node:module\";const require=createRequire(import.meta.url);' && npx esbuild src/mcp.ts --bundle --platform=node --format=esm --outfile=dist/mcp.js --external:web-tree-sitter --external:tree-sitter-typescript --external:tree-sitter-python --external:tree-sitter-go --external:tree-sitter-rust --external:tree-sitter-php --external:tree-sitter-c-sharp --external:tree-sitter-swift --banner:js='import{createRequire}from\"node:module\";const require=createRequire(import.meta.url);'",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "scan": "pnpm build && node dist/cli.js scan .",
-    "scan:json": "pnpm build && node dist/cli.js scan . --json"
+    "scan": "pnpm build && node dist/deep-slop-bundled.js scan .",
+    "scan:json": "pnpm build && node dist/deep-slop-bundled.js scan . --json"
   },
   "keywords": [
     "deep-slop",
@@ -48,11 +48,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Romanchello/deep-slop.git"
+    "url": "git+https://github.com/DemumuMind/deep-slopDM.git"
   },
-  "homepage": "https://github.com/Romanchello/deep-slop#readme",
+  "homepage": "https://github.com/DemumuMind/deep-slopDM#readme",
   "bugs": {
-    "url": "https://github.com/Romanchello/deep-slop/issues"
+    "url": "https://github.com/DemumuMind/deep-slopDM/issues"
   },
   "publishConfig": {
     "access": "public",
