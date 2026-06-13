@@ -1,8 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-
 // ── Format-Lint Engine ──────────────────────────────────
 // Detects formatting inconsistencies: mixed indentation,
 // inconsistent quote style, max line length, inconsistent
@@ -609,7 +604,3 @@ export const formatLintEngine: Engine = {
   },
 }
 
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

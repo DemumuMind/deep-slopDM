@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-// deep-slop-ignore-start ast-slop/console-leftover
-// deep-slop-ignore-start ast-slop/as-any
 import { Command } from "commander";
 import { resolve, relative, join } from "node:path";
 import { execSync } from "node:child_process";
@@ -2156,10 +2150,4 @@ checkForUpdate().then((info) => {
 })
 
 program.parse()
-// deep-slop-ignore-end ast-slop/as-any
-// deep-slop-ignore-end ast-slop/console-leftover
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature
 

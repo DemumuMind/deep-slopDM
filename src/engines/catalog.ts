@@ -1,8 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-// deep-slop-ignore-start import-intelligence/unused-symbol
 import { RULE_IMPACT, getRuleImpact, DEFAULT_IMPACT } from '../scoring/rule-impact.js'
 import type { ImpactTier } from '../scoring/types.js'
 import { ruleLabel, knownRuleIds } from '../output/rule-labels.js'
@@ -170,9 +165,4 @@ export function findRule(query: string): RuleInfo[] {
   scored.sort((a, b) => b.score - a.score)
   return scored.map((s) => s.rule)
 }
-// deep-slop-ignore-end import-intelligence/unused-symbol
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature
 

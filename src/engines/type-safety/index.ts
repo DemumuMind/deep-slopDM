@@ -1,8 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-// deep-slop-ignore-start ast-slop/as-any
 // ── Type-Safety Engine ──────────────────────────────────────────────────────
 // Detects type safety issues with CONTEXT-AWARE suggestions.
 // This is what separates deep-slop from aislop — we don't just flag,
@@ -798,8 +793,3 @@ export const typeSafetyEngine: Engine = {
     };
   },
 };
-// deep-slop-ignore-end ast-slop/as-any
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

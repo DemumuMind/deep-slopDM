@@ -1,9 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-// deep-slop-ignore-start arch-constraints/deep-nesting
-// deep-slop-ignore-start arch-constraints/high-coupling
 // ── Architecture Constraints Engine ─────────────────────────────────
 // Detects structural / architectural issues: high coupling, layer violations,
 // god files, circular dependencies, deep nesting, and unstable dependencies.
@@ -672,9 +666,3 @@ export const archConstraintsEngine: Engine = {
     };
   },
 };
-// deep-slop-ignore-end arch-constraints/high-coupling
-// deep-slop-ignore-end arch-constraints/deep-nesting
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

@@ -59,15 +59,13 @@ jobs:
         run: pnpm build
 
       - name: Run deep-slop scan
-        run: |
-          npx deep-slop scan . --exclude node_modules dist > scan-result.txt 2>&1
-          cat scan-result.txt
+        run: node dist/deep-slop-bundled.js scan . --exclude node_modules dist --json > scan-result.json
 
       - name: Check score threshold
         run: |
-          SCORE=$(grep -oP 'score[:\s]+\K[\d.]+' scan-result.txt || grep -oP 'Score[:\s]+\K[\d.]+' scan-result.txt || echo "0")
-          echo "Detected score: $SCORE"
-          if (( $(echo "$SCORE < 40" | bc -l) )); then
+          SCORE=$(node -e "const d=require('./scan-result.json'); console.log(d.score)")
+          echo "Score: $SCORE"
+          if [ "$SCORE" -lt 40 ]; then
             echo "::error::Score $SCORE is below threshold 40"
             exit 1
           fi
@@ -76,7 +74,7 @@ jobs:
         if: always()
         with:
           name: scan-result
-          path: scan-result.txt
+          path: scan-result.json
 
   release:
     name: Publish to npm

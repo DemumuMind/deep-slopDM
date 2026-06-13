@@ -1,7 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
 // ── Rich Grouped Terminal Output ────────────────────────
 // Groups diagnostics by engine, then by rule.
 // Uses the theme system for all colors and maskSecrets for messages.
@@ -187,8 +183,4 @@ export function formatOutput(result: ScanResult): string {
 
   return lines.join('\n')
 }
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature
 

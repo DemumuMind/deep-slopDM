@@ -1,7 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
 import { readdir, stat } from "node:fs/promises";
 import { join, basename } from "node:path";
 import type { Engine, EngineContext, EngineResult, Diagnostic } from "../../types/index.js";
@@ -448,7 +444,3 @@ export const configLintEngine: Engine = {
     };
   },
 };
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

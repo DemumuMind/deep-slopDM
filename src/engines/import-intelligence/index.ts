@@ -1,9 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-// deep-slop-ignore-start import-intelligence/unused-symbol
-// deep-slop-ignore-start ast-slop/as-any
 // ── Import Intelligence Engine ─────────────────────────────────────────
 // Deep analysis of import statements: alternatives, barrels, aliases,
 // circular deps, classification, unused detection, and duplicate merging.
@@ -1640,9 +1634,3 @@ export const importIntelligenceEngine: Engine = {
     }
   },
 }
-// deep-slop-ignore-end ast-slop/as-any
-// deep-slop-ignore-end import-intelligence/unused-symbol
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

@@ -1,8 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
-// deep-slop-ignore-start perf-hints/n-plus-one
 import { readdir } from "node:fs/promises";
 import { join, relative, extname } from "node:path";
 import type {
@@ -773,8 +768,3 @@ export const perfHintsEngine: Engine = {
     };
   },
 };
-// deep-slop-ignore-end perf-hints/n-plus-one
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

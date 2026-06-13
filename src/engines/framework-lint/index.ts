@@ -1,7 +1,3 @@
-// deep-slop-ignore-start ast-slop/copy-paste-signature
-// deep-slop-ignore-start ast-slop/narrative-comment
-// deep-slop-ignore-start ast-slop/trivial-comment
-// deep-slop-ignore-start ast-slop/decorative-comment
 import { readdir, stat, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join, extname, relative } from 'node:path'
@@ -849,7 +845,3 @@ export const frameworkLintEngine: Engine = {
     }
   },
 }
-// deep-slop-ignore-end ast-slop/decorative-comment
-// deep-slop-ignore-end ast-slop/trivial-comment
-// deep-slop-ignore-end ast-slop/narrative-comment
-// deep-slop-ignore-end ast-slop/copy-paste-signature

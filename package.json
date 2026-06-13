@@ -8,13 +8,13 @@
     "deep-slop-mcp": "./dist/mcp.js"
   },
   "files": [
-    "dist/cli.js",
+    "dist/deep-slop-bundled.js",
     "dist/mcp.js",
     "dist/index.js",
-    "dist/version.js",
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "scripts",
+    ".deep-slop/.deep-slop-ignore",
     "!dist/**/*.test.*",
     "!dist/**/*.test.js.map"
   ],
