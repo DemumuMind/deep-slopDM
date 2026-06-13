@@ -11,7 +11,7 @@ import { appendRecord, type HistoryRecord } from '../history/store.js'
 import { LiveGrid } from '../ui/live-grid.js'
 import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
 import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
-import { applySuppressDirectives } from '../utils/suppress.js'
+import { applySuppressDirectives, loadIgnoreFile } from '../utils/suppress.js'
 
 /** File extension to Language mapping (for scoreability check) */
 const EXT_TO_LANG: Record<string, Language> = {
@@ -175,7 +175,8 @@ export async function runScan(
     }
   }
 
-  const { filtered, suppressedCount } = applySuppressDirectives(allDiagnostics, fileContents)
+  const globallySuppressed = new Set(loadIgnoreFile(context.rootDirectory))
+  const { filtered, suppressedCount } = applySuppressDirectives(allDiagnostics, fileContents, globallySuppressed)
   allDiagnostics = filtered
 
   // Propagate adjusted diagnostics back into engine results

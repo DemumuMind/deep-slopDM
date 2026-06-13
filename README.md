@@ -2,19 +2,18 @@
 
 # deep-slop
 
-**Deep AI Slop Detection — 22 AST-Powered Engines, 181+ Rules**
+**Deep AI Slop Detection — 18 AST-Powered Engines, 181+ Rules**
 
 Detect AI-generated slop, dead code, security vulnerabilities, import problems,
 and architectural decay in your codebase. Tree-sitter AST analysis for 8 languages,
 density-aware scoring, SARIF 2.1.0 output, MCP server, VS Code extension,
 16 AI agent providers, and multi-language linting across 14 languages.
 
-[![CI](https://github.com/cardtest15-coder/deep-slop/actions/workflows/ci.yml/badge.svg)](https://github.com/cardtest15-coder/deep-slop/actions/workflows/ci.yml)
+[![CI](https://github.com/Romanchello/deep-slop/actions/workflows/ci.yml/badge.svg)](https://github.com/Romanchello/deep-slop/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/deep-slop.svg)](https://www.npmjs.com/package/deep-slop)
-[![license](https://img.shields.io/npm/l/deep-slop.svg)](https://github.com/cardtest15-coder/deep-slop/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/deep-slop.svg)](https://github.com/Romanchello/deep-slop/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/deep-slop.svg)](https://www.npmjs.com/package/deep-slop)
-[![self-scan](https://img.shields.io/badge/self--scan-100%2F100-brightgreen.svg)](https://github.com/cardtest15-coder/deep-slop)
-[![tests](https://img.shields.io/badge/tests-172%20passed-brightgreen.svg)](https://github.com/cardtest15-coder/deep-slop)
+[![tests](https://img.shields.io/badge/tests-172%20passed%20%7C%208%20failed-yellow.svg)](https://github.com/Romanchello/deep-slop)
 
 </div>
 
@@ -30,7 +29,7 @@ weren't designed to detect *AI-authored code quality decay*.
 **deep-slop** is purpose-built to find and fix AI slop with real AST analysis
 (tree-sitter), not regex hacks. It goes beyond AI-slop detection to cover
 security, dead code, type safety, architecture, performance, i18n, formatting,
-framework anti-patterns, and markup quality — 22 specialized engines, 181+ rules,
+framework anti-patterns, and markup quality — 18 specialized engines, 181+ rules,
 one unified quality gate.
 
 ---
@@ -259,7 +258,7 @@ Generate a shields.io quality score badge for your README.
 ```bash
 deep-slop badge .                   # Output badge URL
 deep-slop badge . --json            # JSON with URL + markdown
-deep-slop badge . --owner cardtest15-coder --repo deep-slop
+deep-slop badge . --owner Romanchello --repo deep-slop
 ```
 
 ### `deep-slop update`
@@ -273,7 +272,7 @@ deep-slop update --check            # Only check, do not install
 
 ---
 
-## The 22 Engines
+## The 18 Engines
 
 ### 1. ast-slop — AI Slop Pattern Detection (20+ rules)
 
@@ -457,7 +456,7 @@ Quality checks for non-source files:
 **HTML** (4 rules): Missing `alt` on images, missing `lang`, deprecated tags, inline event handlers.
 **Markdown** (4 rules): Broken links, inconsistent heading styles, TODOs in docs, missing fenced language.
 
-### 19–22. Plugin Engines
+### 19+. Plugin Engines
 
 deep-slop supports custom plugin engines loaded from `.deep-slop/plugins/`.
 Plugins implement the same `Engine` interface as built-in engines and appear
@@ -747,7 +746,7 @@ Or if installed globally:
 | `deep_slop_scan` | Full project scan with configurable engines, severity filtering, and assessment |
 | `deep_slop_fix` | Auto-fix issues: scan → fix → verify → re-scan |
 | `deep_slop_why` | Explain why a rule flagged specific code (impact tier, rationale, doc link) |
-| `deep_slop_engines` | List all 22 engines and their rule counts |
+| `deep_slop_engines` | List all 18 engines and their rule counts |
 | `deep_slop_rules` | List/search all 181+ rules with metadata (severity, tier, fixable) |
 | `deep_slop_score` | Quick quality score check (fast, minimal output) |
 | `deep_slop_baseline` | Check quality baseline before making changes |
@@ -762,7 +761,7 @@ Use deep-slop as a composite GitHub Action in your CI:
 
 ```yaml
 steps:
-  - uses: cardtest15-coder/deep-slop@main
+  - uses: Romanchello/deep-slop@main
     with:
       directory: "."
       fail-below: "50"
@@ -784,7 +783,7 @@ steps:
 ### SARIF Upload to GitHub Code Scanning
 
 ```yaml
-- uses: cardtest15-coder/deep-slop@main
+- uses: Romanchello/deep-slop@main
   with:
     format: sarif
     fail-below: "70"
@@ -945,7 +944,7 @@ Add deep-slop as a [pre-commit](https://pre-commit.com/) hook:
 
 ```yaml
 repos:
-  - repo: https://github.com/cardtest15-coder/deep-slop
+  - repo: https://github.com/Romanchello/deep-slop
     rev: v1.4.0
     hooks:
       - id: deep-slop
@@ -1033,7 +1032,7 @@ console.log(`Warnings: ${result.bySeverity.warning}`);
 
 | Feature | aislop | deep-slop |
 |---------|--------|-----------|
-| Detection engines | 6 | **22** |
+| Detection engines | 6 | **18** |
 | Analysis method | Regex-based | **AST (tree-sitter)** |
 | Total rules | 13 | **181+** |
 | AI slop rules | 13 | **20+** |
@@ -1086,17 +1085,17 @@ console.log(`Warnings: ${result.bySeverity.warning}`);
 | Package size | 282KB tarball |
 | Memory usage | ~45MB peak |
 | Cold start | ~300ms (with tree-sitter) |
-| Test suite | 172 tests, 0 TS errors |
-| Self-scan score | 100/100 (Healthy) |
+| Test suite | 180 tests, 172 passed, 8 e2e failures |
+| Type-check | 0 TS errors |
 
 ---
 
 ## Self-Scan
 
-deep-slop runs on itself. Current score: **100/100 (Healthy)**.
-
-We practice what we preach — our own codebase is scanned and scored by deep-slop,
-and we use it to continuously improve code quality.
+deep-slop runs on itself. The self-scan score is captured by `pnpm scan` and
+written to the project's history. We practice what we preach — our own codebase
+is scanned and scored by deep-slop, and we use it to continuously improve code
+quality.
 
 ---
 
@@ -1161,8 +1160,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, or:
 
 <div align="center">
 
-**[Report Bug](https://github.com/cardtest15-coder/deep-slop/issues)** &middot;
-**[Request Feature](https://github.com/cardtest15-coder/deep-slop/issues)** &middot;
+**[Report Bug](https://github.com/Romanchello/deep-slop/issues)** &middot;
+**[Request Feature](https://github.com/Romanchello/deep-slop/issues)** &middot;
 **[npm](https://www.npmjs.com/package/deep-slop)** &middot;
 **[GitHub Action](action.yml)** &middot;
 **[VS Code Extension](editors/vscode/)** &middot;

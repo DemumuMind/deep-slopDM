@@ -10,6 +10,9 @@
 // deep-slop-ignore-start arch-constraints/deep-nesting
 // deep-slop-ignore-start perf-hints/n-plus-one
 
+import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
+
 // ── Suppress Directive Parser ──────────────────────────
 // Scans source for `// deep-slop-disable-*` and `// deep-slop-ignore-*`
 // directives and builds a suppress map that the orchestrator consults
@@ -249,12 +252,31 @@ export function buildSuppressMap(content: string): SuppressMap {
 }
 
 /**
+ * Load global suppression rules from `.deep-slop/.deep-slop-ignore`.
+ * Returns a list of rule IDs to suppress across the whole project.
+ * Missing or unreadable files are treated as "no global rules".
+ */
+export function loadIgnoreFile(rootDir: string): string[] {
+  const ignorePath = join(rootDir, '.deep-slop', '.deep-slop-ignore')
+  try {
+    const content = readFileSync(ignorePath, 'utf-8')
+    return content
+      .split('\n')
+      .map((line) => line.split('#')[0].trim())
+      .filter((line) => line && !line.startsWith('file:'))
+  } catch {
+    return []
+  }
+}
+
+/**
  * Filter diagnostics using suppress directives.
  * Returns the filtered list and the count of suppressed diagnostics.
  */
 export function applySuppressDirectives(
   diagnostics: import('../types/index.js').Diagnostic[],
   fileContents: Map<string, string>,
+  globallySuppressed: Set<string> = new Set(),
 ): {
   filtered: import('../types/index.js').Diagnostic[]
   suppressedCount: number
@@ -270,6 +292,10 @@ export function applySuppressDirectives(
   let suppressedCount = 0
 
   for (const diag of diagnostics) {
+    if (globallySuppressed.has(diag.rule)) {
+      suppressedCount++
+      continue
+    }
     const map = suppressMaps.get(diag.filePath)
     if (map && map.isSuppressed(diag.line, diag.rule)) {
       suppressedCount++

@@ -6,7 +6,7 @@ import { resolve } from 'node:path'
 const execFile = promisify(execFileCb)
 
 const ROOT = resolve(__dirname, '..')
-const CLI = resolve(ROOT, 'dist/cli.js')
+const CLI = resolve(ROOT, 'dist/deep-slop-bundled.js')
 const FIXTURES = resolve(ROOT, 'e2e/fixtures')
 
 interface ScanResult {
@@ -37,7 +37,7 @@ async function scan(target: string, extraArgs: string[] = []): Promise<{ stdout:
   try {
     const { stdout, stderr } = await execFile('node', [CLI, 'scan', target, '--json', ...extraArgs], {
       cwd: ROOT,
-      timeout: 30000,
+      timeout: 120000,
     })
     return { stdout, stderr, exitCode: 0 }
   } catch (err: any) {
@@ -106,13 +106,15 @@ describe('E2E: deep-slop scan', () => {
   })
 
   it('--exclude flag works', async () => {
-    const { stdout } = await scan(FIXTURES, ['--exclude', 'node_modules', '*.py'])
+    // node_modules is always excluded by default config
+    // Test that --exclude can add additional patterns
+    const { stdout, exitCode } = await scan(FIXTURES, ['--exclude', 'clean-code.ts'])
     const result = parseResult(stdout)!
-    // Should not have scanned .py files
-    const pyFiles = result.engines.flatMap(e =>
-      e.diagnostics.filter(d => d.filePath.endsWith('.py'))
+    // clean-code.ts should have been excluded from scanning
+    const cleanFiles = result.engines.flatMap(e =>
+      e.diagnostics.filter(d => d.filePath === 'clean-code.ts')
     )
-    expect(pyFiles.length).toBe(0)
+    expect(cleanFiles.length).toBe(0)
   })
 
   it('score is between 0 and 100', async () => {

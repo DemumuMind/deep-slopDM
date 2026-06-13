@@ -16,7 +16,7 @@ import { resolve } from "node:path"
 import { z } from "zod"
 import { runScan, runFix as runEngineFix } from "./engines/orchestrator.js"
 import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js"
-import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName } from "./types/index.js"
+import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName, ALL_ENGINE_NAMES } from "./types/index.js"
 import { APP_VERSION } from "./version.js"
 import { getCatalog, findRule } from "./engines/catalog.js"
 import { runFix as runFixPipeline } from "./fix/index.js"
@@ -50,7 +50,7 @@ server.tool(
     }
 
     if (engines) {
-      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
+      for (const name of Object.keys(ALL_ENGINE_NAMES)) {
         config.engines[name as keyof typeof config.engines] = false
       }
       for (const name of engines) {

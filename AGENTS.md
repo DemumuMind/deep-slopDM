@@ -4,43 +4,59 @@ This file provides guidance for AI coding agents (Claude Code, Cursor, Windsurf,
 
 ## Project Overview
 
-**deep-slop** is an npm package for deep AI slop detection in codebases. It ships 12 specialized analysis engines using tree-sitter AST parsing, with CLI and MCP server interfaces.
+**deep-slop** is an npm package for deep AI slop detection in codebases. It ships 18 built-in analysis engines using tree-sitter AST parsing, plus a plugin system for custom engines, with CLI, MCP server, and programmatic API interfaces.
 
 - **Package name**: `deep-slop`
 - **Author**: Romanchello
 - **License**: MIT
 - **Repo**: https://github.com/Romanchello/deep-slop
+- **Engines**: 18 built-in (lazy-loaded) + plugin engines
+- **Rules**: 181+ catalog rules across all engines (36 fixable)
 
 ## Architecture
 
 ```
 src/
-├── cli.ts                    # Commander CLI (scan, fix, ci, rules)
-├── mcp.ts                    # MCP server (5 tools for AI agent integration)
+├── cli.ts                    # Commander CLI (scan, fix, ci, rules, init, doctor, trend, watch, hook, agent, badge, update)
+├── cli/                      # Per-command CLI helpers (init, doctor)
+├── mcp.ts                    # MCP server (7+ tools for AI agent integration)
 ├── index.ts                  # Public API exports
-├── engines/
+├── agent/                    # Agent integration (connect, repair loop, use, plan)
+├── agents/                   # Provider pricing and capabilities
+├── badge/                    # shields.io badge generation
+├── config/                   # Config loading, defaults, presets, Zod schema, JSON schema
+├── engines/                  # Analysis engines
 │   ├── orchestrator.ts       # Engine registry + parallel execution + scoring
-│   ├── ast-slop/             # AI slop pattern detection (10 rules)
-│   ├── import-intelligence/  # Import optimization (7 rules)
-│   ├── dead-flow/            # Dead code analysis (7 rules)
-│   ├── type-safety/          # TypeScript type safety (6 rules)
-│   ├── syntax-deep/          # Syntax anomalies (12 rules)
-│   ├── security-deep/        # Security vulnerabilities (7 rules)
-│   ├── arch-constraints/     # Architecture analysis (3 rules)
-│   ├── dup-detect/           # Duplicate code (2 rules)
-│   ├── perf-hints/           # Performance hints (4 rules)
-│   ├── i18n-lint/            # Internationalization (3 rules)
-│   ├── config-lint/          # Config validation (3 rules)
-│   └── meta-quality/         # Scoring/quality gate (2 rules)
-├── types/
-│   └── index.ts              # All shared types + DEFAULT_CONFIG
-├── output/
-│   └── formatter.ts          # Terminal output formatting
-├── utils/
-│   ├── discover.ts           # Language/framework detection + file collection
-│   └── file-utils.ts         # File reading utilities
-└── config/                   # Config loading (reserved)
-    └── mcp/                  # MCP helpers (reserved)
+│   ├── ast-slop/             # AI slop pattern detection
+│   ├── import-intelligence/  # Import optimization
+│   ├── dead-flow/            # Dead code analysis
+│   ├── type-safety/          # TypeScript type safety
+│   ├── syntax-deep/          # Syntax anomalies
+│   ├── security-deep/        # Security vulnerabilities
+│   ├── arch-constraints/     # Architecture analysis
+│   ├── dup-detect/           # Duplicate code
+│   ├── perf-hints/           # Performance hints
+│   ├── i18n-lint/            # Internationalization
+│   ├── config-lint/          # Config validation
+│   ├── meta-quality/         # Scoring/quality gate
+│   ├── arch-rules/           # User-defined rules from .deep-slop/rules.yml
+│   ├── lint-external/        # External linter integration (ruff, golangci-lint, clippy)
+│   ├── knip/                 # Unused dependency/export detection
+│   ├── format-lint/          # Formatting consistency
+│   ├── framework-lint/       # Framework-specific rules (Next.js, Tailwind)
+│   └── markup-lint/          # Markup & config quality (JSON, YAML, CSS, HTML, Markdown)
+├── fix/                      # Auto-fix pipeline: plan, apply, verify, rollback
+├── history/                  # Score history tracking and sparklines
+├── hooks/                    # Git hooks and AI tool hooks (install, audit, sentinel, baseline)
+├── output/                   # Terminal output, SARIF, formatter, rule labels, theme
+├── plugins/                  # Plugin discovery and loader
+├── scoring/                  # Density-aware scoring, impact tiers, rule overrides/severity
+├── security/                 # Dependency audit and HTML safety helpers
+├── telemetry/                # Usage telemetry
+├── types/                    # All shared types + DEFAULT_CONFIG
+├── ui/                       # Interactive UI (prompts, live grid, home screen, suggestions)
+├── utils/                    # Language/framework detection, file collection, git diff, file cache
+└── watch/                    # Watch mode for file changes
 ```
 
 ## Key Design Decisions
@@ -56,11 +72,23 @@ src/
    - `run(context: EngineContext): Promise<EngineResult>`
    - `fix?(diagnostics, context): Promise<FixResult>` (optional)
 
-4. **Scoring**: Weighted penalty system — errors: 10, warnings: 3, info: 1, suggestions: 0.5. Score = `max(0, round(100 - totalPenalty))`.
+4. **Scoring**: Density-aware logarithmic scoring with impact tiers and per-rule caps. Default weights are error=10, warning=3, info=1, suggestion=0.25. Score is computed in `src/scoring/index.ts`.
 
-5. **ESM only**: The project uses `"type": "module"`. All imports use `.js` extension (Node ESM convention).
+5. **Fix pipeline**: `src/fix/index.ts` orchestrates **plan → apply → verify → rollback**. If verification fails, changes are rolled back automatically.
 
-6. **Build**: Uses `tsdown` (not tsup/rollup). Entry points: `cli.ts`, `mcp.ts`, `index.ts`. Output goes to `dist/`.
+6. **Plugin system**: Custom engines are discovered from `.deep-slop/plugins/` and loaded after built-in engines via `src/plugins/registry.ts`.
+
+7. **SARIF output**: `src/output/sarif.ts` generates SARIF 2.1.0 logs for GitHub Code Scanning.
+
+8. **History tracking**: `src/history/store.ts` persists scan records to `.deep-slop/history.jsonl` for `trend` and sparklines.
+
+9. **Git hooks**: `src/hooks/` manages pre-commit hooks, baseline capture, dependency audits, and sentinel mode.
+
+10. **Badge generation**: `src/badge/index.ts` generates shields.io badge URLs for README quality badges.
+
+11. **ESM only**: The project uses `"type": "module"`. All imports use `.js` extension (Node ESM convention).
+
+12. **Build**: Uses `tsdown` (not tsup/rollup). Entry points: `cli.ts`, `mcp.ts`, `index.ts`. Output goes to `dist/`.
 
 ## Commands
 
@@ -68,7 +96,7 @@ src/
 pnpm install          # Install deps (uses pnpm 10)
 pnpm build            # Build to dist/
 pnpm typecheck        # tsc --noEmit
-pnpm test             # vitest run
+pnpm test             # vitest run (unit + e2e)
 pnpm scan             # Build + scan the project itself
 ```
 
@@ -79,9 +107,21 @@ pnpm scan             # Build + scan the project itself
 3. Export the engine instance (e.g., `export const myEngine: Engine = { ... }`)
 4. Add the engine name to `EngineName` type in `src/types/index.ts`
 5. Add the lazy loader to `ENGINE_REGISTRY` in `src/engines/orchestrator.ts`
-6. Add the engine description to the `rules` command in `src/cli.ts`
-7. Add the engine description to the `deep_slop_engines` tool in `src/mcp.ts`
-8. Update DEFAULT_CONFIG if the engine needs config options
+6. Add rule IDs and impact metadata to `RULE_IMPACT` in `src/scoring/rule-impact.ts`
+7. Add rule display labels to `labels` in `src/output/rule-labels.ts`
+8. For fixable rules, add rule IDs to `FIXABLE_RULES` in `src/engines/catalog.ts`
+9. Add the engine description to the `rules` command in `src/cli.ts`
+10. Add the engine description to the `deep_slop_engines` tool in `src/mcp.ts`
+11. Update `DEFAULT_CONFIG` / presets in `src/config/defaults.ts` and `src/config/presets.ts` if the engine needs config options
+12. Add tests in `src/engines/<engine-name>/index.test.ts`
+
+## When Adding a New Rule
+
+1. Add the rule to the appropriate engine in `src/engines/<engine>/index.ts`
+2. Add rule impact classification in `src/scoring/rule-impact.ts`
+3. Add display label in `src/output/rule-labels.ts`
+4. If fixable, add to `FIXABLE_RULES` in `src/engines/catalog.ts`
+5. Add tests in `src/engines/<engine>/index.test.ts`
 
 ## When Modifying Types
 
@@ -89,7 +129,6 @@ All shared types live in `src/types/index.ts`. This is the single source of trut
 - `EngineName`, `Severity`, `Language`, `Framework`, `Category`
 - `Diagnostic`, `Suggestion`, `EngineResult`, `EngineContext`
 - `Engine`, `FixResult`, `DeepSlopConfig`, `ScanResult`
-- `DEFAULT_CONFIG`
 
 Changes to types must be reflected in:
 1. The types file itself
@@ -112,7 +151,7 @@ Tests use Vitest. Place test files alongside source as `<name>.test.ts`.
 ## Important: Do NOT
 
 - Add engines to the top-level import chain — use the lazy registry
-- Change the scoring formula without updating both orchestrator.ts and the README
+- Change the scoring formula without updating both `orchestrator.ts` and the `README.md`
 - Remove the `.js` extension from relative imports (required for ESM)
 - Publish to npm or create GitHub repos — the author handles that manually
 - Modify `package.json` version without updating it in `cli.ts` and `mcp.ts` too

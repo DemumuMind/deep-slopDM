@@ -10,7 +10,7 @@
 // deep-slop-ignore-start arch-constraints/deep-nesting
 // deep-slop-ignore-start perf-hints/n-plus-one
 
-// deep-slop — Deep AI slop detection with 13 engines
+// deep-slop — Deep AI slop detection with 18 engines
 // Public API exports
 
 export type {
@@ -29,7 +29,7 @@ export type {
   ScanResult,
 } from "./types/index.js";
 
-export { DEFAULT_CONFIG } from "./types/index.js";
+export { DEFAULT_CONFIG, ALL_ENGINE_NAMES } from "./types/index.js";
 export { runScan, runFix } from "./engines/orchestrator.js";
 export { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js";
 

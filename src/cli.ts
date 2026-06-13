@@ -12,7 +12,7 @@ import { runScan } from "./engines/orchestrator.js";
 import { runFix as runFixPipeline } from "./fix/index.js";
 import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js";
 import { getChangedFiles, getStagedFiles, baseRefExists, isGitRepo, filterToChanged } from "./utils/git-diff.js";
-import { DEFAULT_CONFIG, type DeepSlopConfig } from "./types/index.js";
+import { DEFAULT_CONFIG, type DeepSlopConfig, ALL_ENGINE_NAMES } from "./types/index.js";
 import { loadConfig } from "./config/index.js";
 import { applyRuleSeverities, type RuleSeverityOverride } from "./scoring/rule-overrides.js";
 import { assessCoverage } from './utils/coverage-gate.js'
@@ -70,7 +70,7 @@ const program = new Command();
 
 program
   .name("deep-slop")
-  .description("Deep AI slop detection — 22 engines, AST-powered, with alternative import paths")
+  .description("Deep AI slop detection — 18 engines, AST-powered, with alternative import paths")
   .version(APP_VERSION);
 
 // ── SCAN ────────────────────────────────────────────────
@@ -115,7 +115,7 @@ program
 
     // Enable only selected engines
     if (opts.engine) {
-      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
+      for (const name of ALL_ENGINE_NAMES) {
         config.engines[name as keyof typeof config.engines] = false;
       }
       for (const name of opts.engine) {
@@ -244,7 +244,7 @@ program
 
     // Enable only selected engines
     if (opts.engine) {
-      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
+      for (const name of Object.keys(ALL_ENGINE_NAMES)) {
         config.engines[name as keyof typeof config.engines] = false;
       }
       for (const name of opts.engine) {
@@ -430,7 +430,7 @@ program
 
     // Enable only selected engines
     if (opts.engine) {
-      for (const name of Object.keys(DEFAULT_CONFIG.engines)) {
+      for (const name of Object.keys(ALL_ENGINE_NAMES)) {
         config.engines[name as keyof typeof config.engines] = false
       }
       for (const name of opts.engine) {

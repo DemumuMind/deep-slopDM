@@ -14,7 +14,26 @@ import type { DeepSlopConfig } from './schema.js'
 
 /** Default configuration matching the canonical values */
 export const DEFAULT_CONFIG: DeepSlopConfig = {
-  engines: {},
+  engines: {
+    'ast-slop': true,
+    'import-intelligence': true,
+    'dead-flow': true,
+    'type-safety': true,
+    'syntax-deep': true,
+    'security-deep': true,
+    'arch-constraints': true,
+    'dup-detect': true,
+    'perf-hints': true,
+    'i18n-lint': true,
+    'config-lint': true,
+    'meta-quality': true,
+    'arch-rules': true,
+    'lint-external': true,
+    'knip': true,
+    'format-lint': true,
+    'framework-lint': true,
+    'markup-lint': true,
+  },
   quality: {
     maxFunctionLoc: 50,
     maxFileLoc: 300,

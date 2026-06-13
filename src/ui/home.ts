@@ -37,7 +37,7 @@ export function renderHomeScreen(): void {
   console.log(LOGO)
   console.log('')
   console.log(`  ${styleBold('info', 'deep-slop')} ${style('muted', `v${APP_VERSION}`)}`)
-  console.log(`  ${style('muted', 'Deep AI slop detection — 14 engines, AST-powered')}`)
+  console.log(`  ${style('muted', 'Deep AI slop detection — 18 engines, AST-powered')}`)
   console.log('')
   console.log(separator())
   console.log('')

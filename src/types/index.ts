@@ -36,6 +36,28 @@ export type EngineName =
   | "framework-lint"
   | "markup-lint";
 
+/** Runtime list of all 18 built-in engine names */
+export const ALL_ENGINE_NAMES: readonly EngineName[] = [
+  "ast-slop",
+  "import-intelligence",
+  "dead-flow",
+  "type-safety",
+  "syntax-deep",
+  "security-deep",
+  "arch-constraints",
+  "dup-detect",
+  "perf-hints",
+  "i18n-lint",
+  "config-lint",
+  "meta-quality",
+  "arch-rules",
+  "lint-external",
+  "knip",
+  "format-lint",
+  "framework-lint",
+  "markup-lint",
+];
+
 /** Diagnostic severity levels */
 export type Severity = "error" | "warning" | "info" | "suggestion";
 

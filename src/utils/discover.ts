@@ -14,6 +14,7 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, extname, relative } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { minimatch } from 'minimatch'
+import micromatch from 'micromatch'
 import type { Language, Framework } from '../types/index.js'
 import type { CoverageInfo } from './coverage-gate.js'
 import { assessCoverage } from './coverage-gate.js'
@@ -192,10 +193,16 @@ export async function collectFiles(
 /** Check if path matches any exclude pattern */
 function isExcluded(relPath: string, excludes: Set<string>): boolean {
   const segments = relPath.split('/')
-  for (const pattern of excludes) {
-    if (relPath.includes(pattern) || segments.some((s) => s === pattern)) {
+  const patterns = [...excludes]
+  for (const pattern of patterns) {
+    // Exact segment match (for simple names like 'node_modules')
+    if (segments.some((s) => s === pattern)) {
       return true
     }
+  }
+  // Glob pattern match (for patterns like '**/*.py', '*.ts', 'dist/**')
+  if (micromatch.isMatch(relPath, patterns)) {
+    return true
   }
   return false
 }
