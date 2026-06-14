@@ -272,23 +272,11 @@ ci: { failBelow: 50 }
 
 ## 5. Editor Integrations
 
-### aislop `editors/vscode/`
-A full VS Code extension package:
-- `package.json` — Extension manifest with activation events, commands, configuration
-- `src/` — Extension source code (TypeScript)
-- `tsconfig.json` — Separate TypeScript config
-- `README.md` — Extension documentation
-
-This allows users to see aislop diagnostics directly in VS Code's Problems panel.
+### aislop
+Aislop ships a full VS Code extension with Problems panel integration.
 
 ### deep-slop
-**No editor integrations at all.**
-
-**Recommendation**: HIGH VALUE. Build a VS Code extension that:
-1. Runs deep-slop scan on save/open
-2. Shows diagnostics in Problems panel
-3. Provides quick-fix actions for fixable issues
-4. Supports the SARIF output format
+**No editor integrations.** CLI-only approach — integrates via any terminal or CI.
 
 ---
 
