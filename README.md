@@ -913,29 +913,6 @@ engines:
 
 ---
 
-## VS Code Extension
-
-Install the `deep-slop` extension from the VS Code marketplace for inline diagnostics.
-
-**Features:**
-- Diagnostics in the Problems panel
-- Scan workspace or current file via commands
-- Optional auto-scan on save
-
-**Configuration:**
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `deep-slop.path` | `""` | Path to deep-slop CLI (auto-detected if empty) |
-| `deep-slop.scanOnSave` | `false` | Auto-scan on save |
-| `deep-slop.autoScan` | `false` | Auto-scan on activation |
-
-**Commands:**
-- `deep-slop: Scan Workspace`
-- `deep-slop: Scan Current File`
-
-See [`editors/vscode/`](editors/vscode/) for the extension source.
-
 ---
 
 ## Pre-commit Hook
@@ -1164,7 +1141,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, or:
 **[Request Feature](https://github.com/DemumuMind/deep-slopDM/issues)** &middot;
 **[npm](https://www.npmjs.com/package/deep-slop)** &middot;
 **[GitHub Action](action.yml)** &middot;
-**[VS Code Extension](editors/vscode/)** &middot;
 **[Contributing](CONTRIBUTING.md)**
 
 </div>
