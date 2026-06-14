@@ -70,6 +70,17 @@ async function fetchLatest(): Promise<string | null> {
   }
 }
 
+/** Compare two semver strings. Returns true if a > b */
+function semverGt(a: string, b: string): boolean {
+  const pa = a.replace(/^v/, '').split('.').map(Number)
+  const pb = b.replace(/^v/, '').split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] ?? 0) > (pb[i] ?? 0)) return true
+    if ((pa[i] ?? 0) < (pb[i] ?? 0)) return false
+  }
+  return false
+}
+
 /**
  * Check if an update is available.
  * Returns null if checks are disabled or the fetch fails.
@@ -87,7 +98,7 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
     await writeCache(latest)
   }
 
-  const isOutdated = latest !== APP_VERSION
+  const isOutdated = semverGt(latest, APP_VERSION)
 
   return {
     current: APP_VERSION,
