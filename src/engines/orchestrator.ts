@@ -28,7 +28,7 @@ const EXT_TO_LANG: Record<string, Language> = {
 }
 
 /** Registry of all 18 engines (loaded lazily) */
-const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
+export const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "ast-slop": () => import("../engines/ast-slop/index.js").then((m) => m.astSlopEngine),
   "import-intelligence": () => import("../engines/import-intelligence/index.js").then((m) => m.importIntelligenceEngine),
   "dead-flow": () => import("../engines/dead-flow/index.js").then((m) => m.deadFlowEngine),
@@ -48,6 +48,21 @@ const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "framework-lint": () => import("../engines/framework-lint/index.js").then((m) => m.frameworkLintEngine),
   "markup-lint": () => import("../engines/markup-lint/index.js").then((m) => m.markupLintEngine),
 };
+
+/** Pre-registered engines (used by bundled CLI to avoid dynamic imports) */
+const eagerEngines: Partial<Record<EngineName, Engine>> = {}
+
+/**
+ * Register engines eagerly (used by the bundled CLI entry point).
+ * When engines are registered here, the lazy dynamic imports are skipped.
+ */
+export function registerEngines(engines: Record<string, Engine>): void {
+  for (const [name, engine] of Object.entries(engines)) {
+    eagerEngines[name as EngineName] = engine
+    // Replace lazy loader with eager resolver
+    ENGINE_REGISTRY[name as EngineName] = () => Promise.resolve(engine)
+  }
+}
 
 export interface OrchestratorCallbacks {
   onEngineStart?: (name: EngineName) => void;

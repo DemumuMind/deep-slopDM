@@ -32,6 +32,8 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'markup-lint': '../engines/markup-lint/index.js',
 }
 
+import { ENGINE_REGISTRY } from '../engines/orchestrator.js'
+
 /** ESLint config file candidates */
 const ESLINT_CONFIGS = [
   'eslint.config.js',
@@ -130,14 +132,14 @@ export async function runDoctor(targetPath: string): Promise<void> {
   const failedEngines: string[] = []
 
   for (const name of enabledEngines) {
-    const modPath = ENGINE_MODULES[name]
-    if (!modPath) {
+    const loader = ENGINE_REGISTRY[name]
+    if (!loader) {
       enginesFail++
       failedEngines.push(name)
       continue
     }
     try {
-      await import(/* @vite-ignore */ modPath)
+      await loader()
       enginesOk++
     } catch {
       enginesFail++
