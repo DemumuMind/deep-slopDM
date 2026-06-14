@@ -15,8 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - CI e2e tests — added tree-sitter WASM copy step, null-safety in test assertions
 - Deleted broken score.yml workflow (was failing every push)
-- Updated all "12 engines" references to "18 engines" (action.yml, VS Code extension)
-- VS Code extension: version bump, description update, scanner type fix
+- Updated all "12 engines" references to "18 engines" (action.yml)
+- Removed VS Code extension from project
 - Config JSON Schema generation — rewrote without zod-to-json-schema (Zod v4 incompatible)
 - Made repository public (was private — blocked GitHub Action usage)
 

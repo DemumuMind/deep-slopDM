@@ -6,7 +6,7 @@
 
 Detect AI-generated slop, dead code, security vulnerabilities, import problems,
 and architectural decay in your codebase. Tree-sitter AST analysis for 8 languages,
-density-aware scoring, SARIF 2.1.0 output, MCP server, VS Code extension,
+density-aware scoring, SARIF 2.1.0 output, MCP server,
 16 AI agent providers, and multi-language linting across 14 languages.
 
 [![CI](https://github.com/DemumuMind/deep-slopDM/actions/workflows/ci.yml/badge.svg)](https://github.com/DemumuMind/deep-slopDM/actions/workflows/ci.yml)
@@ -1032,7 +1032,7 @@ console.log(`Warnings: ${result.bySeverity.warning}`);
 | Auto-fix pipeline | Plan → apply → verify | **Plan → apply → verify → rollback** |
 | SARIF output | Yes | **Yes** — SARIF 2.1.0 for GitHub Code Scanning |
 | Score withheld (unsupported lang) | No | **Yes** — null score when >80% unsupported |
-| VS Code extension | Yes | **Yes** — Problems panel + auto-scan |
+| Editor extension | No | **Yes** — Problems panel + auto-scan |
 | GitHub Action | Yes | **Yes** — composite action with SARIF upload |
 | Pre-commit hook | Yes | **Yes** |
 | Config presets | No | **4 presets** + `--strict` enterprise |
