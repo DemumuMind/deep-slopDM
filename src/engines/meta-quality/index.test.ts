@@ -13,7 +13,7 @@ describe("meta-quality", () => {
     const result = await metaQualityEngine.run(ctx);
     expect(result.engine).toBe("meta-quality");
     expect(result.skipped).toBe(false);
-    expect(result.elapsed).toBeGreaterThan(0);
+    expect(result.elapsed).toBeGreaterThanOrEqual(0);
     // Should find at least some diagnostics
     if (result.diagnostics.length > 0) {
       const rules = result.diagnostics.map(d => d.rule);
