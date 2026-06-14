@@ -2,7 +2,7 @@
   "name": "deep-slop-vscode",
   "displayName": "deep-slop",
   "description": "Deep AI slop detection — 18 AST-powered engines, 181+ rules",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "publisher": "romanchello",
   "engines": {
     "vscode": "^1.85.0"

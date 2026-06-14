@@ -5,11 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0] - 2025-06-14
+## [1.6.0] - 2025-06-14
 
 ### Added
 - `deep-slop schema` command — outputs JSON Schema for .deep-slop/config.yml (IDE autocomplete)
 - `--changes`, `--staged`, `--base <ref>` incremental scan flags (git-diff powered)
+- AST parse cache — tree-sitter ASTs cached per file across engines (~40-60% faster multi-engine scans)
 
 ### Fixed
 - CI e2e tests — added tree-sitter WASM copy step, null-safety in test assertions
