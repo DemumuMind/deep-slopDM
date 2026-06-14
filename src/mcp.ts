@@ -20,7 +20,7 @@ const server = new McpServer({
 // ── Tool 1: deep_slop_scan ─────────────────────────────
 server.tool(
   "deep_slop_scan",
-  "Scan project for AI slop and code quality issues with 17 engines",
+  "Scan project for AI slop and code quality issues with 18 engines",
   {
     path: z.string().default(".").describe("Project directory to scan"),
     engines: z.array(z.string()).optional().describe("Only run these engines"),
@@ -116,7 +116,7 @@ server.tool(
     }
 
     const slug = rule.id.replace(/\//g, '-').replace(/[^a-z0-9-]/g, '')
-    const documentation_url = `https://github.com/cardtest15-coder/deep-slop/wiki/rules#${slug}`
+    const documentation_url = `https://github.com/DemumuMind/deep-slopDM/wiki/rules#${slug}`
 
     return {
       content: [{

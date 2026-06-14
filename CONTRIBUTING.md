@@ -5,8 +5,8 @@ Thank you for your interest in contributing! This guide covers everything you ne
 ## Quick Start
 
 ```bash
-git clone https://github.com/cardtest15-coder/deep-slop.git
-cd deep-slop
+git clone https://github.com/DemumuMind/deep-slopDM.git
+cd deep-slopDM
 pnpm install
 pnpm build
 pnpm test

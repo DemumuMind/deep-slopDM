@@ -9,11 +9,11 @@ and architectural decay in your codebase. Tree-sitter AST analysis for 8 languag
 density-aware scoring, SARIF 2.1.0 output, MCP server, VS Code extension,
 16 AI agent providers, and multi-language linting across 14 languages.
 
-[![CI](https://github.com/Romanchello/deep-slop/actions/workflows/ci.yml/badge.svg)](https://github.com/Romanchello/deep-slop/actions/workflows/ci.yml)
+[![CI](https://github.com/DemumuMind/deep-slopDM/actions/workflows/ci.yml/badge.svg)](https://github.com/DemumuMind/deep-slopDM/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/deep-slop.svg)](https://www.npmjs.com/package/deep-slop)
-[![license](https://img.shields.io/npm/l/deep-slop.svg)](https://github.com/Romanchello/deep-slop/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/deep-slop.svg)](https://github.com/DemumuMind/deep-slopDM/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/deep-slop.svg)](https://www.npmjs.com/package/deep-slop)
-[![tests](https://img.shields.io/badge/tests-172%20passed%20%7C%208%20failed-yellow.svg)](https://github.com/Romanchello/deep-slop)
+[![tests](https://img.shields.io/badge/tests-197%20passed-brightgreen.svg)](https://github.com/DemumuMind/deep-slopDM)
 
 </div>
 
@@ -761,7 +761,7 @@ Use deep-slop as a composite GitHub Action in your CI:
 
 ```yaml
 steps:
-  - uses: Romanchello/deep-slop@main
+  - uses: DemumuMind/deep-slopDM@main
     with:
       directory: "."
       fail-below: "50"
@@ -783,7 +783,7 @@ steps:
 ### SARIF Upload to GitHub Code Scanning
 
 ```yaml
-- uses: Romanchello/deep-slop@main
+- uses: DemumuMind/deep-slopDM@main
   with:
     format: sarif
     fail-below: "70"
@@ -944,7 +944,7 @@ Add deep-slop as a [pre-commit](https://pre-commit.com/) hook:
 
 ```yaml
 repos:
-  - repo: https://github.com/Romanchello/deep-slop
+  - repo: https://github.com/DemumuMind/deep-slopDM
     rev: v1.4.0
     hooks:
       - id: deep-slop
@@ -1085,7 +1085,7 @@ console.log(`Warnings: ${result.bySeverity.warning}`);
 | Package size | 282KB tarball |
 | Memory usage | ~45MB peak |
 | Cold start | ~300ms (with tree-sitter) |
-| Test suite | 180 tests, 172 passed, 8 e2e failures |
+| Test suite | 197 tests, all passing |
 | Type-check | 0 TS errors |
 
 ---
@@ -1160,8 +1160,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines, or:
 
 <div align="center">
 
-**[Report Bug](https://github.com/Romanchello/deep-slop/issues)** &middot;
-**[Request Feature](https://github.com/Romanchello/deep-slop/issues)** &middot;
+**[Report Bug](https://github.com/DemumuMind/deep-slopDM/issues)** &middot;
+**[Request Feature](https://github.com/DemumuMind/deep-slopDM/issues)** &middot;
 **[npm](https://www.npmjs.com/package/deep-slop)** &middot;
 **[GitHub Action](action.yml)** &middot;
 **[VS Code Extension](editors/vscode/)** &middot;

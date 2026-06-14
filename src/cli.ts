@@ -561,7 +561,7 @@ program
       }
 
       const slug = rule.id.replace(/\//g, '-').replace(/[^a-z0-9-]/g, '')
-      const docUrl = `https://github.com/cardtest15-coder/deep-slop/wiki/rules#${slug}`
+      const docUrl = `https://github.com/DemumuMind/deep-slopDM/wiki/rules#${slug}`
 
       console.log('')
       console.log(separator())
