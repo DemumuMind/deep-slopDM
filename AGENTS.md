@@ -9,7 +9,7 @@ This file provides guidance for AI coding agents (Claude Code, Cursor, Windsurf,
 - **Package name**: `deep-slop`
 - **Author**: Romanchello
 - **License**: MIT
-- **Repo**: https://github.com/Romanchello/deep-slop
+- **Repo**: https://github.com/DemumuMind/deep-slopDM
 - **Engines**: 18 built-in (lazy-loaded) + plugin engines
 - **Rules**: 181+ catalog rules across all engines (36 fixable)
 

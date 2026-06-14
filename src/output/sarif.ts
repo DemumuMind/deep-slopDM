@@ -29,7 +29,7 @@ function buildRules(diagnostics: Diagnostic[]): SarifRuleDescriptor[] {
     name: id,
     shortDescription: { text: d.message },
     fullDescription: { text: d.help },
-    helpUri: `https://github.com/Romanchello/deep-slop/blob/main/docs/rules/${id}.md`,
+    helpUri: `https://github.com/DemumuMind/deep-slopDM/blob/main/docs/rules/${id}.md`,
     properties: {
       category: d.category,
       severity: d.severity,
@@ -116,7 +116,7 @@ export function generateSarif(result: ScanResult): object {
           driver: {
             name: 'deep-slop',
             version: APP_VERSION,
-            informationUri: 'https://github.com/Romanchello/deep-slop',
+            informationUri: 'https://github.com/DemumuMind/deep-slopDM',
             rules: buildRules(allDiags),
           },
         },

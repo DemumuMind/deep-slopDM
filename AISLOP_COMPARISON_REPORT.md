@@ -1,6 +1,6 @@
 # aislop vs deep-slop: Comprehensive Feature Comparison
 
-> Analysis of https://github.com/scanaislop/aislop (v0.12.0) vs our deep-slop (v0.1.0)
+> Analysis of https://github.com/scanaislop/aislop (v0.12.0) vs our deep-slop (v1.6.0)
 
 ---
 
@@ -129,7 +129,7 @@ src/
 | `deep_slop_scan` | Full project scan | Similar to aislop_scan |
 | `deep_slop_fix` | Auto-fix issues | Basic, not fully implemented |
 | `deep_slop_why` | Explain rule | Hardcoded explanations map |
-| `deep_slop_engines` | List engines | Lists all 12 engines with rule counts |
+| `deep_slop_engines` | List engines | Lists all 18 engines with rule counts |
 | `deep_slop_score` | Quick score check | Returns just score + severity counts |
 
 **What aislop has that we don't**:
@@ -308,7 +308,7 @@ runs:
 ### deep-slop `.github/workflows/ci.yml`
 We have a CI workflow that runs our own tests, but **no reusable GitHub Action** that others can use.
 
-**Recommendation**: HIGH VALUE. Create `action.yml` so other repos can use `uses: Romanchello/deep-slop@main` in their CI.
+**Recommendation**: HIGH VALUE. Create `action.yml` so other repos can use `uses: DemumuMind/deep-slopDM@main` in their CI.
 
 ---
 
@@ -575,7 +575,7 @@ score = max(0, 100 - (errors*10 + warnings*3 + info*1 + suggestions*0.5))
 
 **aislop is a mature, production-ready product (v0.12.0)** with 37 command files, 28 detector files, 40+ test files, SARIF output, VS Code extension, GitHub Action, pre-commit hooks, and a sophisticated scoring system. It focuses on being a **unified quality gate** that wraps existing tools (biome, oxlint, ruff, knip) plus custom AI-slop detectors.
 
-**deep-slop is an early-stage project (v0.1.0)** with stronger specialization (12 engines vs 6, tree-sitter AST, import intelligence, suggestion system) but lacking the polish and integration breadth that aislop has.
+**deep-slop is a maturing project (v1.6.0)** with stronger specialization (18 engines vs 6, tree-sitter AST, import intelligence, suggestion system, AST parse cache) but still growing integration breadth.
 
 **Our competitive advantages**: Tree-sitter AST analysis, alternative import path suggestions, barrel optimization, import graph analysis, granular per-feature config, suggestion system with confidence scores.
 

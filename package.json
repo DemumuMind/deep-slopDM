@@ -1,7 +1,7 @@
 {
   "name": "deep-slop",
   "version": "1.6.0",
-  "description": "Deep AI slop detection with AST analysis, alternative import paths, dead code flow, type safety, and 12 engines. Far beyond aislop.",
+  "description": "Deep AI slop detection with 18 AST-powered engines, 181+ rules, density-aware scoring, SARIF 2.1.0 output, MCP server, and auto-fix pipeline.",
   "type": "module",
   "bin": {
     "deep-slop": "./dist/deep-slop-bundled.js",

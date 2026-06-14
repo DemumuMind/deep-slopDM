@@ -922,7 +922,7 @@ Add deep-slop as a [pre-commit](https://pre-commit.com/) hook:
 ```yaml
 repos:
   - repo: https://github.com/DemumuMind/deep-slopDM
-    rev: v1.4.0
+    rev: v1.6.0
     hooks:
       - id: deep-slop
 ```
