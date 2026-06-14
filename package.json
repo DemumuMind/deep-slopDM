@@ -1,6 +1,6 @@
 {
   "name": "deep-slop",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Deep AI slop detection with AST analysis, alternative import paths, dead code flow, type safety, and 12 engines. Far beyond aislop.",
   "type": "module",
   "bin": {
