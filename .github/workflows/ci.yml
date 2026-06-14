@@ -32,6 +32,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install tsx for E2E tests
+        run: pnpm add -D tsx
+
+      - name: Build (for bundled CLI used by E2E)
+        run: pnpm build
+
+      - name: Copy tree-sitter WASM files next to dist
+        run: |
+          mkdir -p dist/wasm
+          cp node_modules/.pnpm/web-tree-sitter@*/node_modules/web-tree-sitter/tree-sitter.wasm dist/wasm/ 2>/dev/null || true
+          cp node_modules/.pnpm/tree-sitter-typescript@*/node_modules/tree-sitter-typescript/tree-sitter-typescript.wasm dist/wasm/ 2>/dev/null || true
+          cp node_modules/.pnpm/tree-sitter-typescript@*/node_modules/tree-sitter-typescript/tree-sitter-tsx.wasm dist/wasm/ 2>/dev/null || true
+          cp node_modules/.pnpm/tree-sitter-python@*/node_modules/tree-sitter-python/tree-sitter-python.wasm dist/wasm/ 2>/dev/null || true
+          ls dist/wasm/
+
       - name: Typecheck
         run: pnpm typecheck
 

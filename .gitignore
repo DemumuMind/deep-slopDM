@@ -5,3 +5,5 @@ dist/
 .DS_Store
 .deep-slop/
 tmp-*/
+.playwright-mcp/
+*.tgz

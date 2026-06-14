@@ -1957,6 +1957,26 @@ program
     }
   })
 
+// ── SCHEMA ──────────────────────────────────────────────
+program
+  .command('schema')
+  .description('Output JSON Schema for .deep-slop/config.yml (for IDE autocomplete)')
+  .option('--output <path>', 'Write schema to file instead of stdout')
+  .action(async (opts: Record<string, any>) => {
+    const { generateJsonSchema } = await import('./config/json-schema.js')
+    const schema = generateJsonSchema()
+
+    if (opts.output) {
+      const { writeFileSync } = await import('node:fs')
+      const { resolve: resolvePath } = await import('node:path')
+      const outPath = resolvePath(opts.output)
+      writeFileSync(outPath, JSON.stringify(schema, null, 2) + '\n')
+      process.stderr.write(`  ✔ Schema written to ${outPath}\n`)
+    } else {
+      console.log(JSON.stringify(schema, null, 2))
+    }
+  })
+
 // ── DISCOVER ──────────────────────────────────────────
 program
   .command('discover')

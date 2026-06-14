@@ -1,5 +1,5 @@
 name: deep-slop — Deep AI Code Quality Gate
-description: Scan for AI slop, dead code, security issues, import problems, and architectural constraints with 12 AST-powered engines
+description: Scan for AI slop, dead code, security issues, import problems, and architectural constraints with 18 AST-powered engines
 branding:
   icon: shield
   color: blue

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2025-06-14
+
+### Added
+- `deep-slop schema` command — outputs JSON Schema for .deep-slop/config.yml (IDE autocomplete)
+- `--changes`, `--staged`, `--base <ref>` incremental scan flags (git-diff powered)
+
+### Fixed
+- CI e2e tests — added tree-sitter WASM copy step, null-safety in test assertions
+- Deleted broken score.yml workflow (was failing every push)
+- Updated all "12 engines" references to "18 engines" (action.yml, VS Code extension)
+- VS Code extension: version bump, description update, scanner type fix
+- Config JSON Schema generation — rewrote without zod-to-json-schema (Zod v4 incompatible)
+- Made repository public (was private — blocked GitHub Action usage)
+
+### Changed
+- Repository URLs: `Romanchello/deep-slop` → `DemumuMind/deep-slopDM`
+- README test badge: 197 passed, 0 failed
+
 ## [1.4.1] - 2025-06-14
 
 ### Fixed

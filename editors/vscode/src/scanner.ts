@@ -102,7 +102,7 @@ function execFile(
         reject(new Error(`deep-slop exited with code ${err.code ?? '?'}: ${err.message}${detail}`));
         return;
       }
-      resolve(stdout);
+      resolve(stdout.toString());
     });
   });
 }

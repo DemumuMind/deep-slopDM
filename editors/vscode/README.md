@@ -1,6 +1,6 @@
 # deep-slop — VS Code Extension
 
-Deep AI slop detection inside VS Code. Powered by 12 AST-based analysis engines.
+Deep AI slop detection inside VS Code. Powered by 18 AST-based analysis engines with 181+ rules.
 
 ## Features
 
