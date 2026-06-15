@@ -1,0 +1,3 @@
+backslash: \
+quote: "
+newline: \n
