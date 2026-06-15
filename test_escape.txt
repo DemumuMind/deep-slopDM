@@ -1,3 +1,0 @@
-backslash: \
-quote: "
-newline: \n
