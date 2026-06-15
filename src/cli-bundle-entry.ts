@@ -21,6 +21,9 @@ import { knipEngine } from './engines/knip/index.js'
 import { formatLintEngine } from './engines/format-lint/index.js'
 import { frameworkLintEngine } from './engines/framework-lint/index.js'
 import { markupLintEngine } from './engines/markup-lint/index.js'
+import { rustDeepEngine } from './engines/rust-deep/index.js'
+import { pythonDeepEngine } from './engines/python-deep/index.js'
+import { goDeepEngine } from './engines/go-deep/index.js'
 
 import { registerEngines } from './engines/orchestrator.js'
 
@@ -44,6 +47,9 @@ registerEngines({
   'format-lint': formatLintEngine,
   'framework-lint': frameworkLintEngine,
   'markup-lint': markupLintEngine,
+  'rust-deep': rustDeepEngine,
+  'python-deep': pythonDeepEngine,
+  'go-deep': goDeepEngine,
 })
 
 // Now run the CLI

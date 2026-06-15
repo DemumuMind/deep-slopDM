@@ -21,6 +21,9 @@ export const DEFAULT_CONFIG: DeepSlopConfig = {
     'format-lint': true,
     'framework-lint': true,
     'markup-lint': true,
+    'rust-deep': true,
+    'python-deep': true,
+    'go-deep': true,
   },
   quality: {
     maxFunctionLoc: 50,

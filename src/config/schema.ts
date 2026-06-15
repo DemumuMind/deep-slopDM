@@ -20,6 +20,9 @@ export const EngineNameSchema = z.enum([
   'format-lint',
   'framework-lint',
   'markup-lint',
+  'rust-deep',
+  'python-deep',
+  'go-deep',
 ])
 
 /** Quality thresholds schema */

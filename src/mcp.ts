@@ -20,7 +20,7 @@ const server = new McpServer({
 // ── Tool 1: deep_slop_scan ─────────────────────────────
 server.tool(
   "deep_slop_scan",
-  "Scan project for AI slop and code quality issues with 18 engines",
+  "Scan project for AI slop and code quality issues with 21 engines",
   {
     path: z.string().default(".").describe("Project directory to scan"),
     engines: z.array(z.string()).optional().describe("Only run these engines"),
@@ -205,7 +205,7 @@ server.tool(
 // ── Tool 4: deep_slop_engines ──────────────────────────
 server.tool(
   "deep_slop_engines",
-  "List all 13 detection engines and their descriptions",
+  "List all 21 detection engines and their descriptions",
   {},
   async () => {
     const engines = [
@@ -223,6 +223,9 @@ server.tool(
       { name: "meta-quality", rules: 2, desc: "Scoring weights, trend analysis, diff scoring, quality gate" },
       { name: "framework-lint", rules: 15, desc: "Framework-specific AI slop: Next.js client/server issues, Tailwind CSS anti-patterns" },
       { name: "markup-lint", rules: 20, desc: "Quality checks for JSON, YAML, CSS, HTML, and Markdown files" },
+      { name: "rust-deep", rules: 9, desc: "Rust-specific analysis: unwrap/expect, todo!/unimplemented!, clone-on-copy, unsafe, match wildcards, large enum variants" },
+      { name: "python-deep", rules: 11, desc: "Python-specific analysis: bare/broad exceptions, type hints, mutable defaults, star imports, global variables, pass stubs, prints, f-string logging, missing docstrings" },
+      { name: "go-deep", rules: 9, desc: "Go-specific idiomatic and architectural rules: unchecked errors, empty interfaces, missing docs, value copies, init side effects, defer-in-loop, missing context, goto, package cycles" },
     ]
 
     return {

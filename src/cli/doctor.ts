@@ -30,6 +30,9 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'format-lint': '../engines/format-lint/index.js',
   'framework-lint': '../engines/framework-lint/index.js',
   'markup-lint': '../engines/markup-lint/index.js',
+  'rust-deep': '../engines/rust-deep/index.js',
+  'python-deep': '../engines/python-deep/index.js',
+  'go-deep': '../engines/go-deep/index.js',
 }
 
 import { ENGINE_REGISTRY } from '../engines/orchestrator.js'

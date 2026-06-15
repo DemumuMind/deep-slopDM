@@ -27,7 +27,7 @@ const EXT_TO_LANG: Record<string, Language> = {
   '.swift': 'swift',
 }
 
-/** Registry of all 18 engines (loaded lazily) */
+/** Registry of all 20 engines (loaded lazily) */
 export const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "ast-slop": () => import("../engines/ast-slop/index.js").then((m) => m.astSlopEngine),
   "import-intelligence": () => import("../engines/import-intelligence/index.js").then((m) => m.importIntelligenceEngine),
@@ -47,6 +47,9 @@ export const ENGINE_REGISTRY: Record<EngineName, () => Promise<Engine>> = {
   "format-lint": () => import("../engines/format-lint/index.js").then((m) => m.formatLintEngine),
   "framework-lint": () => import("../engines/framework-lint/index.js").then((m) => m.frameworkLintEngine),
   "markup-lint": () => import("../engines/markup-lint/index.js").then((m) => m.markupLintEngine),
+  "rust-deep": () => import("../engines/rust-deep/index.js").then((m) => m.rustDeepEngine),
+  "python-deep": () => import("../engines/python-deep/index.js").then((m) => m.pythonDeepEngine),
+  "go-deep": () => import("../engines/go-deep/index.js").then((m) => m.goDeepEngine),
 };
 
 /** Pre-registered engines (used by bundled CLI to avoid dynamic imports) */

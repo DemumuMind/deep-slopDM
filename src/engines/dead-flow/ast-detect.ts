@@ -11,6 +11,7 @@ import {
   extractImportFromNode,
 } from '../../utils/tree-sitter.js'
 import type { Diagnostic } from '../../types/index.js'
+import { toLines } from '../../utils/file-utils.js'
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -570,10 +571,64 @@ export function detectUnusedVariablesAST(
   return diagnostics
 }
 
-// ── AST-enhanced: unused-export ──────────────────────────
+// ── AST-enhanced: unused-export ───────────────────────
+
+const DECLARATION_EXPORT_RE = /^\s*(?:export\s+)?(?:async\s+)?(?:function|const|let|var|class|interface|type|enum)\b/
+
+function buildUnusedExportFix(
+  filePath: string,
+  line: number,
+  contents: Map<string, string>,
+  symbolName: string,
+): { fixable: boolean; suggestion?: Diagnostic['suggestion'] } {
+  const content = contents.get(filePath)
+  if (!content) {
+    return {
+      fixable: false,
+      suggestion: {
+        type: 'refactor',
+        text: `// deep-slop-suppress: unused-export ${symbolName}`,
+        confidence: 0.5,
+        reason: 'Could not read the original source line; suppress instead of auto-removing export.',
+      },
+    }
+  }
+
+  const lines = toLines(content)
+  const originalLine = lines.find((l) => l.num === line)?.text
+  if (!originalLine || !DECLARATION_EXPORT_RE.test(originalLine)) {
+    return {
+      fixable: false,
+      suggestion: {
+        type: 'refactor',
+        text: `// deep-slop-suppress: unused-export ${symbolName}`,
+        confidence: 0.5,
+        reason: 'The export is not a simple declaration (e.g., export { ... }); remove or suppress manually.',
+      },
+    }
+  }
+
+  const fixedLine = originalLine.replace(/^(\s*)export\s+/, '$1')
+  return {
+    fixable: true,
+    suggestion: {
+      type: 'replace',
+      text: fixedLine,
+      range: {
+        startLine: line,
+        startCol: 1,
+        endLine: line,
+        endCol: originalLine.length + 1,
+      },
+      confidence: 0.8,
+      reason: `Exported ${symbolName} is unused; removing the export keyword makes it module-private.`,
+    },
+  }
+}
 
 export function detectUnusedExportsAST(
   astMap: Map<string, ASTNode>,
+  contents: Map<string, string>,
   rootDir: string,
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = []
@@ -663,6 +718,7 @@ export function detectUnusedExportsAST(
 
     if (!importedSymbols.has(name)) {
       for (const entry of entries) {
+        const { fixable, suggestion } = buildUnusedExportFix(entry.filePath, entry.line, contents, name)
         diagnostics.push(
           makeDiagnostic({
             filePath: entry.filePath,
@@ -670,14 +726,9 @@ export function detectUnusedExportsAST(
             message: `Exported \`${name}\` is never imported by any other file`,
             line: entry.line,
             severity: 'info',
-            fixable: true,
+            fixable,
             help: `Consider removing the unused export \`${name}\` or adding it to the public API explicitly`,
-            suggestion: {
-              type: 'delete',
-              text: '',
-              confidence: 0.7,
-              reason: 'This symbol is exported but never imported elsewhere (AST-verified)',
-            },
+            suggestion,
             detail: { symbolName: name, source: 'ast' },
           }),
         )
@@ -688,7 +739,7 @@ export function detectUnusedExportsAST(
   return diagnostics
 }
 
-// ── AST-enhanced: dead-branch (if(false)/if(0)/if('')) ──
+// ── AST-enhanced: dead-branch (if(false)/if(0)/if('')) ─────────
 
 export function detectDeadBranchesAST(
   ast: ASTNode,
@@ -800,9 +851,10 @@ export async function detectAllAST(
  */
 export async function detectUnusedExportsASTWrapper(
   astMap: Map<string, ASTNode>,
+  contents: Map<string, string>,
   rootDir: string,
 ): Promise<Diagnostic[] | null> {
   if (astMap.size === 0) return null
-  return detectUnusedExportsAST(astMap, rootDir)
+  return detectUnusedExportsAST(astMap, contents, rootDir)
 }
 

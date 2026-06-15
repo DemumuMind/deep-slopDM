@@ -15,6 +15,7 @@ const labels: Record<string, string> = {
   'ast-slop/double-assertion': 'Double Assertion',
   'ast-slop/as-any': 'as any Cast',
   'ast-slop/hallucinated-import': 'Hallucinated Import',
+  'ast-slop/hardcoded-config': 'Hardcoded Config',
 
   // import-intelligence
   'import-intelligence/tree-shakeable': 'Tree-shakeable Import',
@@ -134,6 +135,17 @@ const labels: Record<string, string> = {
   'lint-external/golangci': 'golangci-lint (Go)',
   'lint-external/clippy': 'Clippy Lint (Rust)',
 
+  // rust-deep
+  'rust-deep/unwrap-in-prod': 'unwrap() in Production',
+  'rust-deep/todo-macro': 'todo!() Macro',
+  'rust-deep/unimplemented-macro': 'unimplemented!() Macro',
+  'rust-deep/clone-on-copy': 'Clone on Copy Type',
+  'rust-deep/large-enum-variant': 'Large Enum Variant',
+  'rust-deep/wildcard-catch': 'Wildcard Match Catch',
+  'rust-deep/unsafe-usage': 'Unsafe Without Safety Comment',
+  'rust-deep/expect-in-prod': 'expect() in Production',
+  'rust-deep/redundant-clone': 'Redundant Clone',
+
   // format-lint
   'format-lint/inconsistent-indent': 'Inconsistent Indent',
   'format-lint/inconsistent-quotes': 'Inconsistent Quotes',
@@ -190,6 +202,30 @@ const labels: Record<string, string> = {
   'md/inconsistent-heading': 'MD Inconsistent Heading',
   'md/todo-in-doc': 'MD TODO in Doc',
   'md/missing-fenced-lang': 'MD Missing Fenced Lang',
+
+  // python-deep
+  'python-deep/bare-except': 'Bare except',
+  'python-deep/mutable-default': 'Mutable Default Argument',
+  'python-deep/global-variable': 'Global Variable',
+  'python-deep/star-import': 'Star Import',
+  'python-deep/no-type-hint': 'Missing Parameter Type Hint',
+  'python-deep/no-return-type': 'Missing Return Type',
+  'python-deep/f-string-in-log': 'F-string in Log Call',
+  'python-deep/broad-exception': 'Broad Exception Handler',
+  'python-deep/pass-stub': 'Pass Stub',
+  'python-deep/print-statement': 'Print Statement',
+  'python-deep/missing-docstring': 'Missing Docstring',
+
+  // go-deep
+  'go-deep/unchecked-error': 'Unchecked Error Return',
+  'go-deep/empty-interface': 'Empty Interface (any)',
+  'go-deep/exported-no-doc': 'Exported Identifier Missing Doc',
+  'go-deep/deep-copy-missing': 'Large Value Passed by Copy',
+  'go-deep/init-side-effect': 'init() Side Effect',
+  'go-deep/defer-in-loop': 'defer Inside Loop',
+  'go-deep/context-missing': 'I/O Without context.Context',
+  'go-deep/goto-usage': 'goto Statement',
+  'go-deep/package-cycle': 'Circular Package Import',
 }
 
 /**

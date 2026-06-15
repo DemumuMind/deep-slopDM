@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { EngineContext, DeepSlopConfig } from "../types/index.js";
 import { DEFAULT_CONFIG } from "../types/index.js";
@@ -20,6 +20,10 @@ export function tempDir(): string {
 
 export function writeFile(dir: string, name: string, content: string): string {
   const path = join(dir, name);
+  const parentDir = join(dir, ...name.split('/').slice(0, -1));
+  if (parentDir !== dir) {
+    mkdirSync(parentDir, { recursive: true });
+  }
   writeFileSync(path, content);
   return path;
 }

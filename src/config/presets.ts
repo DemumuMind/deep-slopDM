@@ -23,6 +23,7 @@ export const PRESETS: Record<string, Partial<DeepSlopConfig> & { description?: s
       'lint-external': true,
       'arch-rules': true,
       'knip': true,
+      'python-deep': true,
     },
     quality: {
       maxFunctionLoc: 30,
@@ -72,6 +73,8 @@ export const PRESETS: Record<string, Partial<DeepSlopConfig> & { description?: s
     engines: {
       'config-lint': false,
       'lint-external': true,
+      'python-deep': true,
+      'go-deep': true,
     },
     quality: {
       maxFunctionLoc: 50,
@@ -112,6 +115,9 @@ export const PRESETS: Record<string, Partial<DeepSlopConfig> & { description?: s
       'lint-external': false,
       'arch-rules': false,
       'knip': false,
+      'rust-deep': false,
+      'python-deep': false,
+      'go-deep': false,
     },
   },
 }

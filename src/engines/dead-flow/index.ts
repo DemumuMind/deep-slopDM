@@ -718,13 +718,64 @@ function detectUnusedExports(
   // Build import set: all imported symbols across all files
   const importedSymbols = new Set<string>();
 
+  // Cache parsed lines for each file so we can build replace suggestions
+  const fileLinesCache = new Map<string, { num: number; text: string }[]>();
+
+  const DECLARATION_EXPORT_RE = /^\s*(?:export\s+)?(?:async\s+)?(?:function|const|let|var|class|interface|type|enum)\b/;
+
+  function getLines(relPath: string): { num: number; text: string }[] | null {
+    if (fileLinesCache.has(relPath)) return fileLinesCache.get(relPath)!;
+    const absPath = join(rootDir, relPath);
+    const content = files.get(absPath);
+    if (!content) return null;
+    const lines = toLines(content);
+    fileLinesCache.set(relPath, lines);
+    return lines;
+  }
+
+  function buildRegexExportFix(
+    relPath: string,
+    line: number,
+    symbolName: string,
+  ): { fixable: boolean; suggestion: Suggestion } {
+    const lines = getLines(relPath);
+    const originalLine = lines?.find((l) => l.num === line)?.text;
+    if (originalLine && DECLARATION_EXPORT_RE.test(originalLine)) {
+      const fixedLine = originalLine.replace(/^(\s*)export\s+/, "$1");
+      return {
+        fixable: true,
+        suggestion: {
+          type: "replace",
+          text: fixedLine,
+          range: {
+            startLine: line,
+            startCol: 1,
+            endLine: line,
+            endCol: originalLine.length + 1,
+          },
+          confidence: 0.8,
+          reason: "Exported " + symbolName + " is unused; removing the export keyword makes it module-private.",
+        },
+      };
+    }
+    return {
+      fixable: false,
+      suggestion: {
+        type: "refactor",
+        text: "// deep-slop-suppress: unused-export " + symbolName,
+        confidence: 0.5,
+        reason: "This export is not a simple declaration; remove or suppress manually.",
+      },
+    };
+  }
+
   for (const [filePath, content] of files) {
     const relPath = relative(rootDir, filePath);
 
     // Collect exports
     const exports = extractExports(content);
     for (const exp of exports) {
-      const key = `${relPath}::${exp.name}`;
+      const key = relPath + "::" + exp.name;
       if (!exportMap.has(key)) exportMap.set(key, []);
       exportMap.get(key)!.push({
         filePath: relPath,
@@ -752,7 +803,7 @@ function detectUnusedExports(
         for (const name of names) importedSymbols.add(name);
       }
 
-      // import { (multi-line start) — collect names across lines until closing }
+      // import { (multi-line start) -- collect names across lines until closing }
       const multiLineImportStart = trimmed.match(/^import\s+(?:type\s+)?\{\s*$/);
       if (multiLineImportStart) {
         // Read subsequent lines until we find the closing }
@@ -817,31 +868,27 @@ function detectUnusedExports(
     for (const entry of entries) {
       const symbolName = key.split("::").pop()!;
 
-      // Skip type exports — often used for public API / documentation
+      // Skip type exports -- often used for public API / documentation
       if (entry.isType) continue;
-      // Skip default exports — they might be used as the module itself
+      // Skip default exports -- they might be used as the module itself
       if (entry.isDefault) continue;
       // Skip React component convention (PascalCase exports)
       if (/^[A-Z]/.test(symbolName)) continue;
-      // Skip exports that end in "Engine" — convention for pluggable engines loaded dynamically
+      // Skip exports that end in "Engine" -- convention for pluggable engines loaded dynamically
       if (/Engine$/.test(symbolName)) continue;
 
       if (!importedSymbols.has(symbolName)) {
+        const { fixable, suggestion } = buildRegexExportFix(entry.filePath, entry.line, symbolName);
         diagnostics.push(
           makeDiagnostic({
             filePath: entry.filePath,
             rule: "dead-flow/unused-export",
-            message: `Exported \`${symbolName}\` is never imported by any other file`,
+            message: "Exported " + symbolName + " is never imported by any other file",
             line: entry.line,
             severity: "info",
-            fixable: true,
-            help: `Consider removing the unused export \`${symbolName}\` or adding it to the public API explicitly`,
-            suggestion: {
-              type: "delete",
-              text: "",
-              confidence: 0.6,
-              reason: "This symbol is exported but never imported elsewhere in the project",
-            },
+            fixable,
+            help: "Consider removing the unused export " + symbolName + " or adding it to the public API explicitly",
+            suggestion,
             detail: { symbolName },
           }),
         );
@@ -1431,7 +1478,11 @@ export const deadFlowEngine: Engine = {
     let astExportRulesRun = false
     if (config.deadCode.unusedExports && astMap.size > 0) {
       try {
-        const exportResult = await detectUnusedExportsASTWrapper(astMap, rootDirectory)
+        const relContents = new Map<string, string>()
+        for (const [fp, content] of fileContents) {
+          relContents.set(relative(rootDirectory, fp), content)
+        }
+        const exportResult = await detectUnusedExportsASTWrapper(astMap, relContents, rootDirectory)
         if (exportResult) {
           astExportDiags = exportResult
           astExportRulesRun = true

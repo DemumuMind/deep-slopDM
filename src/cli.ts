@@ -13,6 +13,7 @@ import { assessCoverage } from './utils/coverage-gate.js'
 import { computeExitCode } from './utils/exit-code.js'
 import { formatOutput } from "./output/formatter.js";
 import { generateSarif } from "./output/sarif.js";
+import { generateHTMLReport } from "./output/html-report.js";
 import { APP_VERSION } from "./version.js";
 import { runInit } from "./cli/init.js";
 import { runDoctor } from "./cli/doctor.js";
@@ -39,6 +40,7 @@ import { renderCommandReference } from "./ui/command-reference.js"
 import { trackEvent, isTelemetryEnabled } from "./telemetry/index.js"
 import { setProviderPreference } from "./agent/use.js"
 import { detectGitHubRepo, generateBadgeUrl, generateBadgeMarkdown, scoreColor } from "./badge/index.js";
+import { writeFileSync } from 'node:fs'
 
 type OutputFormat = 'human' | 'json' | 'sarif'
 
@@ -60,7 +62,7 @@ const program = new Command();
 
 program
   .name("deep-slop")
-  .description("Deep AI slop detection — 18 engines, AST-powered, with alternative import paths")
+  .description("Deep AI slop detection — 20 engines, AST-powered, with alternative import paths")
   .version(APP_VERSION);
 
 // ── SCAN ────────────────────────────────────────────────
@@ -705,6 +707,29 @@ program
       console.log(`  ${num}${when}${scoreStr}${errs}${warns}${files}`)
     }
 
+    console.log('')
+  })
+
+// ── REPORT ──────────────────────────────────────────────
+program
+  .command('report')
+  .description('Generate an HTML trend report from scan history')
+  .argument('[path]', 'project directory', '.')
+  .option('--output <file>', 'Output HTML file path', './deep-slop-report.html')
+  .option('--limit <n>', 'Number of recent scans to include', '50')
+  .action(async (path: string, opts: Record<string, any>) => {
+    const rootDir = resolve(path)
+    const outputPath = resolve(opts.output ?? './deep-slop-report.html')
+    const limit = parseInt(opts.limit ?? '50', 10)
+
+    const records = readHistory(rootDir, limit)
+    const html = generateHTMLReport(records, {
+      title: `deep-slop Trend Report — ${relative(process.cwd(), rootDir) || rootDir}`,
+      rootDir,
+    })
+
+    writeFileSync(outputPath, html, 'utf8')
+    console.log(`  Report written to ${style('info', outputPath)}`)
     console.log('')
   })
 

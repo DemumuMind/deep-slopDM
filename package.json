@@ -89,5 +89,13 @@
     "tsdown": "^0.20.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.8"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "tree-sitter-javascript",
+      "tree-sitter-python",
+      "tree-sitter-typescript"
+    ]
   }
 }

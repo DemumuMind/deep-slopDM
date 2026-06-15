@@ -1,4 +1,4 @@
-// deep-slop — Deep AI slop detection with 18 engines
+// deep-slop — Deep AI slop detection with 20 engines
 // Public API exports
 
 export type {

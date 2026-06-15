@@ -9,7 +9,7 @@ export function generateJsonSchema(): object {
   return {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title: 'DeepSlopConfig',
-    description: 'Configuration for deep-slop — deep AI slop detection with 18 AST-powered engines',
+    description: 'Configuration for deep-slop — deep AI slop detection with 21 AST-powered engines',
     type: 'object',
     properties: {
       engines: {
@@ -35,6 +35,9 @@ export function generateJsonSchema(): object {
           'format-lint': { type: 'boolean', description: 'Formatting consistency' },
           'framework-lint': { type: 'boolean', description: 'Framework-specific rules (Next.js, Tailwind)' },
           'markup-lint': { type: 'boolean', description: 'Markup & config quality (JSON, YAML, CSS, HTML, Markdown)' },
+          'rust-deep': { type: 'boolean', description: 'Rust-specific quality analysis (unwrap, todo!, clone, unsafe, match wildcards)' },
+          'python-deep': { type: 'boolean', description: 'Python-specific deep analysis (exceptions, type hints, mutable defaults, star imports, pass stubs, prints)' },
+          'go-deep': { type: 'boolean', description: 'Go-specific idiomatic and architectural rules (errors, context, defer, goto, package cycles)' },
         },
       },
       exclude: {

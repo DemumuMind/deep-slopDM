@@ -75,6 +75,8 @@ interface StringOccurrence {
   line: number;
   col: number;
   value: string;
+  raw: string;
+  lineText: string;
 }
 
 // ── Helpers ───────────────────────────────────────────────
@@ -396,8 +398,8 @@ function extractNamedSymbols(raw: string, lang: Language | null): string[] {
 }
 
 /** Extract string literals from a line */
-function extractStringLiterals(line: string, lang: Language | null): { value: string; col: number }[] {
-  const results: { value: string; col: number }[] = [];
+function extractStringLiterals(line: string, lang: Language | null): { value: string; col: number; raw: string }[] {
+  const results: { value: string; col: number; raw: string }[] = [];
 
   if (lang === "python") {
     const stringRe = /(?<!\\)(?:"((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)')/g;
@@ -406,7 +408,7 @@ function extractStringLiterals(line: string, lang: Language | null): { value: st
       const value = m[1] ?? m[2] ?? "";
       const col = m.index + 1;
       if (value.length >= REPEATED_CONSTANT_MIN_CHARS) {
-        results.push({ value, col });
+        results.push({ value, col, raw: m[0] });
       }
     }
   } else {
@@ -416,7 +418,7 @@ function extractStringLiterals(line: string, lang: Language | null): { value: st
       const value = m[1] ?? m[2] ?? "";
       const col = m.index + 1;
       if (value.length >= REPEATED_CONSTANT_MIN_CHARS) {
-        results.push({ value, col });
+        results.push({ value, col, raw: m[0] });
       }
     }
     const templateRe = /`((?:[^`\\]|\\.)*)`/g;
@@ -424,7 +426,7 @@ function extractStringLiterals(line: string, lang: Language | null): { value: st
       const value = m[1] ?? "";
       const col = m.index + 1;
       if (value.length >= REPEATED_CONSTANT_MIN_CHARS && !value.includes("${")) {
-        results.push({ value, col });
+        results.push({ value, col, raw: m[0] });
       }
     }
   }
@@ -789,6 +791,10 @@ function detectRepeatedConstants(
 
     const suggestedName = toConstantName(value);
 
+    const escapedValue = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    const fixedLine = first.lineText.replace(first.raw, suggestedName);
+    const replacementText = `const ${suggestedName} = "${escapedValue}";\n${fixedLine}`;
+
     diagnostics.push(
       diag({
         filePath: relPath,
@@ -798,10 +804,16 @@ function detectRepeatedConstants(
         help: `Extract this string to a shared constant (e.g., ${suggestedName}) to avoid duplication and ensure consistency.`,
         line: first.line,
         column: first.col,
-        fixable: false,
+        fixable: true,
         suggestion: {
-          type: "refactor",
-          text: `export const ${suggestedName} = "${value.replace(/"/g, '\\"')}";`,
+          type: "replace",
+          text: replacementText,
+          range: {
+            startLine: first.line,
+            startCol: 1,
+            endLine: first.line,
+            endCol: first.lineText.length + 1,
+          },
           confidence: 0.75,
           reason: `The same string literal appears ${occurrences.length} times. Extracting it to a named constant improves maintainability and prevents typos.`,
         },
@@ -1005,6 +1017,8 @@ export const dupDetectEngine: Engine = {
               line: line.num,
               col: lit.col,
               value: lit.value,
+              raw: lit.raw,
+              lineText: line.text,
             });
           }
         }

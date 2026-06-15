@@ -3,7 +3,7 @@ import type { DeepSlopConfig } from '../config/schema.js'
 
 // ── Core Types ──────────────────────────────────────────
 
-/** All built-in engine identifiers (18 built-in) */
+/** All built-in engine identifiers (21 built-in) */
 export type BuiltinEngineName =
   | "ast-slop"
   | "import-intelligence"
@@ -22,12 +22,15 @@ export type BuiltinEngineName =
   | "knip"
   | "format-lint"
   | "framework-lint"
-  | "markup-lint";
+  | "markup-lint"
+  | "rust-deep"
+  | "python-deep"
+  | "go-deep";
 
 /** Engine name — built-in or plugin-provided */
 export type EngineName = BuiltinEngineName | (string & {});
 
-/** Runtime list of all 18 built-in engine names */
+/** Runtime list of all 21 built-in engine names */
 export const ALL_ENGINE_NAMES: readonly EngineName[] = [
   "ast-slop",
   "import-intelligence",
@@ -47,6 +50,9 @@ export const ALL_ENGINE_NAMES: readonly EngineName[] = [
   "format-lint",
   "framework-lint",
   "markup-lint",
+  "rust-deep",
+  "python-deep",
+  "go-deep",
 ];
 
 /** Diagnostic severity levels */

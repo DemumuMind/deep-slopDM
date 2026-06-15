@@ -5,6 +5,7 @@ import type {
   EngineContext,
   EngineResult,
   Diagnostic,
+  Suggestion,
 } from "../../types/index.js";
 import { readFileContent, toLines } from "../../utils/file-utils.js";
 
@@ -368,6 +369,39 @@ function contentAroundLine(
 
 // ── Rule 3: Synchronous file I/O inside async functions ──
 
+function buildSyncInAsyncSuggestion(
+  lineText: string,
+  methodName: string,
+  asyncName: string,
+  lineNum: number,
+): Suggestion {
+  const callRe = new RegExp(
+    `\\b(?:(\\w+)\\.)?${methodName}\\s*\\(`,
+  );
+  const match = lineText.match(callRe);
+  let replacement: string;
+  if (match && match[1] === "fs") {
+    replacement = `await fs.promises.${asyncName}(`;
+  } else {
+    replacement = `await ${asyncName}(`;
+  }
+  const fixedLine = match
+    ? lineText.replace(callRe, replacement)
+    : lineText.replace(methodName, `await ${asyncName}`);
+  return {
+    type: "replace",
+    text: fixedLine,
+    range: {
+      startLine: lineNum,
+      startCol: 1,
+      endLine: lineNum,
+      endCol: lineText.length + 1,
+    },
+    confidence: 0.85,
+    reason: `Async functions should use the async version ${asyncName} instead of the synchronous ${methodName} to prevent blocking the event loop`,
+  };
+}
+
 function detectSyncInAsync(
   content: string,
   filePath: string,
@@ -412,18 +446,12 @@ function detectSyncInAsync(
         severity: "warning",
         help: `Replace \`${methodName}\` with async \`${asyncName}\` to avoid blocking the event loop`,
         fixable: true,
-        suggestion: {
-          type: "replace",
-          text: `await ${asyncName}(`,
-          confidence: 0.9,
-          reason: `Async functions should use the async version ${asyncName} instead of the synchronous ${methodName} to prevent blocking the event loop`,
-          range: {
-            startLine: lines[i].num,
-            startCol: trimmed.indexOf(methodName) + 1,
-            endLine: lines[i].num,
-            endCol: trimmed.indexOf(methodName) + methodName.length + 1,
-          },
-        },
+        suggestion: buildSyncInAsyncSuggestion(
+          lines[i].text,
+          methodName,
+          asyncName,
+          lines[i].num,
+        ),
         detail: {
           syncMethod: methodName,
           asyncMethod: asyncName,

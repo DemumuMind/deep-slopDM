@@ -1112,6 +1112,50 @@ function detectSilentRecovery(
 }
 
 // 13. Hardcoded config — URLs, ports, API endpoints in source (not in config/)
+function buildHardcodedConfigSuggestion(
+  lineText: string,
+  urlMatch: RegExpMatchArray | null,
+  portMatch: RegExpMatchArray | null,
+  lineNum: number,
+): Suggestion | undefined {
+  if (urlMatch) {
+    const replacement = `process.env.API_URL ?? ${urlMatch[0]}`;
+    const fixedLine = lineText.replace(urlMatch[0], replacement);
+    return {
+      type: "replace",
+      text: fixedLine,
+      range: {
+        startLine: lineNum,
+        startCol: 1,
+        endLine: lineNum,
+        endCol: lineText.length + 1,
+      },
+      confidence: 0.7,
+      reason: "Externalize the hardcoded URL to an environment variable so it can be changed per environment.",
+    };
+  }
+
+  if (portMatch) {
+    const port = portMatch[1];
+    const portRe = new RegExp(`\\b${port}\\b`);
+    const fixedLine = lineText.replace(portRe, `Number(process.env.PORT ?? '${port}')`);
+    return {
+      type: "replace",
+      text: fixedLine,
+      range: {
+        startLine: lineNum,
+        startCol: 1,
+        endLine: lineNum,
+        endCol: lineText.length + 1,
+      },
+      confidence: 0.7,
+      reason: "Externalize the hardcoded port to an environment variable so it can be changed per environment.",
+    };
+  }
+
+  return undefined;
+}
+
 function detectHardcodedConfig(
   lines: { num: number; text: string }[],
   filePath: string,
@@ -1147,7 +1191,8 @@ function detectHardcodedConfig(
           help: 'Move URLs to environment variables or a config file. Hardcoded URLs make deployment across environments error-prone.',
           line: num,
           column: col,
-          fixable: false,
+          fixable: true,
+          suggestion: buildHardcodedConfigSuggestion(text, urlMatch, null, num),
           detail: { url },
         }),
       )
@@ -1168,7 +1213,8 @@ function detectHardcodedConfig(
             help: 'Move port numbers to environment variables or a config file. Hardcoded ports make deployment across environments error-prone.',
             line: num,
             column: col,
-            fixable: false,
+            fixable: true,
+            suggestion: buildHardcodedConfigSuggestion(text, null, portMatch, num),
             detail: { port },
           }),
         )

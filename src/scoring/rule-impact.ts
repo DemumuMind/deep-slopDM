@@ -31,6 +31,7 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'ast-slop/as-any-cast':          tier('standard', 'as-any casts disable type safety — tracked here for ast-slop context'),
   'ast-slop/empty-catch':          tier('strict',   'Empty catch blocks silently swallow errors, hiding bugs'),
   'ast-slop/todo-leftover':        tier('mechanical', 'TODO leftovers are technical debt markers, not critical'),
+  'ast-slop/hardcoded-config':     tier('mechanical', 'Hardcoded config values should be externalized to environment or config files'),
 
   // ── import-intelligence ─────────────────────────────
   'import-intelligence/alternative-path':  tier('mechanical', 'Non-optimal import paths increase bundle size'),
@@ -125,6 +126,17 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'lint-external/golangci':        tier('mechanical',  'golangci-lint findings are external Go lint issues'),
   'lint-external/clippy':          tier('mechanical',  'Clippy findings are external Rust lint issues'),
 
+  // ── rust-deep ────────────────────────────────────────
+  'rust-deep/unwrap-in-prod':      tier('standard',      '.unwrap() in production code can panic and should be handled'),
+  'rust-deep/todo-macro':          tier('standard',      'todo!() is an incomplete implementation stub'),
+  'rust-deep/unimplemented-macro': tier('standard',      'unimplemented!() is an incomplete feature stub'),
+  'rust-deep/clone-on-copy':       tier('mechanical',    'Copy types do not need explicit .clone()'),
+  'rust-deep/large-enum-variant':  tier('maintainability', 'Large enum variants bloat memory for every enum value'),
+  'rust-deep/wildcard-catch':      tier('mechanical',    'Catch-all match arms can silently ignore new variants'),
+  'rust-deep/unsafe-usage':        tier('standard',      'unsafe blocks must be documented with a safety rationale'),
+  'rust-deep/expect-in-prod':      tier('mechanical',    '.expect() in production can panic with a generic message'),
+  'rust-deep/redundant-clone':     tier('mechanical',    '.clone() on a value about to be dropped is often redundant'),
+
   // ── format-lint ──────────────────────────────────────
   'format-lint/inconsistent-indent':        tier('mechanical', 'Mixed indentation breaks rendering and tooling across editors'),
   'format-lint/inconsistent-quotes':        tier('style',      'Mixed quote styles create diff noise and inconsistency'),
@@ -181,6 +193,30 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'md/inconsistent-heading':         tier('style',        'Mixed heading styles reduce document consistency'),
   'md/todo-in-doc':                 tier('advisory',     'TODO/FIXME markers in docs should be tracked externally'),
   'md/missing-fenced-lang':         tier('advisory',     'Missing language on fenced blocks disables syntax highlighting'),
+
+  // ── python-deep ───────────────────────────────────────
+  'python-deep/bare-except':         tier('strict',        'Bare except clauses catch system-level exceptions like KeyboardInterrupt and can hide bugs'),
+  'python-deep/mutable-default':     tier('strict',        'Mutable default arguments are shared between function calls and cause subtle bugs'),
+  'python-deep/global-variable':   tier('standard',      'Global variables make code harder to test, reason about, and reuse'),
+  'python-deep/star-import':       tier('standard',      'Wildcard imports pollute the namespace and obscure dependencies'),
+  'python-deep/no-type-hint':      tier('maintainability', 'Missing parameter type annotations reduce readability and type-safety'),
+  'python-deep/no-return-type':    tier('maintainability', 'Missing return type annotations make the function contract unclear'),
+  'python-deep/f-string-in-log':   tier('mechanical',      'Logging with f-strings evaluates the message even when the log level suppresses output'),
+  'python-deep/broad-exception':   tier('mechanical',      'Catching broad exceptions can hide bugs and swallow unexpected errors'),
+  'python-deep/pass-stub':         tier('mechanical',      'Empty pass/ellipsis stubs are incomplete implementations or dead code'),
+  'python-deep/print-statement':   tier('style',           'Debug print statements in production code should be replaced with proper logging'),
+  'python-deep/missing-docstring': tier('advisory',        'Public functions and classes should have a docstring describing their purpose'),
+
+  // ── go-deep ───────────────────────────────────────────
+  'go-deep/unchecked-error':       tier('standard',      'Unchecked error returns break Go idiomatic handling and can hide failures'),
+  'go-deep/empty-interface':       tier('standard',      'Empty interfaces (interface{} or any) erase compile-time type safety'),
+  'go-deep/exported-no-doc':         tier('style',         'Exported identifiers without doc comments reduce API discoverability'),
+  'go-deep/deep-copy-missing':       tier('mechanical',    'Large structs passed by value create unnecessary memory copies'),
+  'go-deep/init-side-effect':       tier('mechanical',    'init() with side effects makes startup behavior implicit and hard to test'),
+  'go-deep/defer-in-loop':          tier('standard',      'defer inside a loop leaks resource cleanup until the function returns'),
+  'go-deep/context-missing':         tier('maintainability', 'I/O functions without context.Context cannot honor deadlines or cancellation'),
+  'go-deep/goto-usage':             tier('strict',        'goto makes control flow hard to follow and can introduce subtle bugs'),
+  'go-deep/package-cycle':           tier('strict',        'Circular package imports create build coupling and initialization risks'),
 }
 
 /** Fallback impact for unknown rules */
