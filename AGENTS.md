@@ -4,14 +4,14 @@ This file provides guidance for AI coding agents (Claude Code, Cursor, Windsurf,
 
 ## Project Overview
 
-**deep-slop** is an npm package for deep AI slop detection in codebases. It ships 18 built-in analysis engines using tree-sitter AST parsing, plus a plugin system for custom engines, with CLI, MCP server, and programmatic API interfaces.
+**deep-slop** is an npm package for deep AI slop detection in codebases. It ships 25 built-in analysis engines using tree-sitter AST parsing, plus a plugin system for custom engines, with CLI, MCP server, LSP server, and programmatic API interfaces.
 
 - **Package name**: `deep-slop`
 - **Author**: Romanchello
 - **License**: MIT
 - **Repo**: https://github.com/DemumuMind/deep-slopDM
-- **Engines**: 18 built-in (lazy-loaded) + plugin engines
-- **Rules**: 181+ catalog rules across all engines (36 fixable)
+- **Engines**: 25 built-in (lazy-loaded) + plugin engines
+- **Rules**: 211+ catalog rules across all engines (55+ fixable)
 
 ## Architecture
 
@@ -43,7 +43,11 @@ src/
 │   ├── knip/                 # Unused dependency/export detection
 │   ├── format-lint/          # Formatting consistency
 │   ├── framework-lint/       # Framework-specific rules (Next.js, Tailwind)
-│   └── markup-lint/          # Markup & config quality (JSON, YAML, CSS, HTML, Markdown)
+│   ├── markup-lint/          # Markup & config quality (JSON, YAML, CSS, HTML, Markdown)
+│   ├── python-deep/          # Deep Python analysis (type hints, docstrings, complexity)
+│   ├── go-deep/              # Deep Go analysis (unchecked errors, missing docs, context)
+│   └── rust-deep/            # Deep Rust analysis (unsafe, unwrap, missing docs)
+├── lsp/                      # Language Server Protocol (diagnostics, code actions)
 ├── fix/                      # Auto-fix pipeline: plan, apply, verify, rollback
 ├── history/                  # Score history tracking and sparklines
 ├── hooks/                    # Git hooks and AI tool hooks (install, audit, sentinel, baseline)

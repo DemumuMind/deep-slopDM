@@ -108,6 +108,14 @@ export async function runScan(
   ;(context as any)._wildcardOff = wildcardOff
   context.disabledRules = disabledRules
 
+  // Also add globally suppressed rules from .deep-slop/.deep-slop-ignore
+  // so engines can early-exit when all their rules are suppressed
+  const precomputedIgnored = new Set(loadIgnoreFile(context.rootDirectory))
+  for (const rule of precomputedIgnored) {
+    context.disabledRules.add(rule)
+  }
+  ;(context as any)._globallySuppressed = precomputedIgnored
+
   // Discover and load plugins AFTER built-in engines
   const pluginEngines = await discoverAndLoadPlugins(context.rootDirectory)
 
@@ -215,7 +223,7 @@ export async function runScan(
     }
   }
 
-  const globallySuppressed = new Set(loadIgnoreFile(context.rootDirectory))
+  const globallySuppressed = (context as any)._globallySuppressed ?? new Set(loadIgnoreFile(context.rootDirectory))
   const { filtered, suppressedCount } = applySuppressDirectives(allDiagnostics, fileContents, globallySuppressed)
   allDiagnostics = filtered
 

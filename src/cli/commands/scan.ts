@@ -125,6 +125,23 @@ export function register(program: Command): void {
         } : undefined,
       })
 
+      // Apply --severity filter: only show diagnostics at or above the requested level
+      const sevFilter: Record<string, number> = { error: 0, warning: 1, info: 2, suggestion: 3 }
+      const minLevel = sevFilter[opts.severity] ?? 2
+      if (minLevel < 3) {
+        for (const e of result.engines) {
+          if (e.diagnostics) {
+            e.diagnostics = e.diagnostics.filter(d => (sevFilter[d.severity] ?? 3) <= minLevel)
+          }
+        }
+        const allDiags = result.engines.flatMap(e => e.diagnostics ?? [])
+        result.totalDiagnostics = allDiags.length
+        result.bySeverity = { error: 0, warning: 0, info: 0, suggestion: 0 }
+        for (const d of allDiags) { result.bySeverity[d.severity]++ }
+        result.byEngine = {} as any
+        for (const d of allDiags) { result.byEngine[d.engine] = (result.byEngine[d.engine] ?? 0) + 1 }
+      }
+
       if (format === 'sarif') {
         console.log(JSON.stringify(generateSarif(result), null, 2))
       } else if (format === 'json') {

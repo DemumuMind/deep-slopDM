@@ -15,15 +15,8 @@ async function isKnipInstalled(): Promise<boolean> {
     require.resolve('knip/package.json')
     return true
   } catch {}
-  // Slow fallback: npx --version (5s timeout instead of 15s)
-  try {
-    await execFileAsync('npx', ['knip', '--version'], {
-      timeout: 5_000,
-    } as any)
-    return true
-  } catch {
-    return false
-  }
+  // No slow fallback — if not resolvable, knip is not installed
+  return false
 }
 
 /** Run knip with JSON reporter and return parsed output */

@@ -11,6 +11,7 @@ import { readFileContent, toLines } from "../../utils/file-utils.js";
 import { npmAudit, pnpmAudit, pipAudit, goVulnCheck, cargoAudit } from "../../security/audit.js";
 import { detectSecrets } from "../../security/secrets.js";
 import { detectHtmlSafety } from "../../security/html-safety.js";
+import { isEngineEarlyExitEnabled, buildEarlyExitResult, EARLY_EXIT_BATCH_SIZE } from '../../config/engine-utils.js'
 
 // ── Helper: build a diagnostic ──────────────────────────
 
@@ -807,8 +808,14 @@ export const securityDeepEngine: Engine = {
     const files = context.files ?? [];
     const rootDir = context.rootDirectory;
     const config = context.config;
+    const earlyExit = isEngineEarlyExitEnabled(config.engines['security-deep'], 'security-deep')
+    const disabledRules = context.disabledRules ?? new Set<string>()
+    const wildcardOff: string[] = (context as any)._wildcardOff ?? []
+    const isRuleDisabled = (rule: string) =>
+      disabledRules.has(rule) || wildcardOff.some(p => rule.startsWith(p))
 
-    for (const filePath of files) {
+    for (let i = 0; i < files.length; i++) {
+      const filePath = files[i]
       try {
         const content = await readFileContent(filePath);
         const lines = toLines(content);
@@ -841,6 +848,14 @@ export const securityDeepEngine: Engine = {
         diagnostics.push(...detectHtmlSafety(filePath, lines));
       } catch {
         // skip unreadable files
+      }
+
+      // Early-exit: after scanning first batch with zero non-disabled diagnostics, skip rest
+      if (earlyExit && i >= EARLY_EXIT_BATCH_SIZE - 1) {
+        const activeDiags = diagnostics.filter(d => !isRuleDisabled(d.rule)).length
+        if (activeDiags === 0) {
+          return buildEarlyExitResult('security-deep', performance.now() - start)
+        }
       }
     }
 

@@ -74,6 +74,9 @@ export function formatOutput(result: ScanResult): string {
   lines.push(`    ${severityBadge('warning')}    ${result.bySeverity.warning}`)
   lines.push(`    ${severityBadge('info')}    ${result.bySeverity.info}`)
   lines.push(`    ${severityBadge('suggestion')}    ${result.bySeverity.suggestion}`)
+  if (result.suppressedCount > 0) {
+    lines.push(`    ||suppressed||    ${result.suppressedCount} (hidden by .deep-slop-ignore or inline suppress)`)
+  }
   lines.push('')
 
   // Grouped diagnostics by engine, then rule
