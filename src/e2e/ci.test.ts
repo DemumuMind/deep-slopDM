@@ -11,7 +11,7 @@ const ROOT = resolve(__dirname, '../..')
 
 // Use bundled CLI if available (local build), otherwise fall back to tsx (CI)
 const BUNDLED_CLI = resolve(ROOT, 'dist/deep-slop-bundled.js')
-const SOURCE_CLI = resolve(ROOT, 'src/cli.ts')
+const SOURCE_CLI = resolve(ROOT, 'src/cli/index.ts')
 const CLI = existsSync(BUNDLED_CLI) ? BUNDLED_CLI : SOURCE_CLI
 const USE_TSX = !existsSync(BUNDLED_CLI)
 

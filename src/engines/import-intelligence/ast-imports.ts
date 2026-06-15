@@ -8,7 +8,7 @@ import {
   findNodesOfTypes,
   walkAST,
   type ASTNode,
-} from '../../utils/tree-sitter.js'
+} from '../../utils/tree-sitter/index.js'
 import {
   type ParsedImport,
   type BarrelFile,

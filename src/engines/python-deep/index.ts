@@ -15,7 +15,7 @@ import {
   findNodesOfTypes,
   findAncestor,
   type ASTNode,
-} from '../../utils/tree-sitter.js'
+} from '../../utils/tree-sitter/index.js'
 import { readFile, writeFile } from 'node:fs/promises'
 
 // ── Engine metadata ─────────────────────────────────────

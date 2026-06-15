@@ -41,6 +41,11 @@ export const COMMANDS: CommandEntry[] = [
     flags: ['--search'],
   },
   {
+    name: 'engines',
+    description: 'List all analysis engines with languages and active status',
+    flags: ['--json'],
+  },
+  {
     name: 'trend',
     description: 'Show score trend across recent scans',
     flags: ['--limit'],

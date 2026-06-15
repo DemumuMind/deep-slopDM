@@ -764,12 +764,11 @@ export const syntaxDeepEngine: Engine = {
       context.config.engines["syntax-deep"],
       "syntax-deep",
     );
-    // Pre-compute disabled rules for early-exit accuracy
-    const disabledRules = new Set<string>()
-    const rulesConfig = context.config.rules ?? {}
-    for (const [rule, severity] of Object.entries(rulesConfig)) {
-      if (severity === 'off') disabledRules.add(rule)
-    }
+    // Use orchestrator-provided disabled rules for early-exit accuracy
+    const disabledRules = context.disabledRules ?? new Set<string>()
+    const wildcardOff: string[] = (context as any)._wildcardOff ?? []
+    const isRuleDisabled = (rule: string) =>
+      disabledRules.has(rule) || wildcardOff.some(p => rule.startsWith(p))
 
     for (let i = 0; i < files.length; i++) {
       const relPath = files[i];
@@ -799,7 +798,7 @@ export const syntaxDeepEngine: Engine = {
       if (
         earlyExit &&
         i >= EARLY_EXIT_BATCH_SIZE - 1 &&
-        diagnostics.filter(d => !disabledRules.has(d.rule)).length === 0
+        diagnostics.filter(d => !isRuleDisabled(d.rule)).length === 0
       ) {
         return buildEarlyExitResult("syntax-deep", performance.now() - start);
       }

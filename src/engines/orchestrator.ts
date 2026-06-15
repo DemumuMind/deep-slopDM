@@ -6,7 +6,7 @@ import { appendRecord, type HistoryRecord } from '../history/store.js'
 import { LiveGrid } from '../ui/live-grid.js'
 import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
 import { clearBatch } from '../utils/batch-processor.js'
-import { clearParseCache } from '../utils/tree-sitter.js'
+import { clearParseCache } from '../utils/tree-sitter/index.js'
 import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
 import { applySuppressDirectives, loadIgnoreFile } from '../utils/suppress.js'
 import { isEngineEnabled } from '../config/engine-utils.js'
@@ -91,6 +91,23 @@ export async function runScan(
   // with early-exit to stop after scanning just the first batch of files,
   // saving significant I/O time for zero-issue engines.
 
+  // Pre-compute disabled rules from config for early-exit accuracy
+  const disabledRules = new Set<string>()
+  const rulesConfig = context.config.rules ?? {}
+  for (const [rule, severity] of Object.entries(rulesConfig)) {
+    if (severity === 'off') disabledRules.add(rule)
+  }
+  // Also expand wildcard rules (e.g. "type-safety/*") into concrete rule IDs
+  const wildcardOff: string[] = []
+  for (const [key, severity] of Object.entries(rulesConfig)) {
+    if (severity === 'off' && key.endsWith('/*')) {
+      wildcardOff.push(key.slice(0, -2))
+    }
+  }
+  // We'll add wildcard-matched rules lazily in engines that check them
+  ;(context as any)._wildcardOff = wildcardOff
+  context.disabledRules = disabledRules
+
   // Discover and load plugins AFTER built-in engines
   const pluginEngines = await discoverAndLoadPlugins(context.rootDirectory)
 
@@ -125,6 +142,7 @@ export async function runScan(
         // Skip engine if language not supported
         if (!engine.supportedLanguages.some((l) => context.languages.includes(l))) {
           const result: EngineResult = {
+            name: name as EngineName,
             engine: name as EngineName,
             diagnostics: [],
             elapsed: 0,
@@ -138,6 +156,7 @@ export async function runScan(
         }
 
         const result = await engine.run(context);
+        result.name = name as EngineName;
         result.elapsed = performance.now() - start;
         callbacks?.onEngineComplete?.(result);
         completed++;
@@ -145,6 +164,7 @@ export async function runScan(
         return result;
       } catch (error) {
         const result: EngineResult = {
+          name: name as EngineName,
           engine: name as EngineName,
           diagnostics: [],
           elapsed: 0,
@@ -162,6 +182,7 @@ export async function runScan(
   // Collect results
   for (const r of settled) {
     results.push(r.status === "fulfilled" ? r.value : {
+      name: "ast-slop" as EngineName,
       engine: "ast-slop" as EngineName, // fallback
       diagnostics: [],
       elapsed: 0,

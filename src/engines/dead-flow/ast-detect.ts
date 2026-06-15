@@ -1,4 +1,4 @@
-import type { ASTNode } from '../../utils/tree-sitter.js'
+import type { ASTNode } from '../../utils/tree-sitter/index.js'
 import {
   parseFile,
   findNodesOfType,
@@ -9,7 +9,7 @@ import {
   findAncestorOfType,
   isInsideCatch,
   extractImportFromNode,
-} from '../../utils/tree-sitter.js'
+} from '../../utils/tree-sitter/index.js'
 import type { Diagnostic } from '../../types/index.js'
 import { toLines } from '../../utils/file-utils.js'
 

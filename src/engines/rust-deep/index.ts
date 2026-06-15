@@ -1,7 +1,7 @@
 // ── Rust Deep Engine ────────────────────────────────────
 // Regex-based analysis of Rust code for common AI slop / quality issues.
 // Falls back to regex only; tree-sitter Rust parser is available via
-// src/utils/tree-sitter.ts but is not required for this engine.
+// src/utils/tree-sitter/ but is not required for this engine.
 
 import { readdir } from 'node:fs/promises'
 import { join, relative, extname } from 'node:path'

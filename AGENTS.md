@@ -17,8 +17,7 @@ This file provides guidance for AI coding agents (Claude Code, Cursor, Windsurf,
 
 ```
 src/
-├── cli.ts                    # Commander CLI (scan, fix, ci, rules, init, doctor, trend, watch, hook, agent, badge, update)
-├── cli/                      # Per-command CLI helpers (init, doctor)
+├── cli/                      # Modular Commander CLI (commands/*.ts, index.ts wires them)
 ├── mcp.ts                    # MCP server (7+ tools for AI agent integration)
 ├── index.ts                  # Public API exports
 ├── agent/                    # Agent integration (connect, repair loop, use, plan)
@@ -110,7 +109,7 @@ pnpm scan             # Build + scan the project itself
 6. Add rule IDs and impact metadata to `RULE_IMPACT` in `src/scoring/rule-impact.ts`
 7. Add rule display labels to `labels` in `src/output/rule-labels.ts`
 8. For fixable rules, add rule IDs to `FIXABLE_RULES` in `src/engines/catalog.ts`
-9. Add the engine description to the `rules` command in `src/cli.ts`
+9. Add the engine description to the `rules` command in `src/cli/commands/rules.ts`
 10. Add the engine description to the `deep_slop_engines` tool in `src/mcp.ts`
 11. Update `DEFAULT_CONFIG` / presets in `src/config/defaults.ts` and `src/config/presets.ts` if the engine needs config options
 12. Add tests in `src/engines/<engine-name>/index.test.ts`

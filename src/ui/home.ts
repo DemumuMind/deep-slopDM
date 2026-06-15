@@ -45,6 +45,7 @@ export function renderHomeScreen(): void {
 
   console.log(`  ${styleBold('info', 'Explore')}`)
   console.log(`    ${style('suggestion', 'rules')}     List and search all detection rules`)
+  console.log(`    ${style('suggestion', 'engines')}   List all analysis engines and their status`)
   console.log(`    ${style('suggestion', 'trend')}     Show score trend across recent scans`)
   console.log(`    ${style('suggestion', 'report')}    Generate HTML trend report with charts`)
   console.log(`    ${style('suggestion', 'badge')}     Generate a score badge for README`)

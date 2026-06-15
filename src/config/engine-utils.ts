@@ -52,6 +52,7 @@ export function isEngineEarlyExitEnabled(value: unknown, engineName: EngineName)
  */
 export function buildEarlyExitResult(engineName: EngineName, elapsedMs: number): EngineResult {
   return {
+    name: engineName,
     engine: engineName,
     diagnostics: [],
     elapsed: elapsedMs,

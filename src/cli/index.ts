@@ -11,6 +11,7 @@ import { register as registerScan } from './commands/scan.js'
 import { register as registerFix } from './commands/fix.js'
 import { register as registerCi } from './commands/ci.js'
 import { register as registerRules } from './commands/rules.js'
+import { register as registerEngines } from './commands/engines.js'
 import { register as registerInit } from './commands/init.js'
 import { register as registerDoctor } from './commands/doctor.js'
 import { register as registerTrend } from './commands/trend.js'
@@ -21,6 +22,7 @@ import { register as registerHook } from './commands/hook.js'
 import { register as registerAgent } from './commands/agent.js'
 import { register as registerBadge } from './commands/badge.js'
 import { register as registerUpdate } from './commands/update.js'
+import { register as registerConfig } from './commands/config.js'
 
 const program = new Command()
 
@@ -33,7 +35,9 @@ registerScan(program)
 registerFix(program)
 registerCi(program)
 registerRules(program)
+registerEngines(program)
 registerInit(program)
+registerConfig(program)
 registerDoctor(program)
 registerTrend(program)
 registerReport(program)

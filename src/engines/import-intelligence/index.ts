@@ -4,7 +4,7 @@
 
 import { join, dirname, resolve, basename } from 'node:path'
 import { readFileContent, toLines, extractImports } from '../../utils/file-utils.js'
-import { initParser, isAvailable } from '../../utils/tree-sitter.js'
+import { initParser, isAvailable } from '../../utils/tree-sitter/index.js'
 import type { Diagnostic, Engine, EngineContext, EngineResult, FixResult } from '../../types/index.js'
 import {
   type ParsedImport,
@@ -47,7 +47,7 @@ async function parseImportsForFile(
       const astImports = await parseImportsAST(content, filePath)
       const merged = mergeImportSources(regexImports, astImports)
 
-      const treeSitter = await import('../../utils/tree-sitter.js')
+      const treeSitter = await import('../../utils/tree-sitter/index.js')
       const astRoot = await treeSitter.parseFile(content, filePath.endsWith('.tsx'), filePath)
       const astUsedSymbols = astImports && astRoot
         ? findUsedSymbolsAST(astRoot, merged.flatMap((imp) => imp.symbols))

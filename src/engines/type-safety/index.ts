@@ -728,12 +728,13 @@ export const typeSafetyEngine: Engine = {
       context.config.engines["type-safety"],
       "type-safety",
     );
-    // Pre-compute which rules are disabled for early-exit accuracy
-    const disabledRules = new Set<string>()
-    const rulesConfig = context.config.rules ?? {}
-    for (const [rule, severity] of Object.entries(rulesConfig)) {
-      if (severity === 'off') disabledRules.add(rule)
-    }
+    // Use orchestrator-provided disabled rules for early-exit accuracy
+    const disabledRules = context.disabledRules ?? new Set<string>()
+    const wildcardOff: string[] = (context as any)._wildcardOff ?? []
+
+    // Helper: is a rule effectively disabled?
+    const isRuleDisabled = (rule: string) =>
+      disabledRules.has(rule) || wildcardOff.some(p => rule.startsWith(p))
 
     // Process each file
     for (let i = 0; i < files.length; i++) {
@@ -775,7 +776,7 @@ export const typeSafetyEngine: Engine = {
 
       // Early-exit heuristic: after scanning the first batch with zero
       // non-disabled diagnostics, skip remaining files if the engine is not mandatory.
-      const activeDiagCount = allDiagnostics.filter(d => !disabledRules.has(d.rule)).length
+      const activeDiagCount = allDiagnostics.filter(d => !isRuleDisabled(d.rule)).length
       if (
         earlyExit &&
         i >= EARLY_EXIT_BATCH_SIZE - 1 &&

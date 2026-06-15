@@ -10,7 +10,7 @@ const ROOT = resolve(__dirname, '..')
 
 // Use bundled CLI if available (local), otherwise fall back to tsx (CI)
 const BUNDLED_CLI = resolve(ROOT, 'dist/deep-slop-bundled.js')
-const SOURCE_CLI = resolve(ROOT, 'src/cli.ts')
+const SOURCE_CLI = resolve(ROOT, 'src/cli/index.ts')
 const CLI = existsSync(BUNDLED_CLI) ? BUNDLED_CLI : SOURCE_CLI
 const USE_TSX = !existsSync(BUNDLED_CLI)
 
@@ -23,6 +23,7 @@ interface ScanResult {
   byEngine: Record<string, number>
   engines: Array<{
     engine: string
+    name: string
     diagnostics: Array<{
       rule: string
       severity: string
@@ -158,5 +159,8 @@ describe('E2E: deep-slop scan', () => {
     expect(result).not.toBeNull()
     const names = result!.engines.map(e => e.engine)
     expect(names.length).toBeGreaterThan(0)
+    // New name alias for JSON consumers
+    const aliases = result!.engines.map(e => e.name)
+    expect(aliases.every(n => typeof n === 'string' && n.length > 0)).toBe(true)
   })
 })

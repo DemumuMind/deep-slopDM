@@ -14,7 +14,7 @@ import {
   initPythonParser,
   parsePython,
   isPythonAvailable,
-} from '../../utils/tree-sitter.js'
+} from '../../utils/tree-sitter/index.js'
 import type { Diagnostic, Engine, EngineContext, EngineResult, FixResult, Language } from '../../types/index.js'
 import { loadPackageDeps, loadPythonDeps, loadTsconfigPaths, languageFromPath, tsLangHint } from './shared.js'
 import { detectNarrativeComment } from './rules/narrative-comment.js'

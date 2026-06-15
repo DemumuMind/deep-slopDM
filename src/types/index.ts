@@ -136,6 +136,8 @@ export interface Suggestion {
 export interface EngineResult {
   /** Engine name */
   engine: EngineName;
+  /** Engine name (alias for JSON consumers and programmatic API) */
+  name?: EngineName;
   /** Diagnostics found */
   diagnostics: Diagnostic[];
   /** Time taken in ms */
@@ -161,6 +163,8 @@ export interface EngineContext {
   config: DeepSlopConfig;
   /** Diff scope description, e.g. "3 changed vs origin/main" */
   diffScope?: string;
+  /** Rule IDs that are effectively disabled (severity "off") — pre-computed by orchestrator for early-exit accuracy */
+  disabledRules?: Set<string>;
 }
 
 export interface Engine {
