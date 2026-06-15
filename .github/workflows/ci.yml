@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [20, 22]
+        node: [20, 22, 24]
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +45,12 @@ jobs:
           cp node_modules/.pnpm/tree-sitter-typescript@*/node_modules/tree-sitter-typescript/tree-sitter-typescript.wasm dist/wasm/ 2>/dev/null || true
           cp node_modules/.pnpm/tree-sitter-typescript@*/node_modules/tree-sitter-typescript/tree-sitter-tsx.wasm dist/wasm/ 2>/dev/null || true
           cp node_modules/.pnpm/tree-sitter-python@*/node_modules/tree-sitter-python/tree-sitter-python.wasm dist/wasm/ 2>/dev/null || true
+          if [ -d "node_modules/.pnpm/tree-sitter-go@*" ]; then
+            cp node_modules/.pnpm/tree-sitter-go@*/node_modules/tree-sitter-go/tree-sitter-go.wasm dist/wasm/ 2>/dev/null || true
+          fi
+          if [ -d "node_modules/.pnpm/tree-sitter-rust@*" ]; then
+            cp node_modules/.pnpm/tree-sitter-rust@*/node_modules/tree-sitter-rust/tree-sitter-rust.wasm dist/wasm/ 2>/dev/null || true
+          fi
           ls dist/wasm/
 
       - name: Typecheck

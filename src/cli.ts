@@ -14,6 +14,7 @@ import { computeExitCode } from './utils/exit-code.js'
 import { formatOutput } from "./output/formatter.js";
 import { generateSarif } from "./output/sarif.js";
 import { generateHTMLReport } from "./output/html-report.js";
+import { runBenchmark, formatJsonSummary } from "./bench/index.js";
 import { APP_VERSION } from "./version.js";
 import { runInit } from "./cli/init.js";
 import { runDoctor } from "./cli/doctor.js";
@@ -62,7 +63,7 @@ const program = new Command();
 
 program
   .name("deep-slop")
-  .description("Deep AI slop detection — 20 engines, AST-powered, with alternative import paths")
+  .description("Deep AI slop detection — 25 engines, AST-powered, with alternative import paths")
   .version(APP_VERSION);
 
 // ── SCAN ────────────────────────────────────────────────
@@ -733,7 +734,37 @@ program
     console.log('')
   })
 
-// ── WATCH ──────────────────────────────────────────────
+// ── BENCH ────────────────────────────────────────
+program
+  .command('bench')
+  .description('Benchmark scan performance across engines')
+  .argument('[path]', 'project directory', '.')
+  .option('--iterations <n>', 'Number of scan iterations', '3')
+  .option('--compare', 'Compare with the previous benchmark result')
+  .option('--json', 'Output as JSON')
+  .action(async (path: string, opts: Record<string, any>) => {
+    const rootDir = resolve(path)
+    const iterations = parseInt(opts.iterations ?? '3', 10)
+    const compare = opts.compare ?? false
+    const json = opts.json ?? false
+
+    process.stderr.write(`\n  deep-slop bench: ${rootDir} (${iterations} iterations)\n\n`)
+
+    const { result, summary, previous } = await runBenchmark({
+      path: rootDir,
+      iterations,
+      compare,
+    })
+
+    if (json) {
+      console.log(formatJsonSummary(result, previous))
+    } else {
+      console.log(summary)
+      console.log('')
+    }
+  })
+
+// ── WATCH ───────────────────────────────────────────
 program
   .command("watch")
   .description("Watch for file changes and auto-scan")

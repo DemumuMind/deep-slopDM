@@ -30,6 +30,7 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'ast-slop/hallucinated-import':  tier('standard', 'Hallucinated imports will cause runtime errors'),
   'ast-slop/as-any-cast':          tier('standard', 'as-any casts disable type safety — tracked here for ast-slop context'),
   'ast-slop/empty-catch':          tier('strict',   'Empty catch blocks silently swallow errors, hiding bugs'),
+  'ast-slop/todo-stub':          tier('mechanical', 'TODO stubs are incomplete implementations that should be resolved or tracked'),
   'ast-slop/todo-leftover':        tier('mechanical', 'TODO leftovers are technical debt markers, not critical'),
   'ast-slop/hardcoded-config':     tier('mechanical', 'Hardcoded config values should be externalized to environment or config files'),
 
@@ -87,9 +88,12 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'arch-constraints/unstable-dependency': tier('style',           'Unstable dependencies increase fragility'),
 
   // ── dup-detect ──────────────────────────────────────
+  'dup-detect/identical-block':       tier('maintainability', 'Identical code blocks violate DRY and increase maintenance cost'),
   'dup-detect/identical-blocks':      tier('maintainability', 'Identical code blocks violate DRY and increase maintenance cost'),
   'dup-detect/similar-blocks':        tier('style',           'Similar blocks may indicate copy-paste with minor edits'),
   'dup-detect/duplicate-imports':     tier('mechanical',      'Duplicate imports are redundant overhead'),
+  'dup-detect/duplicate-import-across-files': tier('mechanical', 'Duplicate imports across files should be consolidated into a barrel file'),
+  'dup-detect/repeated-constant':     tier('mechanical',      'Repeated constants should be extracted to shared definitions'),
   'dup-detect/repeated-constants':    tier('mechanical',      'Repeated constants should be extracted to shared definitions'),
   'dup-detect/copy-paste':            tier('style',           'Copy-paste patterns increase divergence risk'),
 
@@ -100,6 +104,7 @@ export const RULE_IMPACT: Record<string, RuleImpact> = {
   'perf-hints/large-loop-allocation':   tier('style',           'Large allocations in loops increase GC pressure'),
   'perf-hints/unnecessary-await':       tier('advisory',        'Unnecessary awaits add microtask overhead'),
   'perf-hints/string-concat':           tier('style',           'String concatenation in loops is slower than array join'),
+  'perf-hints/string-concat-in-loop':   tier('style',           'String concatenation in loops is slower than array join'),
 
   // ── i18n-lint ───────────────────────────────────────
   'i18n-lint/hardcoded-string':   tier('advisory',  'Hardcoded strings prevent localization'),

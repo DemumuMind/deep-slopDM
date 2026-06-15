@@ -8,6 +8,8 @@ import type {
   Suggestion,
 } from "../../types/index.js";
 import { readFileContent, toLines } from "../../utils/file-utils.js";
+import { processFiles } from "../../utils/batch-processor.js";
+import type { FileData } from "../../utils/batch-processor.js";
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -81,8 +83,7 @@ interface BlockRange {
  * Parse the file into block ranges by tracking brace depth.
  * This lets us answer "is line X inside a loop?" or "is line X inside an async function?"
  */
-function parseBlocks(content: string): BlockRange[] {
-  const lines = toLines(content);
+function parseBlocks(lines: { num: number; text: string }[]): BlockRange[] {
   const blocks: BlockRange[] = [];
 
   // Stack of pending block openings: each entry is the line index where '{' was found
@@ -224,12 +225,11 @@ function isInsideBlock(
 // ── Rule 1: N+1 query pattern ───────────────────────────
 
 function detectNPlusOne(
-  content: string,
+  lines: { num: number; text: string }[],
   filePath: string,
   blocks: BlockRange[],
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const lines = toLines(content);
 
   const loopKinds = new Set<BlockRange["kind"]>(["for", "while", "do", "forEach", "map"]);
 
@@ -288,12 +288,11 @@ function detectNPlusOne(
 // ── Rule 2: React component defined inside another component ──
 
 function detectReactMissingMemo(
-  content: string,
+  lines: { num: number; text: string }[],
   filePath: string,
   blocks: BlockRange[],
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const lines = toLines(content);
 
   // Only flag on .tsx/.jsx files — .ts files that happen to import React are not components
   const isReactFile = /\.(tsx|jsx)$/.test(filePath);
@@ -403,12 +402,11 @@ function buildSyncInAsyncSuggestion(
 }
 
 function detectSyncInAsync(
-  content: string,
+  lines: { num: number; text: string }[],
   filePath: string,
   blocks: BlockRange[],
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const lines = toLines(content);
 
   const asyncKinds = new Set<BlockRange["kind"]>(["async-function"]);
 
@@ -467,12 +465,11 @@ function detectSyncInAsync(
 // ── Rule 4: Large allocation inside loops ───────────────
 
 function detectLargeLoopAllocation(
-  content: string,
+  lines: { num: number; text: string }[],
   filePath: string,
   blocks: BlockRange[],
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const lines = toLines(content);
 
   const loopKinds = new Set<BlockRange["kind"]>(["for", "while", "do", "forEach", "map"]);
 
@@ -595,12 +592,11 @@ function describeLiteral(value: string): string {
 // ── Rule 6: String concatenation in loops ────────────────
 
 function detectStringConcatInLoop(
-  content: string,
+  lines: { num: number; text: string }[],
   filePath: string,
   blocks: BlockRange[],
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
-  const lines = toLines(content);
 
   const loopKinds = new Set<BlockRange["kind"]>(["for", "while", "do", "forEach", "map"]);
 
@@ -637,6 +633,10 @@ function detectStringConcatInLoop(
     if (templateMatch) {
       const varName = templateMatch[1];
       const loopDesc = describeLoopKind(enclosingLoop.kind);
+      const lineText = lines[i].text;
+      const indent = lineText.match(/^(\s*)/)?.[1] ?? "";
+      const rhs = trimmed.replace(new RegExp(`^${varName}\\s*\\+=\\s*`), "");
+      const replacement = `${indent}${varName} = [${varName}, ${rhs}].join('')`;
       diagnostics.push(
         makeDiagnostic({
           filePath,
@@ -645,12 +645,18 @@ function detectStringConcatInLoop(
           line: lines[i].num,
           severity: "warning",
           help: `Use an array to collect strings and join once after the loop, which is O(n) instead of O(n²) for repeated concatenation`,
-          fixable: false,
+          fixable: true,
           suggestion: {
-            type: "refactor",
-            text: `// const parts: string[] = [];\n// parts.push(...); // inside loop\n// const ${varName} = parts.join(''); // after loop`,
+            type: "replace",
+            text: replacement,
+            range: {
+              startLine: lines[i].num,
+              startCol: 1,
+              endLine: lines[i].num,
+              endCol: lineText.length + 1,
+            },
             confidence: 0.75,
-            reason: "Repeated string concatenation with += and template literals inside a loop is O(n²); pushing to an array and joining once is O(n)",
+            reason: "Repeated string concatenation with += and template literals inside a loop is O(n²); using array.join() avoids repeated string reallocations.",
           },
           detail: {
             variableName: varName,
@@ -670,6 +676,10 @@ function detectStringConcatInLoop(
       const count = concatCounts.get(key) ?? 0;
       if (count >= 3) {
         const loopDesc = describeLoopKind(enclosingLoop.kind);
+        const lineText = lines[i].text;
+        const indent = lineText.match(/^(\s*)/)?.[1] ?? "";
+        const rhs = trimmed.replace(new RegExp(`^${varName}\\s*\\+=\\s*`), "");
+        const replacement = `${indent}${varName} = [${varName}, ${rhs}].join('')`;
         diagnostics.push(
           makeDiagnostic({
             filePath,
@@ -678,12 +688,18 @@ function detectStringConcatInLoop(
             line: lines[i].num,
             severity: "warning",
             help: `Use an array to collect strings and join once after the loop, which is O(n) instead of O(n²) for repeated concatenation`,
-            fixable: false,
+            fixable: true,
             suggestion: {
-              type: "refactor",
-              text: `// const parts: string[] = [];\n// parts.push(...); // inside loop\n// const ${varName} = parts.join(''); // after loop`,
+              type: "replace",
+              text: replacement,
+              range: {
+                startLine: lines[i].num,
+                startCol: 1,
+                endLine: lines[i].num,
+                endCol: lineText.length + 1,
+              },
               confidence: 0.7,
-              reason: `${count} repeated string concatenations with += inside a loop is O(n²); pushing to an array and joining once is O(n)`,
+              reason: `${count} repeated string concatenations with += inside a loop is O(n²); using array.join() avoids repeated string reallocations.`,
             },
             detail: {
               variableName: varName,
@@ -748,36 +764,31 @@ export const perfHintsEngine: Engine = {
       };
     }
 
-    // Read and analyze each file
-    for (const fp of filePaths) {
-      try {
-        const content = await readFileContent(fp);
-        const relPath = relative(rootDirectory, fp);
+    // Read and analyze each file using the shared batch processor
+    await processFiles(filePaths, async (file) => {
+      const relPath = relative(rootDirectory, file.filePath);
 
-        // Parse block structure for scope-aware detection
-        const blocks = parseBlocks(content);
+      // Parse block structure for scope-aware detection
+      const blocks = parseBlocks(file.lines);
 
-        // Rule 1: N+1 query pattern
-        diagnostics.push(...detectNPlusOne(content, relPath, blocks));
+      // Rule 1: N+1 query pattern
+      diagnostics.push(...detectNPlusOne(file.lines, relPath, blocks));
 
-        // Rule 2: React component defined inside another component
-        diagnostics.push(...detectReactMissingMemo(content, relPath, blocks));
+      // Rule 2: React component defined inside another component
+      diagnostics.push(...detectReactMissingMemo(file.lines, relPath, blocks));
 
-        // Rule 3: Synchronous file I/O inside async functions
-        diagnostics.push(...detectSyncInAsync(content, relPath, blocks));
+      // Rule 3: Synchronous file I/O inside async functions
+      diagnostics.push(...detectSyncInAsync(file.lines, relPath, blocks));
 
-        // Rule 4: Large allocation inside loops
-        diagnostics.push(...detectLargeLoopAllocation(content, relPath, blocks));
+      // Rule 4: Large allocation inside loops
+      diagnostics.push(...detectLargeLoopAllocation(file.lines, relPath, blocks));
 
-        // Rule 5: Unnecessary await on non-Promise values
-        diagnostics.push(...detectUnnecessaryAwait(content, relPath));
+      // Rule 5: Unnecessary await on non-Promise values
+      diagnostics.push(...detectUnnecessaryAwait(file.content, relPath));
 
-        // Rule 6: String concatenation in loops
-        diagnostics.push(...detectStringConcatInLoop(content, relPath, blocks));
-      } catch {
-        // Skip unreadable files
-      }
-    }
+      // Rule 6: String concatenation in loops
+      diagnostics.push(...detectStringConcatInLoop(file.lines, relPath, blocks));
+    });
 
     // Deduplicate diagnostics (same file + line + rule)
     const seen = new Set<string>();

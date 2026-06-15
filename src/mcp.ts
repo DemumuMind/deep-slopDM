@@ -1,16 +1,20 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
-import { resolve } from "node:path"
+import { resolve, join } from "node:path"
 import { z } from "zod"
 import { runScan, runFix as runEngineFix } from "./engines/orchestrator.js"
 import { detectLanguages, detectFrameworks, collectFiles } from "./utils/discover.js"
 import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName, ALL_ENGINE_NAMES } from "./types/index.js"
 import { APP_VERSION } from "./version.js"
 import { getCatalog, findRule } from "./engines/catalog.js"
-import { runFix as runFixPipeline } from "./fix/index.js"
+import { runFix as runFixPipeline, extractPlanPreview } from "./fix/index.js"
 import { readBaseline } from "./hooks/baseline.js"
 import { assessDiagnostic, summarizeAssessments } from "./output/assessment.js"
+import { generateHTMLReport } from "./output/html-report.js"
+import { readHistory } from "./history/store.js"
+import { writeFileSync, mkdirSync } from "node:fs"
+import { ENGINE_REGISTRY } from "./engines/orchestrator.js"
 
 const server = new McpServer({
   name: "deep-slop",
@@ -339,6 +343,167 @@ server.tool(
           score: baseline.score,
           lastScanAt: baseline.timestamp,
           fileCount: baseline.diagnostics.total,
+        }, null, 2),
+      }],
+    }
+  },
+)
+
+// ── Tool 8: deep_slop_report ─────────────────────────────
+server.tool(
+  "deep_slop_report",
+  "Generate an HTML trend report from scan history",
+  {
+    path: z.string().default(".").describe("Project directory to scan history from"),
+    limit: z.number().default(50).describe("Number of recent scans to include"),
+  },
+  async ({ path, limit }) => {
+    const rootDir = resolve(path)
+    const records = readHistory(rootDir, limit)
+    const html = generateHTMLReport(records, {
+      title: `deep-slop Trend Report — ${path}`,
+      rootDir,
+    })
+
+    const reportPath = join(rootDir, '.deep-slop', 'report.html')
+    mkdirSync(join(rootDir, '.deep-slop'), { recursive: true })
+    writeFileSync(reportPath, html, 'utf8')
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          reportPath,
+          records: records.length,
+        }, null, 2),
+      }],
+    }
+  },
+)
+
+// ── Tool 9: deep_slop_fix_preview ────────────────────────
+server.tool(
+  "deep_slop_fix_preview",
+  "Preview what fixes would be applied without modifying files",
+  {
+    path: z.string().describe("Project directory to preview fixes for"),
+    rules: z.array(z.string()).optional().describe("Only preview fixes for these rule IDs"),
+  },
+  async ({ path, rules }) => {
+    const rootDir = resolve(path)
+
+    const languages = await detectLanguages(rootDir)
+    const frameworks = await detectFrameworks(rootDir)
+    const files = await collectFiles(rootDir, languages)
+
+    const context = {
+      rootDirectory: rootDir,
+      languages,
+      frameworks,
+      files,
+      installedTools: {} as Record<string, string | boolean>,
+      config: DEFAULT_CONFIG,
+    }
+
+    const scanResult = await runScan(context)
+    const allDiagnostics = scanResult.engines.flatMap((e) => e.diagnostics)
+
+    const fixResult = await runFixPipeline(allDiagnostics, context, {
+      mode: 'safe',
+      dryRun: false,
+      verify: false,
+      plan: true,
+      rules,
+    })
+
+    const preview = extractPlanPreview(fixResult)
+    if (!preview) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            preview: null,
+            diagnosticsAddressed: 0,
+            filesAffected: [],
+            items: [],
+          }, null, 2),
+        }],
+      }
+    }
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          preview: {
+            scoreBefore: preview.scoreBefore,
+            estimatedScoreAfter: preview.estimatedScoreAfter,
+            estimatedEffort: preview.estimatedEffort,
+            diagnosticsAddressed: preview.diagnosticsAddressed,
+            filesAffected: preview.filesAffected,
+            items: preview.items.map((item) => ({
+              filePath: item.filePath,
+              rule: item.rule,
+              startLine: item.startLine,
+              endLine: item.endLine,
+              confidence: item.confidence,
+              before: item.before,
+              after: item.after,
+            })),
+          },
+        }, null, 2),
+      }],
+    }
+  },
+)
+
+// ── Tool 10: deep_slop_engines_detail ─────────────────────
+server.tool(
+  "deep_slop_engines_detail",
+  "Get detailed information about a specific engine",
+  {
+    engine: z.string().describe("Engine name (e.g. 'ast-slop')"),
+  },
+  async ({ engine }) => {
+    const catalog = getCatalog()
+    const engineRules = catalog.filter((r) => r.engine === engine)
+
+    let description = "Unknown engine"
+    let supportedLanguages: string[] = []
+    let fixableRules: string[] = []
+
+    if (engineRules.length > 0) {
+      description = engineRules[0].description
+    }
+
+    const loader = ENGINE_REGISTRY[engine as EngineName]
+    if (loader) {
+      try {
+        const e = await loader()
+        description = e.description
+        supportedLanguages = e.supportedLanguages
+      } catch {
+        // Keep defaults
+      }
+    }
+
+    fixableRules = engineRules.filter((r) => r.fixable).map((r) => r.id)
+
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          name: engine,
+          description,
+          supportedLanguages,
+          rules: engineRules.map((r) => ({
+            id: r.id,
+            severity: r.severity,
+            impactTier: r.impactTier,
+            fixable: r.fixable,
+            description: r.description,
+          })),
+          fixableRules,
         }, null, 2),
       }],
     }

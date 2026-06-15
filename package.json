@@ -1,7 +1,7 @@
 {
   "name": "deep-slop",
-  "version": "1.7.2",
-  "description": "Deep AI slop detection with 18 AST-powered engines, 181+ rules, density-aware scoring, SARIF 2.1.0 output, MCP server, and auto-fix pipeline.",
+  "version": "2.0.0",
+  "description": "Deep AI slop detection with 25 AST-powered engines, 211+ rules, density-aware scoring, SARIF 2.1.0 output, MCP server, and auto-fix pipeline.",
   "type": "module",
   "bin": {
     "deep-slop": "./dist/deep-slop-bundled.js",

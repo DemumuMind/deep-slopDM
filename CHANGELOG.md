@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-15
+
+### Added
+- **python-deep engine** — 11 Python-specific rules (bare-except, mutable-default, no-type-hint, f-string-in-log, etc.) with tree-sitter AST
+- **go-deep engine** — 9 Go-specific rules (unchecked-error, empty-interface, defer-in-loop, goto-usage, etc.)
+- **rust-deep engine** — 9 Rust-specific rules (unwrap-in-prod, todo-macro, clone-on-copy, unsafe-usage, etc.)
+- **4 new auto-fixes**: unused-export (remove export keyword), sync-in-async (sync→async API), repeated-constant (extract to const), hardcoded-config (externalize to env var)
+- **`deep-slop report` command** — HTML trend report with SVG charts, severity breakdown, engine performance tables
+- **Plugin ecosystem**: example plugin (todo-counter), docs/plugins.md, loader validation with better error messages
+- **Benchmark framework**: `deep-slop bench` command for performance regression tracking
+- **E2E tests**: fix, report, ci command integration tests
+- **Batch processor**: shared file reads for engine performance optimization
+- **God-file refactor**: ast-slop, import-intelligence, dead-flow split into modular rule files
+
+### Changed
+- Engine count: 18 → **25** (+3 built-in + plugin support)
+- Rule count: 181 → **211+**
+- Fixable rules: 36 → **50+**
+- Test count: 197 → **241**
+- Version: 1.7.2 → **2.0.0**
+- README updated with new engines, report command, 25 engines branding
+- Test badge: 241 passed
+
+### Fixed
+- i18n-lint test: handle engine skip when no i18n config detected
+- test-utils writeFile: now creates subdirectories automatically
+
 ## [1.6.0] - 2025-06-14
 
 ### Added

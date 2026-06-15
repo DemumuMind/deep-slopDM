@@ -2,7 +2,7 @@
 
 # deep-slop
 
-**Deep AI Slop Detection — 18 AST-Powered Engines, 181+ Rules**
+**Deep AI Slop Detection — 25 AST-Powered Engines, 211+ Rules**
 
 Detect AI-generated slop, dead code, security vulnerabilities, import problems,
 and architectural decay in your codebase. Tree-sitter AST analysis for 8 languages,
@@ -13,7 +13,7 @@ density-aware scoring, SARIF 2.1.0 output, MCP server,
 [![npm version](https://img.shields.io/npm/v/deep-slop.svg)](https://www.npmjs.com/package/deep-slop)
 [![license](https://img.shields.io/npm/l/deep-slop.svg)](https://github.com/DemumuMind/deep-slopDM/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/deep-slop.svg)](https://www.npmjs.com/package/deep-slop)
-[![tests](https://img.shields.io/badge/tests-197%20passed-brightgreen.svg)](https://github.com/DemumuMind/deep-slopDM)
+[![tests](https://img.shields.io/badge/tests-241%20passed-brightgreen.svg)](https://github.com/DemumuMind/deep-slopDM)
 
 </div>
 
@@ -209,6 +209,15 @@ deep-slop trend .                   # Show score trend
 deep-slop trend . --limit 20        # Last 20 scans
 ```
 
+### `deep-slop report [path]`
+
+Generate an HTML trend report with SVG charts, severity breakdown, and engine performance tables.
+
+```bash
+deep-slop report .                  # Generate report at ./deep-slop-report.html
+deep-slop report . --output docs/report.html --limit 50
+```
+
 ### `deep-slop watch [path]`
 
 Watch mode — re-scan on file changes.
@@ -272,7 +281,7 @@ deep-slop update --check            # Only check, do not install
 
 ---
 
-## The 18 Engines
+## The 25 Engines
 
 ### 1. ast-slop — AI Slop Pattern Detection (20+ rules)
 
@@ -456,7 +465,35 @@ Quality checks for non-source files:
 **HTML** (4 rules): Missing `alt` on images, missing `lang`, deprecated tags, inline event handlers.
 **Markdown** (4 rules): Broken links, inconsistent heading styles, TODOs in docs, missing fenced language.
 
-### 19+. Plugin Engines
+### 19. python-deep — Python-Specific Rules (11 rules)
+
+Detects Python-specific anti-patterns using tree-sitter AST:
+
+**STRICT** (2 rules): `bare-except` (bare except clause), `mutable-default` (mutable default argument).
+**STANDARD** (2 rules): `global-variable` (global keyword usage), `star-import` (from x import *).
+**MAINTAINABILITY** (3 rules): `no-type-hint` (parameter without type annotation), `no-return-type` (function without return type), `broad-exception` (except Exception/BaseException).
+**MECHANICAL** (3 rules): `f-string-in-log` (f-string in logging call), `pass-stub` (function with only pass), `print-statement` (print() in non-test code).
+**ADVISORY** (1 rule): `missing-docstring` (public function/class without docstring).
+
+### 20. go-deep — Go-Specific Rules (9 rules)
+
+Go idiomatic code analysis:
+
+**STRICT** (2 rules): `goto-usage` (goto statement), `package-cycle` (circular imports).
+**STANDARD** (3 rules): `unchecked-error` (ignoring returned error), `empty-interface` (interface{} / any), `defer-in-loop` (defer inside loop).
+**MAINTAINABILITY** (2 rules): `exported-no-doc` (exported symbol without doc comment), `context-missing` (I/O function without context.Context).
+**MECHANICAL** (2 rules): `deep-copy-missing` (large struct by value), `init-side-effect` (init() with side effects).
+
+### 21. rust-deep — Rust-Specific Rules (9 rules)
+
+Rust safety and idiomatic analysis:
+
+**STANDARD** (3 rules): `unwrap-in-prod` (.unwrap() in non-test code), `todo-macro` (todo!() left in code), `unimplemented-macro` (unimplemented!() left in code).
+**MAINTAINABILITY** (1 rule): `large-enum-variant` (disproportionately large enum variant).
+**MECHANICAL** (4 rules): `clone-on-copy` (.clone() on Copy type), `wildcard-catch` (catch-all _ in match), `expect-in-prod` (.expect() in non-test code), `redundant-clone` (clone before drop).
+**ADVISORY** (1 rule): `unsafe-usage` (unsafe block without safety comment).
+
+### 22+. Plugin Engines
 
 deep-slop supports custom plugin engines loaded from `.deep-slop/plugins/`.
 Plugins implement the same `Engine` interface as built-in engines and appear

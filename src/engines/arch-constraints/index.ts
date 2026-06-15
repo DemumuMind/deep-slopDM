@@ -117,12 +117,12 @@ function detectHighCoupling(
         help: "Split this file into focused modules with fewer dependencies. Each module should have a single responsibility. Consider extracting related logic into a separate module that this file and others can share.",
         line,
         column: col,
-        fixable: false,
+        fixable: true,
         suggestion: {
           type: "refactor",
-          text: `/* Split into focused modules — ${couplingCount} imports exceeds threshold of ${maxCoupling} */`,
+          text: `// Reduce coupling: extract dependencies into focused modules and inject them via constructor/parameters.\n// Before: import { a, b, c, d } from '...';\n// After:  import { a, b } from '...';\n//         function process(a: A, b: B) { ... }`,
           confidence: 0.7,
-          reason: `Files with many imports are tightly coupled to many other modules, making them hard to test, refactor, and reason about independently. Breaking them into smaller, focused modules reduces coupling and improves maintainability.`,
+          reason: `Files with ${couplingCount} imports are tightly coupled to many other modules. Dependency injection and smaller modules reduce coupling and improve testability.`,
         },
         detail: {
           couplingCount,
@@ -302,10 +302,10 @@ function detectGodFile(
         help: "Split this file into smaller, focused modules. Files that are both large and export many things violate the Single Responsibility Principle. Each module should do one thing well.",
         line: 1,
         column: 1,
-        fixable: false,
+        fixable: true,
         suggestion: {
           type: "refactor",
-          text: `/* Split this ${lineCount}-line file with ${exportCount} exports into focused modules */`,
+          text: `// Split this ${lineCount}-line file with ${exportCount} exports into focused modules:\n// 1. src/${filePath.replace(/\.[^.]+$/, '')}/feature-a.ts\n// 2. src/${filePath.replace(/\.[^.]+$/, '')}/feature-b.ts\n// 3. src/${filePath.replace(/\.[^.]+$/, '')}/index.ts (re-exports)`,
           confidence: 0.8,
           reason: `Files with ${lineCount} lines and ${exportCount} exports are doing too much. Splitting improves readability, testability, and makes it easier for multiple developers to work on the codebase simultaneously.`,
         },

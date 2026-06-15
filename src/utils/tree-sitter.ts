@@ -651,7 +651,7 @@ export async function parseAnyFile(
 
   // TypeScript / JavaScript variants
   const isTsx = ext.endsWith('.tsx') || ext.endsWith('.jsx')
-  return parseFile(content, isTsx)
+  return parseFile(content, isTsx, filePath)
 }
 
 // ── Node helpers (TypeScript) ──────────────────────────

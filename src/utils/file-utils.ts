@@ -1,15 +1,9 @@
-import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { readFileCached, toLinesCached } from "./file-cache.js";
 
-/** Read file contents with encoding detection */
+/** Read file contents with caching */
 export async function readFileContent(filePath: string): Promise<string> {
-  const buffer = await readFile(filePath);
-  // Strip BOM if present
-  let content = buffer.toString("utf-8");
-  if (content.charCodeAt(0) === 0xfeff) {
-    content = content.slice(1);
-  }
-  return content;
+  return readFileCached(filePath);
 }
 
 /** Detect BOM, CRLF, and other encoding anomalies */
@@ -34,6 +28,11 @@ export function detectEncodingAnomalies(content: string): {
 /** Split content into lines with line numbers */
 export function toLines(content: string): { num: number; text: string }[] {
   return content.split("\n").map((text, i) => ({ num: i + 1, text }));
+}
+
+/** Get cached line map for a file */
+export async function toLinesForFile(filePath: string): Promise<{ num: number; text: string }[]> {
+  return toLinesCached(filePath);
 }
 
 /** Find all import statements in a file (regex-based, for quick scan) */
@@ -115,4 +114,3 @@ export interface ImportInfo {
   isDynamic?: boolean;
   isRequire?: boolean;
 }
-

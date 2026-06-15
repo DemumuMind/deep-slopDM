@@ -5,6 +5,7 @@ import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
 import { LiveGrid } from '../ui/live-grid.js'
 import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
+import { clearBatch } from '../utils/batch-processor.js'
 import { clearParseCache } from '../utils/tree-sitter.js'
 import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
 import { applySuppressDirectives, loadIgnoreFile } from '../utils/suppress.js'
@@ -82,6 +83,7 @@ export async function runScan(
 
   // Preload all source files into cache for faster engine access
   clearFileCache()
+  clearBatch() // Clear shared batch cache between scans
   clearParseCache() // Clear AST cache between scans
   if (context.files?.length) {
     await preloadFiles(context.files)

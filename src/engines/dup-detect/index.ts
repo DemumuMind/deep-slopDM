@@ -515,12 +515,18 @@ function detectIdenticalBlocks(
             help: "Extract the duplicated block into a shared utility function or module to reduce maintenance burden.",
             line: a.startLine,
             column: 1,
-            fixable: false,
+            fixable: true,
             suggestion: {
               type: "refactor",
-              text: `Extract shared logic from ${relA}:${a.startLine}-${a.endLine} and ${relB}:${b.startLine}-${b.endLine} into a common utility.`,
+              text: `// Extract the duplicated block into a shared function:\n// function extractedShared(...args) {\n//   ${relative(rootDir, a.filePath).replace(/\//g, '.')}:${a.startLine}-${a.endLine}\n// }`,
+              range: {
+                startLine: a.startLine,
+                startCol: 1,
+                endLine: a.endLine,
+                endCol: 1,
+              },
               confidence: 0.85,
-              reason: "Identical code blocks across files indicate copy-paste duplication that should be consolidated.",
+              reason: "Identical code blocks across files indicate copy-paste duplication that should be consolidated into a single reusable function.",
             },
             detail: {
               duplicateLocations: [
@@ -734,12 +740,18 @@ function detectDuplicateImports(
         help: `Create a shared re-export (barrel) file for "${source}" that re-exports the common symbols, then import from the barrel in each consumer.`,
         line: representative.line,
         column: 1,
-        fixable: false,
+        fixable: true,
         suggestion: {
-          type: "refactor",
-          text: `Create a barrel file (e.g., shared/${source.replace(/[/@]/g, "_")}.ts) with:\nexport { ${commonSymbols.join(", ")} } from "${source}";`,
-          confidence: 0.7,
-          reason: `${uniqueFiles.size} files import the same common symbols from "${source}". A barrel file reduces duplication and simplifies future refactoring.`,
+          type: "replace",
+          text: `export { ${commonSymbols.join(", ")} } from "${source}";`,
+          range: {
+            startLine: representative.line,
+            startCol: 1,
+            endLine: representative.line,
+            endCol: 1,
+          },
+          confidence: 0.75,
+          reason: `${uniqueFiles.size} files import the same common symbols from "${source}". Consolidating into a barrel file reduces duplication and simplifies future refactoring.`,
         },
         detail: {
           module: source,

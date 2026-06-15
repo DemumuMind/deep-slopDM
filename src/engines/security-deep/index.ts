@@ -501,15 +501,21 @@ function detectPrototypePollution(
       diagnostics.push(
         makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
           "Object.assign() with user-controlled source may enable prototype pollution",
-          "Validate or sanitize the source object before merging, or use Object.assign with a fresh target: Object.assign({}, safeDefaults, userInput).",
+          "Validate or sanitize the source object before merging, or use a null-prototype target: Object.assign(Object.create(null), safeDefaults, userInput).",
           num, oaCol + 1,
           {
-            fixable: false,
+            fixable: true,
             suggestion: {
-              type: "refactor",
-              text: "Object.assign({}, safeDefaults, sanitizedInput)",
-              confidence: 0.6,
-              reason: "Using a fresh {} target and sanitizing input prevents prototype pollution via __proto__.",
+              type: "replace",
+              text: "Object.assign(Object.create(null), safeDefaults, sanitizedInput)",
+              range: {
+                startLine: num,
+                startCol: oaCol + 1,
+                endLine: num,
+                endCol: text.length + 1,
+              },
+              confidence: 0.75,
+              reason: "Using Object.create(null) as the target prevents prototype pollution via __proto__ and constructor.",
             },
           }
         )
@@ -523,15 +529,21 @@ function detectPrototypePollution(
       diagnostics.push(
         makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
           "Direct __proto__ access detected — potential prototype pollution vector",
-          "Avoid __proto__ access. Use Object.getPrototypeOf() / Object.setPrototypeOf() or Map instead.",
+          "Avoid __proto__ access. Use Object.getPrototypeOf() / Object.setPrototypeOf() or create a null-prototype object with Object.create(null).",
           num, protoCol + 1,
           {
-            fixable: false,
+            fixable: true,
             suggestion: {
               type: "replace",
-              text: "/* Use Object.getPrototypeOf() or Map instead of __proto__ */",
+              text: "Object.create(null)",
+              range: {
+                startLine: num,
+                startCol: protoCol + 1,
+                endLine: num,
+                endCol: text.length + 1,
+              },
               confidence: 0.7,
-              reason: "__proto__ can be leveraged for prototype pollution attacks when user input reaches it.",
+              reason: "__proto__ can be leveraged for prototype pollution attacks when user input reaches it. Using Object.create(null) or Object.getPrototypeOf() avoids the __proto__ accessor.",
             },
           }
         )
@@ -548,12 +560,18 @@ function detectPrototypePollution(
           "Use a prototype-pollution-safe merge library or explicitly filter __proto__, constructor, and prototype keys.",
           num, dmCol + 1,
           {
-            fixable: false,
+            fixable: true,
             suggestion: {
-              type: "refactor",
-              text: "/* Use a safe merge that ignores __proto__, constructor, and prototype keys */",
-              confidence: 0.6,
-              reason: "Deep merge utilities can propagate __proto__ properties, leading to prototype pollution.",
+              type: "replace",
+              text: "safeMerge(Object.create(null), target, source)",
+              range: {
+                startLine: num,
+                startCol: dmCol + 1,
+                endLine: num,
+                endCol: text.length + 1,
+              },
+              confidence: 0.65,
+              reason: "Deep merge utilities can propagate __proto__ properties, leading to prototype pollution. Use a safe merge with a null-prototype target and filtered keys.",
             },
           }
         )

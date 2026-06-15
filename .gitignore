@@ -7,3 +7,4 @@ dist/
 tmp-*/
 .playwright-mcp/
 *.tgz
+benchmark/*.json
