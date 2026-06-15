@@ -46,7 +46,15 @@ export function renderHomeScreen(): void {
   console.log(`  ${styleBold('info', 'Explore')}`)
   console.log(`    ${style('suggestion', 'rules')}     List and search all detection rules`)
   console.log(`    ${style('suggestion', 'trend')}     Show score trend across recent scans`)
+  console.log(`    ${style('suggestion', 'report')}    Generate HTML trend report with charts`)
   console.log(`    ${style('suggestion', 'badge')}     Generate a score badge for README`)
+  console.log('')
+
+  console.log(`  ${styleBold('info', 'Advanced')}`)
+  console.log(`    ${style('suggestion', 'watch')}     Watch mode — re-scan on file changes`)
+  console.log(`    ${style('suggestion', 'bench')}     Benchmark scan performance`)
+  console.log(`    ${style('suggestion', 'agent')}     AI agent-powered repair loop`)
+  console.log(`    ${style('suggestion', 'update')}    Check for deep-slop updates`)
   console.log('')
 
   console.log(separator())

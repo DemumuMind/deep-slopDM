@@ -728,6 +728,12 @@ export const typeSafetyEngine: Engine = {
       context.config.engines["type-safety"],
       "type-safety",
     );
+    // Pre-compute which rules are disabled for early-exit accuracy
+    const disabledRules = new Set<string>()
+    const rulesConfig = context.config.rules ?? {}
+    for (const [rule, severity] of Object.entries(rulesConfig)) {
+      if (severity === 'off') disabledRules.add(rule)
+    }
 
     // Process each file
     for (let i = 0; i < files.length; i++) {
@@ -768,15 +774,16 @@ export const typeSafetyEngine: Engine = {
       allDiagnostics.push(...detectGenericAny(lines, relPath));
 
       // Early-exit heuristic: after scanning the first batch with zero
-      // diagnostics, skip remaining files if the engine is not mandatory.
+      // non-disabled diagnostics, skip remaining files if the engine is not mandatory.
+      const activeDiagCount = allDiagnostics.filter(d => !disabledRules.has(d.rule)).length
       if (
         earlyExit &&
-        i === EARLY_EXIT_BATCH_SIZE - 1 &&
-        files.length > EARLY_EXIT_BATCH_SIZE &&
-        allDiagnostics.length === 0
+        i >= EARLY_EXIT_BATCH_SIZE - 1 &&
+        activeDiagCount === 0
       ) {
         return buildEarlyExitResult("type-safety", performance.now() - startTime);
       }
+
     }
 
     return {

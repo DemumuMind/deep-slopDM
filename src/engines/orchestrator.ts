@@ -82,13 +82,14 @@ export async function runScan(
 ): Promise<ScanResult> {
   const startTotal = performance.now();
 
-  // Preload all source files into cache for faster engine access
+  // Clear caches between scans
   clearFileCache()
   clearBatch() // Clear shared batch cache between scans
   clearParseCache() // Clear AST cache between scans
-  if (context.files?.length) {
-    await preloadFiles(context.files)
-  }
+  // NOTE: We do NOT preload all files here. Instead, engines read files
+  // lazily via readFileContent() → readFileCached(). This allows engines
+  // with early-exit to stop after scanning just the first batch of files,
+  // saving significant I/O time for zero-issue engines.
 
   // Discover and load plugins AFTER built-in engines
   const pluginEngines = await discoverAndLoadPlugins(context.rootDirectory)

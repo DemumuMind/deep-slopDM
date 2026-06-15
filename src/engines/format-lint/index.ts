@@ -567,6 +567,12 @@ export const formatLintEngine: Engine = {
       context.config.engines['format-lint'],
       'format-lint',
     )
+    // Pre-compute disabled rules for early-exit accuracy
+    const disabledRules = new Set<string>()
+    const rulesConfig = context.config.rules ?? {}
+    for (const [rule, severity] of Object.entries(rulesConfig)) {
+      if (severity === 'off') disabledRules.add(rule)
+    }
 
     for (let i = 0; i < filePaths.length; i++) {
       const fp = filePaths[i]
@@ -598,9 +604,8 @@ export const formatLintEngine: Engine = {
 
       if (
         earlyExit &&
-        i === EARLY_EXIT_BATCH_SIZE - 1 &&
-        filePaths.length > EARLY_EXIT_BATCH_SIZE &&
-        diagnostics.length === 0
+        i >= EARLY_EXIT_BATCH_SIZE - 1 &&
+        diagnostics.filter(d => !disabledRules.has(d.rule)).length === 0
       ) {
         return buildEarlyExitResult('format-lint', Date.now() - start)
       }
