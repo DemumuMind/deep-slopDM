@@ -12,6 +12,11 @@ import type {
   EngineResult,
   Language,
 } from '../../types/index.js'
+import {
+  buildEarlyExitResult,
+  EARLY_EXIT_BATCH_SIZE,
+  isEngineEarlyExitEnabled,
+} from '../../config/engine-utils.js'
 import { readFileContent, toLines } from '../../utils/file-utils.js'
 
 // ── Helpers ──────────────────────────────────────────────
@@ -558,7 +563,13 @@ export const formatLintEngine: Engine = {
     }
 
     // Read and analyze each file
-    for (const fp of filePaths) {
+    const earlyExit = isEngineEarlyExitEnabled(
+      context.config.engines['format-lint'],
+      'format-lint',
+    )
+
+    for (let i = 0; i < filePaths.length; i++) {
+      const fp = filePaths[i]
       try {
         const content = await readFileContent(fp)
         const relPath = relative(rootDirectory, fp)
@@ -583,6 +594,15 @@ export const formatLintEngine: Engine = {
         diagnostics.push(...detectTrailingCommaInconsistency(content, lines, relPath))
       } catch {
         // Skip unreadable files
+      }
+
+      if (
+        earlyExit &&
+        i === EARLY_EXIT_BATCH_SIZE - 1 &&
+        filePaths.length > EARLY_EXIT_BATCH_SIZE &&
+        diagnostics.length === 0
+      ) {
+        return buildEarlyExitResult('format-lint', Date.now() - start)
       }
     }
 

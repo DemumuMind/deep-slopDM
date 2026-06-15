@@ -1,6 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 
+import {
+  buildEarlyExitResult,
+  EARLY_EXIT_BATCH_SIZE,
+  isEngineEarlyExitEnabled,
+} from "../../config/engine-utils.js";
+
 import type {
   Engine,
   EngineContext,
@@ -754,8 +760,13 @@ export const syntaxDeepEngine: Engine = {
     const diagnostics: Diagnostic[] = [];
 
     const files = await collectFiles(context);
+    const earlyExit = isEngineEarlyExitEnabled(
+      context.config.engines["syntax-deep"],
+      "syntax-deep",
+    );
 
-    for (const relPath of files) {
+    for (let i = 0; i < files.length; i++) {
+      const relPath = files[i];
       const absPath = join(context.rootDirectory, relPath);
 
       let content: string;
@@ -778,6 +789,15 @@ export const syntaxDeepEngine: Engine = {
       diagnostics.push(...checkTrailingWhitespace(content, relPath));
       diagnostics.push(...checkMissingFinalNewline(content, relPath));
       diagnostics.push(...checkInconsistentIndentation(content, relPath));
+
+      if (
+        earlyExit &&
+        i === EARLY_EXIT_BATCH_SIZE - 1 &&
+        files.length > EARLY_EXIT_BATCH_SIZE &&
+        diagnostics.length === 0
+      ) {
+        return buildEarlyExitResult("syntax-deep", performance.now() - start);
+      }
     }
 
     return {

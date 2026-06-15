@@ -5,6 +5,11 @@
 
 import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import {
+  buildEarlyExitResult,
+  EARLY_EXIT_BATCH_SIZE,
+  isEngineEarlyExitEnabled,
+} from "../../config/engine-utils.js";
 import type {
   Diagnostic,
   Engine,
@@ -719,9 +724,14 @@ export const typeSafetyEngine: Engine = {
     }
 
     const allDiagnostics: Diagnostic[] = [];
+    const earlyExit = isEngineEarlyExitEnabled(
+      context.config.engines["type-safety"],
+      "type-safety",
+    );
 
     // Process each file
-    for (const filePath of files) {
+    for (let i = 0; i < files.length; i++) {
+      const filePath = files[i];
       let content: string;
       try {
         content = await readFile(filePath, "utf-8");
@@ -756,6 +766,17 @@ export const typeSafetyEngine: Engine = {
 
       // 6. Generic type parameter misuse (always on for TS files)
       allDiagnostics.push(...detectGenericAny(lines, relPath));
+
+      // Early-exit heuristic: after scanning the first batch with zero
+      // diagnostics, skip remaining files if the engine is not mandatory.
+      if (
+        earlyExit &&
+        i === EARLY_EXIT_BATCH_SIZE - 1 &&
+        files.length > EARLY_EXIT_BATCH_SIZE &&
+        allDiagnostics.length === 0
+      ) {
+        return buildEarlyExitResult("type-safety", performance.now() - startTime);
+      }
     }
 
     return {

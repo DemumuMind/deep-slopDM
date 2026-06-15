@@ -9,6 +9,7 @@ import { clearBatch } from '../utils/batch-processor.js'
 import { clearParseCache } from '../utils/tree-sitter.js'
 import { discoverAndLoadPlugins, pluginRegistry } from '../plugins/registry.js'
 import { applySuppressDirectives, loadIgnoreFile } from '../utils/suppress.js'
+import { isEngineEnabled } from '../config/engine-utils.js'
 
 /** File extension to Language mapping (for scoreability check) */
 const EXT_TO_LANG: Record<string, Language> = {
@@ -94,13 +95,13 @@ export async function runScan(
 
   // Determine which engines to run
   const enabledEngines = Object.entries(ENGINE_REGISTRY).filter(
-    ([name]) => context.config.engines[name as EngineName] !== false,
+    ([name]) => isEngineEnabled(context.config.engines[name as EngineName]),
   );
 
   // Add plugin engines (loaded after built-ins)
   for (const pluginEngine of pluginEngines) {
     // Check if plugin is disabled via config
-    if (context.config.engines[pluginEngine.name] !== false) {
+    if (isEngineEnabled(context.config.engines[pluginEngine.name])) {
       enabledEngines.push([
         pluginEngine.name as EngineName,
         () => Promise.resolve(pluginEngine),

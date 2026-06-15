@@ -1,4 +1,6 @@
 import { execFile } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { promisify } from 'node:util'
 import type { Engine, EngineContext, EngineResult, Diagnostic } from '../../types/index.js'
 
@@ -6,11 +8,17 @@ const execFileAsync = promisify(execFile)
 
 const KNIPTIMEOUT_MS = 30_000
 
-/** Check if knip is installed by running `npx knip --version` */
+/** Check if knip is available — try resolving first, fall back to npx version check */
 async function isKnipInstalled(): Promise<boolean> {
+  // Fast path: check if knip is resolvable locally (no subprocess)
+  try {
+    require.resolve('knip/package.json')
+    return true
+  } catch {}
+  // Slow fallback: npx --version (5s timeout instead of 15s)
   try {
     await execFileAsync('npx', ['knip', '--version'], {
-      timeout: 15_000,
+      timeout: 5_000,
     } as any)
     return true
   } catch {
@@ -84,6 +92,19 @@ export const knipEngine: Engine = {
 
   async run(context: EngineContext): Promise<EngineResult> {
     const start = Date.now()
+
+    // Knip requires a TypeScript / Node project manifest
+    const hasTsconfig = existsSync(join(context.rootDirectory, 'tsconfig.json'))
+    const hasPackageJson = existsSync(join(context.rootDirectory, 'package.json'))
+    if (!hasTsconfig && !hasPackageJson) {
+      return {
+        engine: 'knip',
+        diagnostics: [],
+        elapsed: Date.now() - start,
+        skipped: true,
+        skipReason: 'No tsconfig.json or package.json found; knip analysis skipped',
+      }
+    }
 
     // Check if knip is installed
     const installed = await isKnipInstalled()

@@ -41,6 +41,16 @@ async function main() {
     banner: BANNER,
   })
 
+  await build({
+    entryPoints: ['src/lsp/index.ts'],
+    bundle: true,
+    platform: 'node',
+    format: 'esm',
+    outfile: 'dist/lsp.js',
+    external: EXTERNAL,
+    banner: BANNER,
+  })
+
   console.log('✓ esbuild done (shebang preserved)')
 }
 

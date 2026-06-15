@@ -6,6 +6,24 @@
  */
 
 export function generateJsonSchema(): object {
+  const engineEntrySchema = {
+    oneOf: [
+      { type: 'boolean', description: 'Enable or disable the engine' },
+      {
+        type: 'object',
+        description: 'Per-engine options',
+        properties: {
+          earlyExit: {
+            type: 'boolean',
+            default: true,
+            description: 'Stop scanning after the first 10 files if no issues are found',
+          },
+        },
+        additionalProperties: false,
+      },
+    ],
+  }
+
   return {
     $schema: 'http://json-schema.org/draft-07/schema#',
     title: 'DeepSlopConfig',
@@ -14,30 +32,30 @@ export function generateJsonSchema(): object {
     properties: {
       engines: {
         type: 'object',
-        description: 'Enable/disable individual analysis engines',
-        additionalProperties: { type: 'boolean' },
+        description: 'Enable/disable individual analysis engines (or set per-engine options)',
+        additionalProperties: engineEntrySchema,
         properties: {
-          'ast-slop': { type: 'boolean', description: 'AI slop pattern detection' },
-          'import-intelligence': { type: 'boolean', description: 'Import optimization and barrel analysis' },
-          'dead-flow': { type: 'boolean', description: 'Dead code and unreachable branch detection' },
-          'type-safety': { type: 'boolean', description: 'TypeScript type safety analysis' },
-          'syntax-deep': { type: 'boolean', description: 'Syntax anomaly detection' },
-          'security-deep': { type: 'boolean', description: 'Security vulnerability scanning' },
-          'arch-constraints': { type: 'boolean', description: 'Architecture constraint analysis' },
-          'dup-detect': { type: 'boolean', description: 'Duplicate code detection' },
-          'perf-hints': { type: 'boolean', description: 'Performance hints' },
-          'i18n-lint': { type: 'boolean', description: 'Internationalization linting' },
-          'config-lint': { type: 'boolean', description: 'Configuration validation' },
-          'meta-quality': { type: 'boolean', description: 'Meta quality scoring and trend analysis' },
-          'lint-external': { type: 'boolean', description: 'External linter integration (ruff, golangci-lint, clippy)' },
-          'arch-rules': { type: 'boolean', description: 'User-defined architecture rules' },
-          knip: { type: 'boolean', description: 'Unused dependency/export detection' },
-          'format-lint': { type: 'boolean', description: 'Formatting consistency' },
-          'framework-lint': { type: 'boolean', description: 'Framework-specific rules (Next.js, Tailwind)' },
-          'markup-lint': { type: 'boolean', description: 'Markup & config quality (JSON, YAML, CSS, HTML, Markdown)' },
-          'rust-deep': { type: 'boolean', description: 'Rust-specific quality analysis (unwrap, todo!, clone, unsafe, match wildcards)' },
-          'python-deep': { type: 'boolean', description: 'Python-specific deep analysis (exceptions, type hints, mutable defaults, star imports, pass stubs, prints)' },
-          'go-deep': { type: 'boolean', description: 'Go-specific idiomatic and architectural rules (errors, context, defer, goto, package cycles)' },
+          'ast-slop': { ...engineEntrySchema, description: 'AI slop pattern detection' },
+          'import-intelligence': { ...engineEntrySchema, description: 'Import optimization and barrel analysis' },
+          'dead-flow': { ...engineEntrySchema, description: 'Dead code and unreachable branch detection' },
+          'type-safety': { ...engineEntrySchema, description: 'TypeScript type safety analysis' },
+          'syntax-deep': { ...engineEntrySchema, description: 'Syntax anomaly detection' },
+          'security-deep': { ...engineEntrySchema, description: 'Security vulnerability scanning' },
+          'arch-constraints': { ...engineEntrySchema, description: 'Architecture constraint analysis' },
+          'dup-detect': { ...engineEntrySchema, description: 'Duplicate code detection' },
+          'perf-hints': { ...engineEntrySchema, description: 'Performance hints' },
+          'i18n-lint': { ...engineEntrySchema, description: 'Internationalization linting' },
+          'config-lint': { ...engineEntrySchema, description: 'Configuration validation' },
+          'meta-quality': { ...engineEntrySchema, description: 'Meta quality scoring and trend analysis' },
+          'lint-external': { ...engineEntrySchema, description: 'External linter integration (ruff, golangci-lint, clippy)' },
+          'arch-rules': { ...engineEntrySchema, description: 'User-defined architecture rules' },
+          knip: { ...engineEntrySchema, description: 'Unused dependency/export detection' },
+          'format-lint': { ...engineEntrySchema, description: 'Formatting consistency' },
+          'framework-lint': { ...engineEntrySchema, description: 'Framework-specific rules (Next.js, Tailwind)' },
+          'markup-lint': { ...engineEntrySchema, description: 'Markup & config quality (JSON, YAML, CSS, HTML, Markdown)' },
+          'rust-deep': { ...engineEntrySchema, description: 'Rust-specific quality analysis (unwrap, todo!, clone, unsafe, match wildcards)' },
+          'python-deep': { ...engineEntrySchema, description: 'Python-specific deep analysis (exceptions, type hints, mutable defaults, star imports, pass stubs, prints)' },
+          'go-deep': { ...engineEntrySchema, description: 'Go-specific idiomatic and architectural rules (errors, context, defer, goto, package cycles)' },
         },
       },
       exclude: {

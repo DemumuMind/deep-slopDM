@@ -1,5 +1,15 @@
 import { z } from 'zod'
 
+/** Engine configuration entry — either a plain boolean (enabled) or an object with options */
+export const EngineEntrySchema = z.union([
+  z.boolean(),
+  z.object({
+    earlyExit: z.boolean().default(true),
+  }).passthrough(),
+])
+
+export type EngineEntry = z.infer<typeof EngineEntrySchema>
+
 /** All engine identifiers */
 export const EngineNameSchema = z.enum([
   'ast-slop',
@@ -92,7 +102,7 @@ export const CiSchema = z.object({
  * Partial<Record<EngineName, boolean>> semantics.
  */
 export const RawConfigSchema = z.object({
-  engines: z.record(z.string(), z.boolean()).optional(),
+  engines: z.record(z.string(), EngineEntrySchema).optional(),
   quality: QualitySchema.optional(),
   security: SecuritySchema.optional(),
   imports: ImportsSchema.optional(),
@@ -116,7 +126,7 @@ export const RawConfigSchema = z.object({
  */
 export const DeepSlopConfigSchema = z.object({
   /** Which engines are enabled (default: all) */
-  engines: z.record(z.string(), z.boolean()),
+  engines: z.record(z.string(), EngineEntrySchema),
   /** Quality thresholds */
   quality: QualitySchema,
   /** Security engine config */

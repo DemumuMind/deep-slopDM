@@ -167,7 +167,7 @@ export async function initGoParser(): Promise<boolean> {
 
   try {
     const goWasm = require.resolve(
-      'tree-sitter-go/go.wasm',
+      'tree-sitter-go/tree-sitter-go.wasm',
     )
     const wt = await import('web-tree-sitter')
     goLang = await wt.Language.load(goWasm)
@@ -199,7 +199,7 @@ export async function initRustParser(): Promise<boolean> {
 
   try {
     const rustWasm = require.resolve(
-      'tree-sitter-rust/rust.wasm',
+      'tree-sitter-rust/tree-sitter-rust.wasm',
     )
     const wt = await import('web-tree-sitter')
     rustLang = await wt.Language.load(rustWasm)

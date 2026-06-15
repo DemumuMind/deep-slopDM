@@ -53,4 +53,4 @@ registerEngines({
 })
 
 // Now run the CLI
-import './cli.js'
+import './cli/index.js'
