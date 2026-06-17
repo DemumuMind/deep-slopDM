@@ -35,14 +35,17 @@ export function isEngineEnabled(value: unknown): boolean {
 
 /**
  * Check whether early-exit is enabled for a given engine.
- * Mandatory engines never early-exit, regardless of config.
+ * Mandatory engines never early-exit by default, but a user can explicitly
+ * opt in by setting the engine config to `{ earlyExit: true }`.
  */
 export function isEngineEarlyExitEnabled(value: unknown, engineName: EngineName): boolean {
-  if (MANDATORY_ENGINES.has(engineName)) return false
   if (value === false) return false
   if (typeof value === 'object' && value !== null) {
-    return (value as { earlyExit?: boolean }).earlyExit !== false
+    const cfg = value as { earlyExit?: boolean }
+    if (cfg.earlyExit === true) return true
+    if (cfg.earlyExit === false) return false
   }
+  if (MANDATORY_ENGINES.has(engineName)) return false
   return true
 }
 

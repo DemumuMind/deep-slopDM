@@ -3,13 +3,13 @@
 // unreachable code after terminators, dead conditionals, unused exports/variables,
 // empty blocks, and dead switch cases.
 
-import { readdir, stat } from "node:fs/promises"
+import { readdir } from "node:fs/promises"
 import { join, relative } from "node:path"
 import type { Engine, EngineContext, EngineResult, Diagnostic } from "../../types/index.js"
 import { readFileContent } from "../../utils/file-utils.js"
 import { detectAllAST, detectUnusedExportsASTWrapper, parseWithTreeSitter } from "./ast-detect.js"
 import type { ASTNode } from "../../utils/tree-sitter/index.js"
-import { isRelevantFile } from "./shared.js"
+import { isRelevantFile, isIgnoredFile } from "./shared.js"
 import { detectUnusedVariable } from "./rules/unused-variable.js"
 import { detectUnusedExport } from "./rules/unused-export.js"
 import { detectUnreachableAfterTerminator } from "./rules/unreachable-after-terminator.js"
@@ -21,7 +21,7 @@ import { detectEmptyBlock } from "./rules/empty-block.js"
 
 // ── File collection ───────────────────────────────────────────────
 
-async function collectFiles(root: string, exclude: string[]): Promise<string[]> {
+async function collectFiles(root: string, exclude: string[], ignore: string[]): Promise<string[]> {
   const results: string[] = []
 
   async function walk(dir: string): Promise<void> {
@@ -34,6 +34,7 @@ async function collectFiles(root: string, exclude: string[]): Promise<string[]> 
     for (const entry of entries) {
       const full = join(dir, entry.name)
       if (exclude.some((pat) => full.includes(pat))) continue
+      if (isIgnoredFile(relative(root, full), ignore)) continue
       if (entry.isDirectory()) {
         await walk(full)
       } else if (entry.isFile() && isRelevantFile(full)) {
@@ -44,6 +45,29 @@ async function collectFiles(root: string, exclude: string[]): Promise<string[]> 
 
   await walk(root)
   return results
+}
+
+// ── Rule tracking ───────────────────────────────────────────────────
+
+const DEAD_FLOW_RULES = new Set([
+  "dead-flow/unreachable-after-terminator",
+  "dead-flow/dead-after-return",
+  "dead-flow/dead-after-throw",
+  "dead-flow/dead-after-break",
+  "dead-flow/unused-variable",
+  "dead-flow/unused-export",
+  "dead-flow/dead-conditional",
+  "dead-flow/dead-switch-code",
+  "dead-flow/dead-switch-case-after-default",
+  "dead-flow/empty-block",
+])
+
+function isEngineEffectivelyDisabled(context: EngineContext): boolean {
+  const disabled = context.disabledRules ?? new Set<string>()
+  for (const rule of DEAD_FLOW_RULES) {
+    if (!disabled.has(rule)) return false
+  }
+  return true
 }
 
 // ── AST/Regex dedup helper ────────────────────────────────────────
@@ -92,9 +116,22 @@ export const deadFlowEngine: Engine = {
     const start = Date.now()
     const { rootDirectory, config, files: specifiedFiles } = context
 
-    const filePaths = specifiedFiles
+    // Early-exit when every dead-flow rule is disabled
+    if (isEngineEffectivelyDisabled(context)) {
+      return {
+        engine: "dead-flow",
+        diagnostics: [],
+        elapsed: Date.now() - start,
+        skipped: true,
+        skipReason: "All dead-flow rules are disabled",
+      }
+    }
+
+    let filePaths = specifiedFiles
       ? specifiedFiles.filter(isRelevantFile)
-      : await collectFiles(rootDirectory, config.exclude)
+      : await collectFiles(rootDirectory, config.exclude, config.ignore ?? [])
+
+    filePaths = filePaths.filter((fp) => !isIgnoredFile(relative(rootDirectory, fp), config.ignore ?? []))
 
     if (filePaths.length === 0) {
       return {
@@ -107,18 +144,21 @@ export const deadFlowEngine: Engine = {
     }
 
     const fileContents = new Map<string, string>()
-    for (const fp of filePaths) {
-      try {
-        const content = await readFileContent(fp)
-        fileContents.set(fp, content)
-      } catch {
-        // Skip unreadable files
-      }
-    }
+    await Promise.all(
+      filePaths.map(async (fp) => {
+        try {
+          const content = await readFileContent(fp)
+          fileContents.set(fp, content)
+        } catch {
+          // Skip unreadable files
+        }
+      }),
+    )
 
     // ── Phase 1: AST detection (per-file) ────────────────────────
     const astDiagnostics: Diagnostic[] = []
     const astMap = new Map<string, ASTNode>()
+    const astParsedFiles = new Set<string>()
     let astAvailable = false
 
     for (const [fp, content] of fileContents) {
@@ -127,6 +167,7 @@ export const deadFlowEngine: Engine = {
         const astResult = await detectAllAST(content, relPath)
         if (astResult) {
           astAvailable = true
+          astParsedFiles.add(relPath)
           astDiagnostics.push(...astResult.diagnostics)
 
           const ast = await parseWithTreeSitter(content, relPath)
@@ -161,23 +202,27 @@ export const deadFlowEngine: Engine = {
 
     for (const [fp, content] of fileContents) {
       const relPath = relative(rootDirectory, fp)
+      const astParsedThisFile = astParsedFiles.has(relPath)
 
       if (config.deadCode.unreachableBranches) {
-        regexDiagnostics.push(...detectUnreachableAfterTerminator(content, relPath))
-        regexDiagnostics.push(...detectUnreachableAfterIfElseReturn(content, relPath))
-        regexDiagnostics.push(...detectDeadConditional(content, relPath))
+        // Skip expensive regex-only rules when AST already parsed this file
+        if (!astParsedThisFile) {
+          regexDiagnostics.push(...detectUnreachableAfterTerminator(content, relPath))
+          regexDiagnostics.push(...detectUnreachableAfterIfElseReturn(content, relPath))
+          regexDiagnostics.push(...detectDeadConditional(content, relPath))
+        }
         regexDiagnostics.push(...detectDeadSwitchCode(content, relPath))
         regexDiagnostics.push(...detectDeadSwitchCaseAfterDefault(content, relPath))
       }
 
-      if (config.deadCode.unusedVariables) {
+      if (config.deadCode.unusedVariables && !astParsedThisFile) {
         regexDiagnostics.push(...detectUnusedVariable(content, relPath))
       }
 
       regexDiagnostics.push(...detectEmptyBlock(content, relPath))
     }
 
-    if (config.deadCode.unusedExports) {
+    if (config.deadCode.unusedExports && !astExportRulesRun) {
       regexDiagnostics.push(...detectUnusedExport(fileContents, rootDirectory))
     }
 

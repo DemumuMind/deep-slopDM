@@ -19,7 +19,6 @@ export function detectUnusedImport(
   const diagnostics: Diagnostic[] = []
   if (parsed.isSideEffect || parsed.isNamespace || parsed.isDynamic) return diagnostics
 
-  const bodyAfterImports = fileContent.split('\n').slice(parsed.line).join('\n')
   const unusedSymbols: string[] = []
 
   for (const sym of parsed.symbols) {
@@ -28,10 +27,11 @@ export function detectUnusedImport(
     }
 
     if (astUsedSymbols !== undefined && parsed.viaAST) {
-      if (!astUsedSymbols.has(sym) && !isSymbolUsed(sym, bodyAfterImports)) {
+      if (!astUsedSymbols.has(sym)) {
         unusedSymbols.push(sym)
       }
     } else {
+      const bodyAfterImports = fileContent.split('\n').slice(parsed.line).join('\n')
       if (!isSymbolUsed(sym, bodyAfterImports)) {
         unusedSymbols.push(sym)
       }

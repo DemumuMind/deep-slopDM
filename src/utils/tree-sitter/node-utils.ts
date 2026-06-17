@@ -140,19 +140,45 @@ export function extractImportFromNode(node: ASTNode): {
   const isTypeOnly = node.text.includes('import type ')
 
   const symbols: string[] = []
-  const namedImport = node.children.find(
-    (c) => c.type === 'named_imports' || c.type === 'import_clause',
-  )
-  if (namedImport) {
-    for (const child of namedImport.children) {
-      if (
-        child.type === 'identifier' ||
-        child.type === 'type_identifier' ||
-        child.type === 'import_specifier'
-      ) {
-        symbols.push(child.text)
+
+  function collectImportSymbols(node: ASTNode) {
+    if (
+      node.type === 'identifier' ||
+      node.type === 'type_identifier'
+    ) {
+      symbols.push(node.text)
+      return
+    }
+
+    if (node.type === 'import_specifier') {
+      const identifiers = node.children.filter(
+        (c) => c.type === 'identifier' || c.type === 'type_identifier',
+      )
+      const name = identifiers[identifiers.length - 1]?.text
+      if (name) symbols.push(name)
+      return
+    }
+
+    if (node.type === 'namespace_import') {
+      const id = node.children.find(
+        (c) => c.type === 'identifier' || c.type === 'type_identifier',
+      )
+      if (id) symbols.push(id.text)
+      return
+    }
+
+    if (
+      node.type === 'import_clause' ||
+      node.type === 'named_imports'
+    ) {
+      for (const child of node.children) {
+        collectImportSymbols(child)
       }
     }
+  }
+
+  for (const child of node.children) {
+    collectImportSymbols(child)
   }
 
   return { source, symbols, line: node.startRow + 1, isTypeOnly }

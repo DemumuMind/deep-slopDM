@@ -2,6 +2,7 @@
 // Common utilities and diagnostic factory used by all dead-flow rule detectors.
 
 import type { Diagnostic, Suggestion } from '../../types/index.js'
+import micromatch from 'micromatch'
 
 export const TS_JS_EXTENSIONS = new Set([
   '.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs',
@@ -10,6 +11,12 @@ export const TS_JS_EXTENSIONS = new Set([
 export function isRelevantFile(filePath: string): boolean {
   const ext = filePath.slice(filePath.lastIndexOf('.'))
   return TS_JS_EXTENSIONS.has(ext)
+}
+
+/** Check if a file path matches any of the ignore patterns. */
+export function isIgnoredFile(filePath: string, ignorePatterns: string[] = []): boolean {
+  if (ignorePatterns.length === 0) return false
+  return micromatch.isMatch(filePath, ignorePatterns)
 }
 
 /** Check if a trimmed line is just a closing brace (with optional trailing punctuation) */

@@ -22,13 +22,17 @@ import {
 export async function parseImportsAST(
   content: string,
   filePath: string,
+  astRoot?: ASTNode,
 ): Promise<ParsedImport[] | null> {
-  const ok = await initParser()
-  if (!ok) return null
+  let ast: ASTNode | null = astRoot ?? null
+  if (!ast) {
+    const ok = await initParser()
+    if (!ok) return null
 
-  const isTsx = filePath.endsWith('.tsx') || filePath.endsWith('.jsx')
-  const ast = await parseFile(content, isTsx)
-  if (!ast) return null
+    const isTsx = filePath.endsWith('.tsx') || filePath.endsWith('.jsx')
+    ast = await parseFile(content, isTsx)
+    if (!ast) return null
+  }
 
   const importNodes = findNodesOfTypes(ast, [
     'import_statement',
@@ -187,33 +191,25 @@ function parseExportNodeAST(node: ASTNode): BarrelFile['reExports'][0] | null {
 /** AST-enhanced unused symbol detection. */
 export function findUsedSymbolsAST(ast: ASTNode, symbolNames: string[]): Set<string> {
   const usedSymbols = new Set<string>()
+  if (symbolNames.length === 0) return usedSymbols
   const symbolSet = new Set(symbolNames)
 
-  walkAST(ast, (node) => {
-    if (node.type === 'identifier' || node.type === 'type_identifier') {
-      const name = node.text
-      if (symbolSet.has(name)) {
-        const parent = node.parent
-        if (parent && (
-          parent.type === 'import_statement' ||
-          parent.type === 'import_declaration' ||
-          parent.type === 'named_imports' ||
-          parent.type === 'import_clause' ||
-          parent.type === 'import_specifier'
-        )) {
-          return undefined
-        }
-        usedSymbols.add(name)
-      }
-    }
+  const importTypes = new Set([
+    'import_statement',
+    'import_declaration',
+    'named_imports',
+    'import_clause',
+    'import_specifier',
+  ])
 
-    if (node.type === 'property_identifier' || node.type === 'member_expression') {
-      const text = node.text
-      for (const sym of symbolNames) {
-        if (text.startsWith(sym + '.') || text === sym) {
-          usedSymbols.add(sym)
-        }
+  walkAST(ast, (node) => {
+    const name = node.text
+    if (symbolSet.has(name)) {
+      const parent = node.parent
+      if (parent && importTypes.has(parent.type)) {
+        return undefined
       }
+      usedSymbols.add(name)
     }
 
     return undefined

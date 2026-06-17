@@ -11,7 +11,6 @@ import {
   type BarrelFile,
   type TsConfigPaths,
   parseImport,
-  mergeImportSources,
   deduplicateDiagnostics,
   readPackageJson,
   readTsConfig,
@@ -40,26 +39,26 @@ async function parseImportsForFile(
   filePath: string,
   content: string,
 ): Promise<{ parsed: ParsedImport[]; astUsedSymbols?: Set<string> }> {
-  const regexImports = extractImports(content, 'typescript').map(parseImport)
-
   if (isAvailable()) {
     try {
-      const astImports = await parseImportsAST(content, filePath)
-      const merged = mergeImportSources(regexImports, astImports)
-
       const treeSitter = await import('../../utils/tree-sitter/index.js')
-      const astRoot = await treeSitter.parseFile(content, filePath.endsWith('.tsx'), filePath)
-      const astUsedSymbols = astImports && astRoot
-        ? findUsedSymbolsAST(astRoot, merged.flatMap((imp) => imp.symbols))
-        : undefined
-
-      return { parsed: merged, astUsedSymbols }
+      const isTsx = filePath.endsWith('.tsx') || filePath.endsWith('.jsx')
+      const astRoot = await treeSitter.parseFile(content, isTsx, filePath)
+      if (astRoot) {
+        const astImports = await parseImportsAST(content, filePath, astRoot)
+        const parsed = astImports ?? []
+        const astUsedSymbols = findUsedSymbolsAST(
+          astRoot,
+          parsed.flatMap((imp) => imp.symbols),
+        )
+        return { parsed, astUsedSymbols }
+      }
     } catch {
-      return { parsed: regexImports }
+      // Fall back to regex below
     }
   }
 
-  return { parsed: regexImports }
+  return { parsed: extractImports(content, 'typescript').map(parseImport) }
 }
 
 async function analyzeBarrelFile(

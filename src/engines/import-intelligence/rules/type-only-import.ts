@@ -33,9 +33,9 @@ export function detectTypeOnlyImport(
 
   let allTypeUsage: boolean
   if (astUsedSymbols !== undefined && parsed.viaAST) {
+    const bodyAfterImports = getBodyAfterImports(fileContent, parsed.line)
     allTypeUsage = parsed.symbols.every((sym) => {
       if (!astUsedSymbols.has(sym)) return true
-      const bodyAfterImports = getBodyAfterImports(fileContent, parsed.line)
       return isTypeOnlyUsage(sym, bodyAfterImports)
     })
   } else {
