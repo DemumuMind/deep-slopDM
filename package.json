@@ -1,6 +1,6 @@
 {
   "name": "deep-slop",
-  "version": "2.0.0",
+  "version": "2.3.0",
   "description": "Deep AI slop detection with 25 AST-powered engines, 211+ rules, density-aware scoring, SARIF 2.1.0 output, MCP server, and auto-fix pipeline.",
   "type": "module",
   "bin": {
