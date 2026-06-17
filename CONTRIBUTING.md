@@ -78,7 +78,7 @@ src/
 5. Add to `ENGINE_MODULES` in `src/cli/doctor.ts`
 6. Add to `EngineNameSchema` in `src/config/schema.ts`
 7. Add description to CLI rules command in `src/cli/commands/rules.ts`
-8. Add to MCP tools description in `src/mcp.ts`
+8. Add to MCP tools description in `src/mcp/tools.ts`
 9. Add rule impact tiers in `src/scoring/rule-impact.ts`
 10. Add rule labels in `src/output/rule-labels.ts`
 

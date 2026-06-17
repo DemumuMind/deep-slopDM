@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { generateHTMLReport } from './html-report.js'
-import type { HistoryRecord } from '../history/store.js'
+import { generateHTMLReport } from './index.js'
+import type { HistoryRecord } from '../../history/store.js'
 
 function makeRecord(overrides: Partial<HistoryRecord> = {}): HistoryRecord {
   return {

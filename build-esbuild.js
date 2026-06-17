@@ -32,7 +32,7 @@ async function main() {
   })
 
   await build({
-    entryPoints: ['src/mcp.ts'],
+    entryPoints: ['src/mcp/index.ts'],
     bundle: true,
     platform: 'node',
     format: 'esm',

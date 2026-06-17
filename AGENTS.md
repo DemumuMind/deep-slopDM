@@ -114,7 +114,7 @@ pnpm scan             # Build + scan the project itself
 7. Add rule display labels to `labels` in `src/output/rule-labels.ts`
 8. For fixable rules, add rule IDs to `FIXABLE_RULES` in `src/engines/catalog.ts`
 9. Add the engine description to the `rules` command in `src/cli/commands/rules.ts`
-10. Add the engine description to the `deep_slop_engines` tool in `src/mcp.ts`
+10. Add the engine description to the `deep_slop_engines` tool in `src/mcp/tools.ts`
 11. Update `DEFAULT_CONFIG` / presets in `src/config/defaults.ts` and `src/config/presets.ts` if the engine needs config options
 12. Add tests in `src/engines/<engine-name>/index.test.ts`
 

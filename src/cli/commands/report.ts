@@ -2,7 +2,7 @@ import { resolve, relative } from 'node:path'
 import type { Command } from 'commander'
 import { writeFileSync } from 'node:fs'
 import { readHistory } from '../../history/store.js'
-import { generateHTMLReport } from '../../output/html-report.js'
+import { generateHTMLReport } from '../../output/html-report/index.js'
 import { style } from '../../output/theme.js'
 
 export function register(program: Command): void {

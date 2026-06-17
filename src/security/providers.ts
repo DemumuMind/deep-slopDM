@@ -1,115 +1,17 @@
-// ── Multi-language vulnerability auditing ────────────────
-// Runs external audit tools (npm audit, pip-audit, etc.) with timeout,
-// parses their JSON output, and returns Diagnostic[].
+// ── External audit tool providers ──────────────────────
+// npm audit, pnpm audit, pip-audit, govulncheck, cargo audit.
 
-import { execSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Diagnostic, Severity, Suggestion } from '../types/index.js'
+import type { Diagnostic } from '../types/index.js'
+import {
+  makeAuditDiagnostic,
+  mapNpmSeverity,
+  runWithTimeout,
+  type NpmAuditOutput,
+} from './helpers.js'
 
-// ── Helper: run a command with timeout ──────────────────
-
-interface RunResult {
-  stdout: string
-  stderr: string
-  status: number | null
-  timedOut: boolean
-}
-
-function runWithTimeout(
-  cmd: string,
-  cwd: string,
-  timeout: number
-): RunResult {
-  try {
-    const stdout = execSync(cmd, {
-      cwd,
-      timeout,
-      encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 10 * 1024 * 1024,
-    })
-    return { stdout, stderr: '', status: 0, timedOut: false }
-  } catch (err: unknown) {
-    const e = err as {
-      stdout?: string
-      stderr?: string
-      status?: number | null
-      signal?: string | null
-      killed?: boolean
-    }
-    return {
-      stdout: typeof e.stdout === 'string' ? e.stdout : '',
-      stderr: typeof e.stderr === 'string' ? e.stderr : '',
-      status: e.status ?? null,
-      timedOut: e.killed === true || e.signal === 'SIGTERM',
-    }
-  }
-}
-
-// ── Helper: build a diagnostic ──────────────────────────
-
-function makeAuditDiagnostic(
-  rule: string,
-  severity: Severity,
-  message: string,
-  help: string,
-  opts?: {
-    fixable?: boolean
-    suggestion?: Suggestion
-    detail?: Record<string, unknown>
-  }
-): Diagnostic {
-  return {
-    filePath: 'package.json',
-    engine: 'security-deep' as const,
-    rule,
-    severity,
-    message,
-    help,
-    line: 1,
-    column: 1,
-    category: 'security' as const,
-    fixable: opts?.fixable ?? false,
-    suggestion: opts?.suggestion,
-    detail: opts?.detail,
-  }
-}
-
-// ── npm audit ───────────────────────────────────────────
-
-interface NpmAuditAdvisory {
-  severity: string
-  title: string
-  module_name: string
-  vulnerable_versions: string
-  patched_versions: string
-  cwe?: string[]
-  url: string
-}
-
-interface NpmAuditVulnerability {
-  name: string
-  severity: string
-  range: string
-  via: Array<string | NpmAuditAdvisory>
-  fixAvailable?: boolean | { name: string; version: string }
-}
-
-interface NpmAuditOutput {
-  advisories?: Record<string, NpmAuditAdvisory>
-  vulnerabilities?: Record<string, NpmAuditVulnerability>
-  metadata?: {
-    vulnerabilities: Record<string, number>
-  }
-}
-
-function mapNpmSeverity(s: string): Severity {
-  const lower = s.toLowerCase()
-  if (lower === 'critical' || lower === 'high') return 'error'
-  if (lower === 'moderate' || lower === 'medium') return 'warning'
-  return 'info'
-}
+// ── npm audit ───────────────────────────────────────
 
 export function npmAudit(rootDir: string, timeout: number): Diagnostic[] {
   const lockFile = join(rootDir, 'package-lock.json')
@@ -212,7 +114,7 @@ export function npmAudit(rootDir: string, timeout: number): Diagnostic[] {
   return diagnostics
 }
 
-// ── pnpm audit ──────────────────────────────────────────
+// ── pnpm audit ───────────────────────────────────────
 
 export function pnpmAudit(rootDir: string, timeout: number): Diagnostic[] {
   if (!existsSync(join(rootDir, 'pnpm-lock.yaml'))) {
@@ -304,7 +206,7 @@ export function pnpmAudit(rootDir: string, timeout: number): Diagnostic[] {
   return diagnostics
 }
 
-// ── pip audit ───────────────────────────────────────────
+// ── pip audit ───────────────────────────────────────
 
 interface PipAuditVulnerability {
   id: string
@@ -444,7 +346,7 @@ export function pipAudit(rootDir: string, timeout: number): Diagnostic[] {
   return diagnostics
 }
 
-// ── govulncheck ─────────────────────────────────────────
+// ── govulncheck ─────────────────────────────────────
 
 interface GoVulnFinding {
   osv?: string
@@ -530,7 +432,7 @@ export function goVulnCheck(rootDir: string, timeout: number): Diagnostic[] {
   return diagnostics
 }
 
-// ── cargo audit ─────────────────────────────────────────
+// ── cargo audit ─────────────────────────────────────
 
 interface CargoAuditVulnerability {
   advisory: {
@@ -587,7 +489,7 @@ export function cargoAudit(rootDir: string, timeout: number): Diagnostic[] {
     for (const vuln of parsed.vulnerabilities.list) {
       const hasFix = (vuln.versions.patched?.length ?? 0) > 0
       const severity = vuln.advisory.severity?.toLowerCase() ?? 'high'
-      const mappedSeverity: Severity = severity === 'low' ? 'warning' : 'error'
+      const mappedSeverity = severity === 'low' ? 'warning' : 'error'
       diagnostics.push(
         makeAuditDiagnostic(
           'security-deep/dependency-vulnerability',
@@ -622,4 +524,3 @@ export function cargoAudit(rootDir: string, timeout: number): Diagnostic[] {
 
   return diagnostics
 }
-

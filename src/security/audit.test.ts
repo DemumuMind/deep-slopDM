@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { npmAudit, pnpmAudit, pipAudit, goVulnCheck, cargoAudit } from './audit.js'
+import { npmAudit, pnpmAudit, pipAudit, goVulnCheck, cargoAudit } from './index.js'
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'

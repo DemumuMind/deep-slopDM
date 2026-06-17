@@ -6,8 +6,7 @@ import type {
   FixResult,
 } from "../../types/index.js";
 import { readFileContent, toLines } from "../../utils/file-utils.js";
-import { existsSync } from "node:fs";
-import { npmAudit, pnpmAudit, pipAudit, goVulnCheck, cargoAudit } from "../../security/audit.js";
+import { runSecurityAudits } from "../../security/index.js";
 import { detectSecrets } from "../../security/secrets.js";
 import { detectHtmlSafety } from "../../security/html-safety.js";
 import { isEngineEarlyExitEnabled, buildEarlyExitResult, EARLY_EXIT_BATCH_SIZE } from '../../config/engine-utils.js'
@@ -167,29 +166,7 @@ export const securityDeepEngine: Engine = {
     // Dependency vulnerability audit (only if config security.audit is true)
     if (dependencyAuditEnabled) {
       const auditTimeout = config.security?.auditTimeout ?? 25000;
-
-      // npm/pnpm audit for JS/TS projects
-      if (context.languages.includes('typescript') || context.languages.includes('javascript')) {
-        // Use pnpm audit when the project is managed by pnpm.
-        diagnostics.push(...(
-          existsSync(`${rootDir}/pnpm-lock.yaml`) ? pnpmAudit(rootDir, auditTimeout) : npmAudit(rootDir, auditTimeout)
-        ));
-      }
-
-      // pip-audit for Python projects
-      if (context.languages.includes('python')) {
-        diagnostics.push(...pipAudit(rootDir, auditTimeout));
-      }
-
-      // govulncheck for Go projects
-      if (context.languages.includes('go')) {
-        diagnostics.push(...goVulnCheck(rootDir, auditTimeout));
-      }
-
-      // cargo audit for Rust projects
-      if (context.languages.includes('rust')) {
-        diagnostics.push(...cargoAudit(rootDir, auditTimeout));
-      }
+      diagnostics.push(...runSecurityAudits(rootDir, context.languages, auditTimeout));
     }
 
     const elapsed = performance.now() - start;

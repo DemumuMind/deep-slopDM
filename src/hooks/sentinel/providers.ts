@@ -1,71 +1,13 @@
-// ── Hook Sentinel ─────────────────────────────────────
-// Monitors hook integrity, detects drift/tampering in
-// provider configs, validates hook commands, and can
-// auto-repair corrupted or missing hooks
+// ── Sentinel Providers ─────────────────────────────────
+// Provider-specific hook integrity checks.
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { homedir } from 'node:os'
-import { execSync } from 'node:child_process'
-import type { HookProvider, HookStatus } from './types.js'
-import { installHook } from './install.js'
-import { getHookStatus } from './status.js'
 
-export interface SentinelCheckResult {
-  /** Provider that was checked */
-  provider: HookProvider
-  /** Whether the hook is healthy */
-  healthy: boolean
-  /** Issues detected (empty if healthy) */
-  issues: SentinelIssue[]
-  /** Whether issues were auto-repaired */
-  repaired: boolean
-}
-
-export interface SentinelIssue {
-  /** Issue type */
-  type: 'missing-config' | 'missing-command' | 'corrupted-config' | 'command-drift' | 'stale-hook' | 'hook-disabled'
-  /** Human-readable description */
-  message: string
-  /** Severity of the issue */
-  severity: 'error' | 'warning' | 'info'
-  /** Whether this issue was auto-repaired */
-  repaired: boolean
-}
-
-export interface SentinelOptions {
-  /** Which providers to check (defaults to all) */
-  providers?: HookProvider[]
-  /** Whether to auto-repair issues */
-  autoRepair: boolean
-  /** Whether to check that deep-slop command itself is available */
-  checkCommand: boolean
-  /** Root directory (defaults to cwd) */
-  rootDir: string
-}
-
-/** Expected scan command fragment in hook configs */
-const EXPECTED_COMMAND_FRAGMENT = 'deep-slop scan'
-
-/** All supported hook providers */
-const ALL_HOOK_PROVIDERS: HookProvider[] = ['claude', 'cursor', 'gemini', 'cline']
-
-/**
- * Validate that the deep-slop command is available on the system.
- */
-function checkDeepSlopAvailable(): SentinelIssue | null {
-  try {
-    execSync('deep-slop --version', { stdio: 'pipe', timeout: 5000 })
-    return null
-  } catch {
-    return {
-      type: 'missing-command',
-      message: 'deep-slop command not found on PATH — hooks will fail silently',
-      severity: 'error',
-      repaired: false,
-    }
-  }
-}
+import type { HookProvider } from '../types.js'
+import { installHook } from '../install.js'
+import { EXPECTED_COMMAND_FRAGMENT, checkResult, type SentinelIssue, type SentinelCheckResult } from './helpers.js'
 
 /**
  * Check Claude hook integrity.
@@ -76,7 +18,7 @@ function checkDeepSlopAvailable(): SentinelIssue | null {
  * - Command string contains expected fragment
  * - Command has not drifted from the expected template
  */
-function checkClaudeHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+export function checkClaudeHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const globalPath = join(homedir(), '.claude', 'settings.json')
   const projectPath = join(rootDir, '.claude', 'settings.json')
@@ -198,7 +140,7 @@ function checkClaudeHook(rootDir: string, autoRepair: boolean): SentinelCheckRes
  * - File contains expected deep-slop content
  * - File has not been truncated or emptied
  */
-function checkCursorHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+export function checkCursorHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const rulePath = join(rootDir, '.cursor', 'rules', 'deep-slop-quality.mdc')
 
@@ -283,7 +225,7 @@ function checkCursorHook(rootDir: string, autoRepair: boolean): SentinelCheckRes
  * - postEditCommand contains deep-slop
  * - Command has not drifted
  */
-function checkGeminiHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+export function checkGeminiHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const configPath = join(rootDir, '.gemini', 'config.json')
 
@@ -352,16 +294,6 @@ function checkGeminiHook(rootDir: string, autoRepair: boolean): SentinelCheckRes
   return checkResult('gemini', issues, repaired)
 }
 
-/** Helper to build a check result */
-function checkResult(provider: HookProvider, issues: SentinelIssue[], repaired: boolean): SentinelCheckResult {
-  return {
-    provider,
-    healthy: issues.length === 0,
-    issues,
-    repaired,
-  }
-}
-
 /**
  * Check Cline hook integrity.
  *
@@ -370,7 +302,7 @@ function checkResult(provider: HookProvider, issues: SentinelIssue[], repaired: 
  * - Contains deep-slop references
  * - References have not been corrupted
  */
-function checkClineHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+export function checkClineHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const rulePath = join(rootDir, '.clinerules')
 
@@ -448,82 +380,9 @@ function checkClineHook(rootDir: string, autoRepair: boolean): SentinelCheckResu
 }
 
 /** Provider-specific sentinel checkers */
-const SENTINEL_CHECKERS: Record<HookProvider, (rootDir: string, autoRepair: boolean) => SentinelCheckResult> = {
+export const SENTINEL_CHECKERS: Record<HookProvider, (rootDir: string, autoRepair: boolean) => SentinelCheckResult> = {
   claude: checkClaudeHook,
   cursor: checkCursorHook,
   gemini: checkGeminiHook,
   cline: checkClineHook,
 }
-
-/**
- * Run the hook sentinel — validate all installed hooks for integrity.
- *
- * Checks each provider's config file for:
- * - Missing or corrupted configuration
- * - Command drift (hook command changed from expected)
- * - Disabled or removed hooks
- * - Stale hooks (very old, may need updating)
- *
- * Optionally auto-repairs issues by reinstalling hooks.
- */
-export function runSentinel(options: SentinelOptions): SentinelCheckResult[] {
-  const providers = options.providers ?? ALL_HOOK_PROVIDERS
-  const results: SentinelCheckResult[] = []
-
-  // First check that deep-slop itself is available
-  if (options.checkCommand) {
-    const cmdIssue = checkDeepSlopAvailable()
-    if (cmdIssue) {
-      // This is a global issue, not per-provider
-      // We'll add it to each provider's results
-      for (const provider of providers) {
-        results.push({
-          provider,
-          healthy: false,
-          issues: [cmdIssue],
-          repaired: false,
-        })
-      }
-      return results
-    }
-  }
-
-  // Check each provider
-  for (const provider of providers) {
-    const checker = SENTINEL_CHECKERS[provider]
-    if (checker) {
-      results.push(checker(options.rootDir, options.autoRepair))
-    }
-  }
-
-  return results
-}
-
-/**
- * Format sentinel results for CLI output.
- */
-export function formatSentinelResults(results: SentinelCheckResult[]): string {
-  const lines: string[] = []
-
-  for (const result of results) {
-    const icon = result.healthy ? '✔' : result.repaired ? '⟳' : '✖'
-    const color = result.healthy ? 'success' : result.repaired ? 'warning' : 'error'
-    lines.push(`  ${icon} ${result.provider}: ${result.healthy ? 'healthy' : result.repaired ? 'repaired' : 'issues found'}`)
-
-    for (const issue of result.issues) {
-      const sevIcon = issue.severity === 'error' ? '✖' : issue.severity === 'warning' ? '⚠' : 'ℹ'
-      const repairTag = issue.repaired ? ' [repaired]' : ''
-      lines.push(`    ${sevIcon} ${issue.message}${repairTag}`)
-    }
-  }
-
-  const healthyCount = results.filter((r) => r.healthy).length
-  const totalIssues = results.reduce((sum, r) => sum + r.issues.length, 0)
-  const repairedCount = results.filter((r) => r.repaired).length
-
-  lines.push('')
-  lines.push(`  ${healthyCount}/${results.length} hooks healthy, ${totalIssues} issue(s) found${repairedCount > 0 ? `, ${repairedCount} repaired` : ''}`)
-
-  return lines.join('\n')
-}
-

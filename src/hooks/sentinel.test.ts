@@ -13,7 +13,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { runSentinel, formatSentinelResults, type SentinelCheckResult } from './sentinel.js'
+import { runSentinel, formatSentinelResults, type SentinelCheckResult } from './sentinel/index.js'
 
 const TMP = join(process.cwd(), '.test-sentinel-tmp')
 
