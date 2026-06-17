@@ -78,7 +78,7 @@ export const frameworkLintEngine: Engine = {
     }
 
     const scanFiles = context.files?.length
-      ? context.files.map((f) => join(root, f))
+      ? context.files.map((f) => f.startsWith('/') ? f : join(root, f))
       : await collectScanFiles(root)
 
     for (const filePath of scanFiles) {

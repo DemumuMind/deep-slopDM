@@ -55,7 +55,7 @@ export const typeSafetyEngine: Engine = {
     const root = context.rootDirectory
     const exclude = context.config.exclude
     const files = context.files
-      ? context.files.filter((f) => isTargetFile(f)).map((f) => join(root, f))
+      ? context.files.filter((f) => isTargetFile(f)).map((f) => f.startsWith('/') ? f : join(root, f))
       : await collectFiles(root, exclude)
 
     if (files.length === 0) {
@@ -76,10 +76,31 @@ export const typeSafetyEngine: Engine = {
     // Use orchestrator-provided disabled rules for early-exit accuracy
     const disabledRules = context.disabledRules ?? new Set<string>()
     const wildcardOff: string[] = (context as any)._wildcardOff ?? []
+    const rulesConfig: Record<string, string> = (context as any).rulesConfig ?? {}
 
-    // Helper: is a rule effectively disabled?
-    const isRuleDisabled = (rule: string) =>
+    // Helper: is a rule effectively disabled or suppressed?
+    const isRuleSuppressed = (rule: string) =>
       disabledRules.has(rule) || wildcardOff.some(p => rule.startsWith(p))
+
+    // Check if ALL type-safety rules are suppressed/downgraded in config
+    // If every rule this engine can produce is set to 'off' or overridden
+    // to a non-default severity, early-exit immediately
+    const engineRulePrefixes = [
+      'types/as-any', 'types/double-assertion', 'types/missing-return-type',
+      'types/ts-suppress', 'types/non-null-assertion', 'types/generic-any',
+    ]
+    const allRulesSuppressed = engineRulePrefixes.every(rule =>
+      isRuleSuppressed(rule) || rulesConfig[rule] === 'off'
+    )
+    if (allRulesSuppressed) {
+      return {
+        engine: 'type-safety',
+        diagnostics: [],
+        elapsed: performance.now() - startTime,
+        skipped: true,
+        skipReason: 'All type-safety rules suppressed in config',
+      }
+    }
 
     // Process each file
     for (let i = 0; i < files.length; i++) {
@@ -119,7 +140,7 @@ export const typeSafetyEngine: Engine = {
       allDiagnostics.push(...detectGenericAny(lines, relPath))
 
       // Early-exit heuristic
-      const activeDiagCount = allDiagnostics.filter(d => !isRuleDisabled(d.rule)).length
+      const activeDiagCount = allDiagnostics.filter(d => !isRuleSuppressed(d.rule)).length
       if (
         earlyExit &&
         i >= EARLY_EXIT_BATCH_SIZE - 1 &&

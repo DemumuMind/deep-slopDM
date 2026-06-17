@@ -104,8 +104,11 @@ export async function runScan(
       wildcardOff.push(key.slice(0, -2))
     }
   }
-  // We'll add wildcard-matched rules lazily in engines that check them
+  // Pass the full rules config so engines can check severity overrides
+  // (e.g. type-safety rules set to 'info' still produce diagnostics, but
+  //  engines can early-exit if ALL their rules are effectively non-default)
   ;(context as any)._wildcardOff = wildcardOff
+  ;(context as any).rulesConfig = rulesConfig
   context.disabledRules = disabledRules
 
   // Also add globally suppressed rules from .deep-slop/.deep-slop-ignore

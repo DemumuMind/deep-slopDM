@@ -60,8 +60,29 @@ export const syntaxDeepEngine: Engine = {
     // Use orchestrator-provided disabled rules for early-exit accuracy
     const disabledRules = context.disabledRules ?? new Set<string>()
     const wildcardOff: string[] = (context as any)._wildcardOff ?? []
-    const isRuleDisabled = (rule: string) =>
+    const rulesConfig: Record<string, string> = (context as any).rulesConfig ?? {}
+
+    const isRuleSuppressed = (rule: string) =>
       disabledRules.has(rule) || wildcardOff.some(p => rule.startsWith(p))
+
+    // Check if ALL syntax-deep rules are suppressed in config
+    const engineRules = [
+      'syntax-deep/bom-present', 'syntax-deep/zwnbsp-mid-file',
+      'syntax-deep/crlf-line-endings', 'syntax-deep/mixed-line-endings',
+      'syntax-deep/trailing-whitespace', 'syntax-deep/missing-final-newline',
+    ]
+    const allRulesSuppressed = engineRules.every(rule =>
+      isRuleSuppressed(rule) || rulesConfig[rule] === 'off'
+    )
+    if (allRulesSuppressed) {
+      return {
+        engine: 'syntax-deep',
+        diagnostics: [],
+        elapsed: performance.now() - start,
+        skipped: true,
+        skipReason: 'All syntax-deep rules suppressed in config',
+      }
+    }
 
     for (let i = 0; i < files.length; i++) {
       const relPath = files[i];
@@ -91,7 +112,7 @@ export const syntaxDeepEngine: Engine = {
       if (
         earlyExit &&
         i >= EARLY_EXIT_BATCH_SIZE - 1 &&
-        diagnostics.filter(d => !isRuleDisabled(d.rule)).length === 0
+        diagnostics.filter(d => !isRuleSuppressed(d.rule)).length === 0
       ) {
         return buildEarlyExitResult("syntax-deep", performance.now() - start);
       }

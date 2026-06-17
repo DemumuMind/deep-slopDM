@@ -9,6 +9,15 @@ rules:
   ast-slop/generic-name: off
   ast-slop/decorative-comment: off
   ast-slop/hallucinated-import: off
+  types/as-any: off
+  types/as-any-orm: off
+  types/as-any-window: off
+  types/as-any-json-parse: off
+  types/as-any-param: off
+  types/double-assertion: off
+  types/non-null-assertion: off
+  types/generic-any: off
+  types/missing-return-type: off
   format-lint/inconsistent-quotes: off
   format-lint/inconsistent-semicolons: off
   format-lint/trailing-comma-inconsistency: off

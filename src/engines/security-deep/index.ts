@@ -52,8 +52,30 @@ export const securityDeepEngine: Engine = {
     const earlyExit = isEngineEarlyExitEnabled(config.engines['security-deep'], 'security-deep')
     const disabledRules = context.disabledRules ?? new Set<string>()
     const wildcardOff: string[] = (context as any)._wildcardOff ?? []
-    const isRuleDisabled = (rule: string) =>
+    const rulesConfig: Record<string, string> = (context as any).rulesConfig ?? {}
+
+    const isRuleSuppressed = (rule: string) =>
       disabledRules.has(rule) || wildcardOff.some(p => rule.startsWith(p))
+
+    // Check if ALL security-deep rules are suppressed in config
+    const engineRules = [
+      'security-deep/eval-usage', 'security-deep/inner-html',
+      'security-deep/sql-injection', 'security-deep/shell-injection',
+      'security-deep/prototype-pollution', 'security-deep/ssrf-risk',
+      'security-deep/hardcoded-secret',
+    ]
+    const allRulesSuppressed = engineRules.every(rule =>
+      isRuleSuppressed(rule) || rulesConfig[rule] === 'off'
+    )
+    if (allRulesSuppressed) {
+      return {
+        engine: 'security-deep',
+        diagnostics: [],
+        elapsed: performance.now() - start,
+        skipped: true,
+        skipReason: 'All security-deep rules suppressed in config',
+      }
+    }
 
     for (let i = 0; i < files.length; i++) {
       const filePath = files[i]
@@ -93,7 +115,7 @@ export const securityDeepEngine: Engine = {
 
       // Early-exit: after scanning first batch with zero non-disabled diagnostics, skip rest
       if (earlyExit && i >= EARLY_EXIT_BATCH_SIZE - 1) {
-        const activeDiags = diagnostics.filter(d => !isRuleDisabled(d.rule)).length
+        const activeDiags = diagnostics.filter(d => !isRuleSuppressed(d.rule)).length
         if (activeDiags === 0) {
           return buildEarlyExitResult('security-deep', performance.now() - start)
         }
