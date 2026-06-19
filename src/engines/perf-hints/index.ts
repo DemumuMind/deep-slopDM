@@ -9,7 +9,6 @@ import type {
   EngineResult,
   Diagnostic,
 } from '../../types/index.js'
-import { readFileContent, toLines } from '../../utils/file-utils.js'
 import { processFiles } from '../../utils/batch-processor.js'
 import { collectFiles, isRelevantFile, parseBlocks } from './helpers.js'
 import {

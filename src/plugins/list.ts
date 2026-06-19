@@ -2,9 +2,6 @@
 // Lists installed plugins with status information.
 
 import { access, readdir } from 'node:fs/promises'
-import { join } from 'node:path'
-import { getPluginDir, pluginRegistry, type PluginEntry } from './registry.js'
-import { loadPlugin } from './loader.js'
 
 async function exists(path: string): Promise<boolean> {
   try {

@@ -1,7 +1,6 @@
 // ── Type-Safety Engine Helpers ─────────────────────────────────────────────
 // Utility functions for the type-safety engine.
 
-import { readFile } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import type { Suggestion } from '../../types/index.js'
 

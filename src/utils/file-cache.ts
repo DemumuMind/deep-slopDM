@@ -1,5 +1,4 @@
 import { readFile, stat } from 'node:fs/promises'
-import { join } from 'node:path'
 
 /** Cached file entry: content and pre-split lines */
 interface FileEntry {

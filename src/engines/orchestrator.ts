@@ -3,7 +3,6 @@ import type { Engine, EngineContext, EngineName, EngineResult, ScanResult, Sever
 import { calculateScore } from '../scoring/index.js'
 import { applyRuleSeverities } from '../scoring/rule-overrides.js'
 import { appendRecord, type HistoryRecord } from '../history/store.js'
-import { LiveGrid } from '../ui/live-grid.js'
 import { preloadFiles, clearFileCache } from '../utils/file-cache.js'
 import { clearBatch } from '../utils/batch-processor.js'
 import { clearParseCache } from '../utils/tree-sitter/index.js'

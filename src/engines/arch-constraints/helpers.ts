@@ -11,8 +11,6 @@ import type {
   Severity,
   Suggestion,
 } from "../../types/index.js";
-import { readFileContent, extractImports, toLines, type ImportInfo } from "../../utils/file-utils.js";
-import { collectFiles } from "../../utils/discover.js";
 
 // ── Helper ──────────────────────────────────────────────────────────
 

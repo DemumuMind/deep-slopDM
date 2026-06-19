@@ -5,7 +5,6 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve, dirname } from 'node:path'
 import { homedir } from 'node:os'
 import type { HookInstall, HookProvider } from './types.js'
-import { captureBaseline } from './baseline.js'
 
 /** Deep-slop scan command used in hooks */
 const SCAN_COMMAND = 'deep-slop scan --staged --exclude node_modules dist'

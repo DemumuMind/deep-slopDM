@@ -115,11 +115,7 @@ export function extractImportFromNode(node: ASTNode): {
       const identifiers = node.children.filter(
         (c) => c.type === 'identifier' || c.type === 'type_identifier',
       )
-      // For `import { X as Y }`, identifiers = [X, Y]
-      // For `import { X }`, identifiers = [X]
-      // We need the ORIGINAL exported name (first identifier)
-      // so the unused-export check can match it correctly
-      const name = identifiers[0]?.text
+      const name = identifiers[identifiers.length - 1]?.text
       if (name) symbols.push(name)
       return
     }

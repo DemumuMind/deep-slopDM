@@ -5,7 +5,6 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { homedir } from 'node:os'
 import type { HookProvider, HookStatus } from './types.js'
-import { readBaseline } from './baseline.js'
 
 function checkClaudeStatus(): HookStatus {
   const globalPath = join(homedir(), '.claude', 'settings.json')

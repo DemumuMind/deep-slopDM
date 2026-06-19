@@ -268,6 +268,18 @@ export function collectImports(ast: ASTNode): Set<string> {
       for (const sym of info.symbols) {
         importedSymbols.add(sym)
       }
+      // Also collect original exported names for aliased imports
+      // `import { X as Y }` -> add both X (original) and Y (local alias)
+      const specifiers = findNodesOfType(imp, 'import_specifier')
+      for (const spec of specifiers) {
+        const ids = spec.children.filter(
+          (c) => c.type === 'identifier' || c.type === 'type_identifier',
+        )
+        if (ids.length >= 2) {
+          // `import { X as Y }` — X is the original exported name
+          importedSymbols.add(ids[0].text)
+        }
+      }
     }
   }
 

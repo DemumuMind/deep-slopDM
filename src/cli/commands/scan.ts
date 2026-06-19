@@ -8,7 +8,7 @@ import { loadConfig } from '../../config/index.js'
 import type { RuleSeverityOverride } from '../../scoring/rule-overrides.js'
 import { formatOutput } from '../../output/formatter.js'
 import { generateSarif } from '../../output/sarif.js'
-import { type OutputFormat } from '../shared.js'
+import type { OutputFormat } from '../shared.js'
 
 export function register(program: Command): void {
   program

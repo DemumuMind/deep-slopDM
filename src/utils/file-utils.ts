@@ -1,4 +1,3 @@
-import { join } from "node:path";
 import { readFileCached, toLinesCached } from "./file-cache.js";
 
 /** Read file contents with caching */
