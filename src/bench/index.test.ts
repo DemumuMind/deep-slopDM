@@ -4,17 +4,19 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { runBenchmark, formatJsonSummary } from './index.js'
 
-const rootOutputDir = join(tmpdir(), 'deep-slop-bench-test')
+function makeRootOutputDir(): string {
+  return join(tmpdir(), `deep-slop-bench-test-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+}
 
-function makeOutputDir(): string {
+function makeOutputDir(rootOutputDir: string): string {
   return join(rootOutputDir, `run-${Date.now()}-${Math.random().toString(36).slice(2)}`)
 }
 
 describe('benchmark runner', () => {
+  let rootOutputDir: string
+
   beforeEach(() => {
-    if (existsSync(rootOutputDir)) {
-      rmSync(rootOutputDir, { recursive: true, force: true })
-    }
+    rootOutputDir = makeRootOutputDir()
   })
 
   afterEach(() => {
@@ -24,7 +26,7 @@ describe('benchmark runner', () => {
   })
 
   it('runs the requested number of iterations and writes a JSON result', async () => {
-    const outputDir = makeOutputDir()
+    const outputDir = makeOutputDir(rootOutputDir)
     const { result, summary } = await runBenchmark({
       path: resolve('.'),
       iterations: 2,
@@ -47,7 +49,7 @@ describe('benchmark runner', () => {
   })
 
   it('compares with previous benchmark when compare is true', async () => {
-    const outputDir = makeOutputDir()
+    const outputDir = makeOutputDir(rootOutputDir)
     await runBenchmark({ path: resolve('.'), iterations: 1, outputDir })
     const { previous } = await runBenchmark({ path: resolve('.'), iterations: 1, outputDir, compare: true })
 

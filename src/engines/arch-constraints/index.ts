@@ -7,7 +7,7 @@ import type {
 } from "../../types/index.js"
 import { readFileContent, extractImports, toLines, type ImportInfo } from "../../utils/file-utils.js"
 import { collectFiles } from "../../utils/discover.js"
-import { getThresholdMultiplier } from "./helpers.js"
+import { getThresholdMultiplier, isGodFileExempt, isHighCouplingExempt } from "./helpers.js"
 import {
   buildImportGraph,
   countExports,
@@ -78,16 +78,20 @@ export const archConstraintsEngine: Engine = {
       const multiplier = getThresholdMultiplier(relPath)
       const effectiveFileLoc = Math.round(maxFileLoc * multiplier.fileLocMultiplier)
 
-      // 1. High coupling
-      diagnostics.push(...detectHighCoupling(imports, relPath, maxCoupling));
+      // 1. High coupling (skip files that import many modules by design)
+      if (!isHighCouplingExempt(relPath)) {
+        diagnostics.push(...detectHighCoupling(imports, relPath, maxCoupling));
+      }
 
       // 2. Layer violations
       diagnostics.push(...detectLayerViolations(imports, relPath));
 
-      // 3. God file (with context-aware file limit)
-      const lineCount = lines.length;
-      const exportCount = countExports(lines);
-      diagnostics.push(...detectGodFile(lineCount, exportCount, relPath, effectiveFileLoc));
+      // 3. God file (skip files that are legitimately large; with context-aware file limit)
+      if (!isGodFileExempt(relPath)) {
+        const lineCount = lines.length;
+        const exportCount = countExports(lines);
+        diagnostics.push(...detectGodFile(lineCount, exportCount, relPath, effectiveFileLoc));
+      }
 
       // 5. Deep nesting
       diagnostics.push(...detectDeepNesting(lines, relPath, maxNesting));

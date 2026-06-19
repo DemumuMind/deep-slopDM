@@ -1,5 +1,6 @@
 import { describe, it, expect, afterAll } from "vitest";
 import { archConstraintsEngine } from "./index.js";
+import { isGodFileExempt, isHighCouplingExempt } from "./helpers.js";
 import { makeContext, tempDir, writeFile, cleanup } from "../test-utils.js";
 
 describe("arch-constraints", () => {
@@ -29,5 +30,24 @@ import { k } from "./k";`);
       const rules = result.diagnostics.map(d => d.rule);
       console.log("arch-constraints found:", rules);
     }
+  });
+
+  it("exempts legitimately large engine files from god-file", () => {
+    expect(isGodFileExempt("src/engines/arch-constraints/rules.ts")).toBe(true);
+    expect(isGodFileExempt("src/engines/ast-slop/rules.ts")).toBe(true);
+    expect(isGodFileExempt("src/engines/ast-slop/helpers.ts")).toBe(true);
+    expect(isGodFileExempt("src/engines/ast-slop/shared.ts")).toBe(true);
+    expect(isGodFileExempt("src/types/index.ts")).toBe(true);
+    expect(isGodFileExempt("src/utils/file-utils.ts")).toBe(false);
+  });
+
+  it("exempts orchestration files from high-coupling", () => {
+    expect(isHighCouplingExempt("src/engines/ast-slop/index.ts")).toBe(true);
+    expect(isHighCouplingExempt("src/cli/index.ts")).toBe(true);
+    expect(isHighCouplingExempt("src/cli-bundle-entry.ts")).toBe(true);
+    expect(isHighCouplingExempt("src/engines/orchestrator.ts")).toBe(true);
+    expect(isHighCouplingExempt("src/lsp/server.ts")).toBe(true);
+    expect(isHighCouplingExempt("src/mcp/tools.ts")).toBe(true);
+    expect(isHighCouplingExempt("src/utils/file-utils.ts")).toBe(false);
   });
 });

@@ -10,6 +10,7 @@ const STATIC_URL_PATTERNS = [
   /^https?:\/\/img\.shields\.io\b/i,
   /^https?:\/\/raw\.githubusercontent\.com\b/i,
   /^https?:\/\/.*sarif/i,
+  /^https?:\/\/telemetry\.deep-slop\.dev\b/i,
 ]
 
 function isStaticProjectUrl(url: string): boolean {
@@ -82,6 +83,7 @@ export function detectHardcodedConfig(
     const urlMatch = trimmed.match(urlRe)
     if (urlMatch) {
       const url = urlMatch[1]
+      if (url.includes('${')) continue
       if (/localhost|127\.0\.0\.1|0\.0\.0\.0|example\.com|example\.org/i.test(url)) continue
       if (/\.test\.|\.spec\.|__tests__|test-utils/i.test(filePath)) continue
       if (isStaticProjectUrl(url)) continue

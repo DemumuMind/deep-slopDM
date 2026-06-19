@@ -127,7 +127,6 @@ const labels: Record<string, string> = {
   'meta-quality/improving-trend': 'Improving Trend',
   'meta-quality/engine-spike': 'Engine Spike',
   'meta-quality/quality-gate-failed': 'Quality Gate Failed',
-  'meta-quality/quality-gate-passed': 'Quality Gate Passed',
   'meta-quality/missing-config': 'Missing Config',
 
   // lint-external

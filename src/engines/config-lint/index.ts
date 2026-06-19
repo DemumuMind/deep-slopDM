@@ -180,6 +180,13 @@ async function checkTsconfigTarget(root: string): Promise<Diagnostic[]> {
 // ── Rule: missing-eslint ──────────────────────────────────
 
 async function checkMissingEslint(root: string): Promise<Diagnostic[]> {
+  const pkgJson = await readJsonFile<{ name?: string; dependencies?: Record<string, unknown>; devDependencies?: Record<string, unknown> }>(join(root, "package.json"));
+
+  // Projects that use deep-slop itself as a linter (self-referencing) don't need ESLint
+  if (pkgJson && (pkgJson.name === "deep-slop" || pkgJson.dependencies?.["deep-slop"] || pkgJson.devDependencies?.["deep-slop"])) {
+    return [];
+  }
+
   // Check for .eslintrc.* files
   const eslintrcFiles = await findFilesWithPrefix(root, ".eslintrc");
   if (eslintrcFiles.length > 0) return [];
@@ -189,7 +196,6 @@ async function checkMissingEslint(root: string): Promise<Diagnostic[]> {
   if (flatConfigFiles.length > 0) return [];
 
   // Check for eslintConfig in package.json
-  const pkgJson = await readJsonFile<Record<string, unknown>>(join(root, "package.json"));
   if (pkgJson && "eslintConfig" in pkgJson) return [];
 
   // None found — suggest adding ESLint

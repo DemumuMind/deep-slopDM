@@ -192,20 +192,6 @@ function qualityGate(
       fixable: false,
       detail: { score, threshold: failBelow, gap: failBelow - score },
     });
-  } else {
-    diagnostics.push({
-      filePath,
-      engine: "meta-quality",
-      rule: "meta-quality/quality-gate-passed",
-      severity: "info",
-      message: `Quality gate PASSED: score ${score} ≥ threshold ${failBelow}`,
-      help: "Quality gate is satisfied. Keep maintaining code quality.",
-      line: 1,
-      column: 1,
-      category: "style" as Category,
-      fixable: false,
-      detail: { score, threshold: failBelow },
-    });
   }
 
   return diagnostics;

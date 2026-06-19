@@ -4,6 +4,7 @@
 
 import {
   findNodesOfType,
+  findAncestorOfType,
   isInsideCatch,
   getAsExpressionType,
   getAsExpressionContext,
@@ -135,12 +136,29 @@ export function detectConsoleLeftoversAST(root: ASTNode, filePath: string): Diag
   return results
 }
 
+/** Primitive-ish types that are truly suspicious when cast via `unknown`. */
+const SUSPICIOUS_PRIMITIVE_TYPES = new Set([
+  'string',
+  'number',
+  'boolean',
+  'bigint',
+  'symbol',
+  'undefined',
+  'null',
+  'never',
+  'void',
+])
+
 /** AST-enhanced double assertion detection. */
 export function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagnostic[] {
   const results: Diagnostic[] = []
 
   if (filePath.includes('src/utils/pattern-docs.ts')) return results
   if (RULES_DIR_PATTERN.test(filePath)) return results
+
+  const isConfigFile =
+    /\/src\/(?:config\/|cli\/commands\/config\.ts$|cli\/init\.ts$)/.test(filePath)
+  const isPluginsFile = /\/src\/plugins\//.test(filePath)
 
   const asExpressions = findNodesOfType(root, 'as_expression')
 
@@ -152,6 +170,21 @@ export function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagn
     const innerType = getAsExpressionType(innerAs)
     if (innerType !== 'unknown') continue
 
+    // Skip string literals / comments (e.g. rule help text).
+    if (findAncestorOfType(asNode, 'string') || findAncestorOfType(asNode, 'comment')) continue
+
+    // Standard pattern for dynamic JSON/config parsing — not a bypass.
+    if (type === 'Record') continue
+
+    // Config files legitimately cast to config-shaped types.
+    if (isConfigFile && type?.endsWith('Config')) continue
+
+    // Plugin loading is dynamic by nature.
+    if (isPluginsFile && type === 'Engine') continue
+
+    // Only primitive types are suspicious when reached through `unknown`.
+    if (!SUSPICIOUS_PRIMITIVE_TYPES.has(type ?? '')) continue
+
     const line = asNode.startRow + 1
     const col = asNode.startCol + 1
 
@@ -161,7 +194,7 @@ export function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagn
         rule: 'ast-slop/double-assertion',
         severity: 'warning',
         message: `Double type assertion: as unknown as ${type ?? 'unknown'} — bypasses type safety (AST-confirmed)`,
-        help: 'Use a proper type guard, type predicate, or adjust the source/target types. Double assertions defeat the purpose of TypeScript.',
+        help: 'Use a proper type guard, type predicate, or adjust the source/target types. Double assertions to primitive types defeat the purpose of TypeScript.',
         line,
         column: col,
         fixable: true,

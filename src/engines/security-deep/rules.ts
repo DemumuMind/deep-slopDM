@@ -306,15 +306,121 @@ export function detectShellInjection(
 
 // ── Rule 5: prototype-pollution (warning) ─────────────
 
+// Known deep-merge utility files; flagging them is like flagging a sort function.
+const DEEP_MERGE_UTIL_PATHS = [
+  "/utils/deep-merge.ts",
+  "/utils/deep-merge.js",
+  "\\utils\\deep-merge.ts",
+  "\\utils\\deep-merge.js",
+];
+
+// Names that indicate a deep merge implementation or call.
+const DEEP_MERGE_NAMES = "(?:deepMerge|deepExtend|mergeDeep|defaultsDeep)";
+
+// Safety primitives we look for inside a custom merge body.
+const SAFETY_CHECK_RE = /\bObject\s*\.\s*(?:hasOwnProperty|hasOwn)\s*\(|\bhasOwnProperty\s*\(|Object\s*\.\s*create\s*\(\s*null\s*\)|\bkey\s*(?:===|!==|==|!=)\s*(?:['\"]`__proto__`|['\"]constructor['\"]|['\"]prototype['\"])/;
+
+// Imports of the project's safe deep-merge utility.
+const SAFE_DEEP_MERGE_IMPORT_RE = /\bimport\s*\{[^}]*\bdeepMerge\b[^}]*\}\s*from\s*['\"][^'\"]*deep-merge[^'\"]*['\"]/;
+
+function isDeepMergeUtilFile(filePath: string): boolean {
+  return DEEP_MERGE_UTIL_PATHS.some((suffix) => filePath.endsWith(suffix));
+}
+
+function findCustomDeepMergeBody(content: string): { start: number; end: number } | undefined {
+  const customImplRe = new RegExp(
+    "\\b(?:function\\s+" + DEEP_MERGE_NAMES + "|(?:const|let|var)\\s+" + DEEP_MERGE_NAMES + "\\s*[:=]\\s*(?:function|\\(?))\\s*\\([^\\)]*\\)\\s*\\{",
+    "g"
+  );
+
+  let match: RegExpExecArray | null
+  while ((match = customImplRe.exec(content)) !== null) {
+    const openBrace = content.indexOf("{", match.index);
+    if (openBrace === -1) continue;
+
+    let depth = 0;
+    let closeBrace = -1;
+    for (let i = openBrace; i < content.length; i++) {
+      if (content[i] === "{") depth++;
+      if (content[i] === "}") {
+        depth--;
+        if (depth === 0) {
+          closeBrace = i;
+          break;
+        }
+      }
+    }
+    if (closeBrace !== -1) {
+      return { start: openBrace, end: closeBrace + 1 };
+    }
+  }
+  return undefined;
+}
+
 export function detectPrototypePollution(
   filePath: string,
   lines: { num: number; text: string }[]
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
 
+  // Skip the deep merge utility implementation itself — it's the library, not user code.
+  if (isDeepMergeUtilFile(filePath)) {
+    return diagnostics;
+  }
+
   const objectAssignRe = /\bObject\s*\.\s*assign\s*\(\s*\w+\s*,\s*\w+/;
   const protoRe = /__proto__/;
-  const deepMergeRe = /\b(?:deepMerge|deepExtend|mergeDeep|defaultsDeep)\s*\(/;
+  const deepMergeCallRe = new RegExp("\\b" + DEEP_MERGE_NAMES + "\\s*\\(");
+  const deepMergeDefinitionRe = new RegExp(
+    "\\b(?:function\\s+" + DEEP_MERGE_NAMES + "|(?:const|let|var)\\s+" + DEEP_MERGE_NAMES + "\\s*[:=]\\s*(?:function|\\(?))"
+  );
+
+  const fullContent = lines.map((l) => l.text).join("\n");
+  const importsSafeDeepMerge = SAFE_DEEP_MERGE_IMPORT_RE.test(fullContent);
+
+  // Detect custom deep merge implementations in user code and flag only the unsafe ones.
+  const customBody = findCustomDeepMergeBody(fullContent);
+  if (customBody) {
+    const body = fullContent.slice(customBody.start, customBody.end);
+    if (!SAFETY_CHECK_RE.test(body)) {
+      // Locate the line that contains the start of the function definition.
+      let lineIdx = 0;
+      let pos = 0;
+      for (const line of lines) {
+        if (pos + line.text.length >= customBody.start) {
+          break;
+        }
+        pos += line.text.length + 1;
+        lineIdx++;
+      }
+      const line = lines[lineIdx];
+      const col = line ? line.text.search(deepMergeDefinitionRe) : -1;
+      if (line && col !== -1) {
+        diagnostics.push(
+          makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
+            "Custom deep merge implementation detected — ensure it is safe against prototype pollution",
+            "Filter __proto__, constructor, and prototype keys, use Object.hasOwnProperty/Object.hasOwn checks, or use a null-prototype target.",
+            line.num, col + 1,
+            {
+              fixable: true,
+              suggestion: {
+                type: "replace",
+                text: "/* Add safety checks: Object.hasOwn(source, key) and Object.create(null) target */",
+                range: {
+                  startLine: line.num,
+                  startCol: col + 1,
+                  endLine: line.num,
+                  endCol: line.text.length + 1,
+                },
+                confidence: 0.65,
+                reason: "Custom deep merge implementations without Object.hasOwnProperty or null-prototype checks are a common prototype pollution vector.",
+              },
+            }
+          )
+        );
+      }
+    }
+  }
 
   let inBlockComment = false;
 
@@ -379,9 +485,12 @@ export function detectPrototypePollution(
       );
     }
 
-    const dmCol = text.search(deepMergeRe);
+    const dmCol = text.search(deepMergeCallRe);
     if (dmCol !== -1) {
       if (isInsideStringOrRegex(text, dmCol)) continue;
+
+      // Calls to the project's safe deep-merge utility are a deliberate safe pattern.
+      if (importsSafeDeepMerge) continue;
 
       diagnostics.push(
         makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",

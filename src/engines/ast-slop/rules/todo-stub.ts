@@ -11,6 +11,16 @@ const TODO_PATTERNS = [
   /\bXXX\b/i,
 ]
 
+// Comments that mention TODO-like patterns as part of the detector/rule itself
+const SKIP_COMMENT_PATTERNS = [
+  // Rule section headers that name a TODO-like rule (e.g. "Rule 2: todo-macro")
+  /\bRule\s+\d+:\s*[\w-]*todo[\w-]*\b/i,
+  // Detector descriptions that mention the literal TODO/FIXME pattern
+  /\bTODO\/FIXME\b/i,
+  // Python helper that scans for TODO/FIXME stubs
+  /Find\s+TODO\/FIXME\s+stubs\s+in\s+comments/i,
+]
+
 function shouldSkipTodoStub(filePath: string): boolean {
   const lowerPath = filePath.toLowerCase()
   const parts = lowerPath.split(/[/\\]/)
@@ -49,6 +59,9 @@ export function detectTodoStub(
     const trimmed = text.trim()
     const isComment = trimmed.startsWith(commentPrefix) || trimmed.startsWith('/*') || trimmed.startsWith('*')
     if (!isComment) continue
+
+    // Skip comments that describe the detector itself rather than a real TODO
+    if (SKIP_COMMENT_PATTERNS.some((re) => re.test(trimmed))) continue
 
     for (const pattern of TODO_PATTERNS) {
       if (pattern.test(trimmed)) {

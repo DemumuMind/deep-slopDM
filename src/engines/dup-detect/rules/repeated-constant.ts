@@ -5,6 +5,20 @@ import { relative } from 'node:path'
 import type { Diagnostic, Language } from '../../../types/index.js'
 import { diag, REPEATED_CONSTANT_MIN_CHARS, REPEATED_CONSTANT_MIN_OCCURRENCES, type StringOccurrence } from '../shared.js'
 
+// Common English phrases and UI labels that are not meaningful constants
+const EXCLUDED_COMMON_PHRASES = new Set([
+  'project directory',
+  'output as json',
+  'needs work',
+])
+
+// Rule definition files are allowed to repeat literals (e.g. pattern-docs.ts)
+const RULES_DIR_RE = /[/\\]engines[/\\][^/\\]+[/\\]rules[/\\]/
+
+function isRuleDefinitionFile(filePath: string): boolean {
+  return RULES_DIR_RE.test(filePath)
+}
+
 /** Extract string literals from a line */
 export function extractStringLiterals(line: string, lang: Language | null): { value: string; col: number; raw: string }[] {
   const results: { value: string; col: number; raw: string }[] = []
@@ -64,6 +78,8 @@ function isConstantCandidate(value: string): boolean {
   // Natural language descriptions/messages (CLI .description() strings, diagnostic messages)
   // These contain spaces and are > 20 chars — not worth extracting as constants
   if (value.includes(' ') && value.length > 20) return false
+  // Common English phrases and UI labels are not meaningful constants
+  if (EXCLUDED_COMMON_PHRASES.has(value.toLowerCase().trim())) return false
   // Tool name prefix: deep-slop scan, deep-slop-quality
   if (/^deep-slop/i.test(value)) return false
   // Type assertion patterns: "as unknown as X"
@@ -97,6 +113,7 @@ export function detectRepeatedConstants(
   const byValue = new Map<string, StringOccurrence[]>()
   for (const occ of allStrings) {
     if (!isConstantCandidate(occ.value)) continue
+    if (isRuleDefinitionFile(occ.filePath)) continue
     let arr = byValue.get(occ.value)
     if (!arr) {
       arr = []
