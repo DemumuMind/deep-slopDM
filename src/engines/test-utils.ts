@@ -1,7 +1,6 @@
 import { mkdtempSync, writeFileSync, rmSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { EngineContext, DeepSlopConfig } from "../types/index.js";
-import { DEFAULT_CONFIG } from "../types/index.js";
+import { DEFAULT_CONFIG, type EngineContext, type DeepSlopConfig } from "../types/index.js";
 
 export function makeContext(dir: string): EngineContext {
   return {

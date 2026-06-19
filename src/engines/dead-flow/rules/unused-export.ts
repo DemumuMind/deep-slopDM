@@ -2,8 +2,7 @@
 // Detects exported symbols that are never imported by any other file.
 
 import { join, relative } from "node:path"
-import type { Diagnostic } from "../../../types/index.js"
-import type { Suggestion } from "../../../types/index.js"
+import type { Diagnostic, Suggestion } from "../../../types/index.js"
 import { readFileContent, toLines } from "../../../utils/file-utils.js"
 import { escapeRegExp, makeDiagnostic } from "../shared.js"
 

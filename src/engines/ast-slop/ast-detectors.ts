@@ -11,8 +11,8 @@ import {
   detectPythonAIPatterns,
   findPythonClasses,
   findPythonImports,
+  type ASTNode,
 } from '../../utils/tree-sitter/index.js'
-import type { ASTNode } from '../../utils/tree-sitter/index.js'
 import type { Diagnostic, Severity } from '../../types/index.js'
 import { diag } from './shared.js'
 

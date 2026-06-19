@@ -11,16 +11,16 @@ import {
   type CodeAction,
   type Diagnostic as LSPDiagnostic,
 } from 'vscode-languageserver/node'
-import type {
-  Diagnostic,
-  DeepSlopConfig,
-  Engine,
-  EngineContext,
-  EngineName,
-  Framework,
-  Language,
+import {
+  type Diagnostic,
+  type DeepSlopConfig,
+  type Engine,
+  type EngineContext,
+  type EngineName,
+  type Framework,
+  type Language,
+  DEFAULT_CONFIG,
 } from '../types/index.js'
-import { DEFAULT_CONFIG } from '../types/index.js'
 import { ENGINE_REGISTRY } from '../engines/orchestrator.js'
 import { loadConfig } from '../config/index.js'
 import { applyRuleSeverities } from '../scoring/rule-overrides.js'

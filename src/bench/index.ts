@@ -5,8 +5,7 @@ import { resolve, join } from 'node:path'
 import { access, readdir, stat, readFile, writeFile, mkdir } from 'node:fs/promises'
 import { runScan } from '../engines/orchestrator.js'
 import { detectLanguages, detectFrameworks, collectFiles } from '../utils/discover.js'
-import { DEFAULT_CONFIG } from '../types/index.js'
-import type { DeepSlopConfig, EngineName } from '../types/index.js'
+import { DEFAULT_CONFIG, type DeepSlopConfig, type EngineName } from '../types/index.js'
 
 async function exists(path: string): Promise<boolean> {
   try {

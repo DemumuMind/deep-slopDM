@@ -5,8 +5,7 @@
 
 import { join } from 'node:path'
 import { readFileContent, toLines } from '../../utils/file-utils.js'
-import { processFiles } from '../../utils/batch-processor.js'
-import type { FileData } from '../../utils/batch-processor.js'
+import { processFiles, type FileData } from '../../utils/batch-processor.js'
 import {
   initParser,
   parseFile,

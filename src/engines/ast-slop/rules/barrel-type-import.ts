@@ -2,8 +2,7 @@
 // Detects type-only imports from barrel files.
 
 import type { Diagnostic } from '../../../types/index.js'
-import { extractImportFromNode, findNodesOfType } from '../../../utils/tree-sitter/index.js'
-import type { ASTNode } from '../../../utils/tree-sitter/index.js'
+import { extractImportFromNode, findNodesOfType, type ASTNode } from '../../../utils/tree-sitter/index.js'
 import { diag, isBarrelSource } from '../shared.js'
 
 export function detectBarrelTypeImport(

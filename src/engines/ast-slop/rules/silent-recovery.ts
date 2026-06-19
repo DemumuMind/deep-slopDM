@@ -33,15 +33,15 @@ export function detectSilentRecovery(
             break
           }
         }
-        if (hasComment && !hasCode) {
+        if (!hasComment && !hasCode) {
           const col = text.indexOf('except') + 1
           results.push(
             diag({
               filePath,
               rule: 'ast-slop/silent-recovery',
               severity: 'info',
-              message: 'Silent recovery: except block contains only comments — errors are neither logged nor rethrown',
-              help: 'At minimum, log the error or rethrow. Comment-only catch blocks silently swallow errors while appearing to handle them.',
+              message: 'Silent recovery: except block is empty — errors are neither logged nor rethrown',
+              help: 'At minimum, log the error or rethrow. Empty catch blocks silently swallow errors.',
               line: num,
               column: col,
               fixable: true,
@@ -50,7 +50,7 @@ export function detectSilentRecovery(
                 text: "    logger.error(f'Unexpected error: {e}', exc_info=True)",
                 range: { startLine: num + 1, startCol: 1, endLine: num + 1, endCol: 1 },
                 confidence: 0.7,
-                reason: 'Replace comment-only catch body with error logging to avoid silently hiding failures.',
+                reason: 'Add error logging to the except body to avoid silently hiding failures.',
               },
             }),
           )
@@ -60,19 +60,19 @@ export function detectSilentRecovery(
       const catchStartMatch = trimmed.match(/catch\s*(?:\(\s*(\w+)\s*\))?\s*\{\s*$/)
       if (catchStartMatch) {
         let hasCode = false
-        let hasCommentOnly = false
+        let hasComment = false
         for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
           const nextTrimmed = lines[j].text.trim()
           if (nextTrimmed === '}') {
-            if (hasCommentOnly && !hasCode) {
+            if (!hasCode && !hasComment) {
               const col = text.indexOf('catch') + 1
               results.push(
                 diag({
                   filePath,
                   rule: 'ast-slop/silent-recovery',
                   severity: 'info',
-                  message: 'Silent recovery: catch block contains only comments — errors are neither logged nor rethrown',
-                  help: 'At minimum, log the error or rethrow. Comment-only catch blocks silently swallow errors while appearing to handle them.',
+                  message: 'Silent recovery: catch block is empty — errors are neither logged nor rethrown',
+                  help: 'At minimum, log the error or rethrow. Empty catch blocks silently swallow errors.',
                   line: num,
                   column: col,
                   fixable: true,
@@ -80,7 +80,7 @@ export function detectSilentRecovery(
                     type: 'refactor',
                     text: `catch (${catchStartMatch[1] ?? 'error'}) { console.error(${catchStartMatch[1] ?? 'error'}); }`,
                     confidence: 0.7,
-                    reason: 'Replace comment-only catch body with error logging to avoid silently hiding failures.',
+                    reason: 'Add error logging to the catch body to avoid silently hiding failures.',
                   },
                 }),
               )
@@ -89,7 +89,7 @@ export function detectSilentRecovery(
           }
           if (nextTrimmed === '') continue
           if (nextTrimmed.startsWith('//') || nextTrimmed.startsWith('/*') || nextTrimmed.startsWith('*')) {
-            hasCommentOnly = true
+            hasComment = true
           } else {
             hasCode = true
             break

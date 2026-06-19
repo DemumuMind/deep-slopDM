@@ -4,8 +4,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { minimatch } from 'minimatch'
 import micromatch from 'micromatch'
 import type { Language } from '../../types/index.js'
-import type { CoverageInfo } from '../coverage-gate.js'
-import { assessCoverage } from '../coverage-gate.js'
+import { assessCoverage, type CoverageInfo } from '../coverage-gate.js'
 
 /** File extension → language mapping */
 export const EXT_MAP: Record<string, Language> = {

@@ -1,5 +1,4 @@
-import type { ASTNode } from '../../utils/tree-sitter/index.js'
-import { parseFile } from '../../utils/tree-sitter/index.js'
+import { type ASTNode, parseFile } from '../../utils/tree-sitter/index.js'
 import type { Diagnostic } from '../../types/index.js'
 
 export * from './rules.js'

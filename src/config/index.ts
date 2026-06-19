@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import yaml from 'js-yaml'
-import { DeepSlopConfigSchema } from './schema.js'
+import { DeepSlopConfigSchema, type DeepSlopConfig } from './schema.js'
 import { DEFAULT_CONFIG } from './defaults.js'
 import { resolveExtends } from './extends.js'
 import { deepMerge } from '../utils/deep-merge.js'
-import type { DeepSlopConfig } from './schema.js'
 
 /** Config file names to search for, in priority order */
 const CONFIG_FILES = [

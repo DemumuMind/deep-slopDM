@@ -9,8 +9,7 @@ import type {
   EngineContext,
   EngineResult,
 } from "../../types/index.js"
-import { processFiles } from "../../utils/batch-processor.js"
-import type { FileData } from "../../utils/batch-processor.js"
+import { processFiles, type FileData } from "../../utils/batch-processor.js"
 import {
   isJsTsFile,
   isJsxFile,

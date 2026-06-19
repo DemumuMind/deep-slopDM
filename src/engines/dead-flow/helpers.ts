@@ -1,5 +1,5 @@
-import type { ASTNode } from '../../utils/tree-sitter/index.js'
 import {
+  type ASTNode,
   findNodesOfType,
   findNodesOfTypes,
   walkAST,
