@@ -14,7 +14,9 @@ async function isKnipInstalled(): Promise<boolean> {
   try {
     require.resolve('knip/package.json')
     return true
-  } catch {}
+  } catch {
+    // knip not resolvable — not installed
+  }
   // No slow fallback — if not resolvable, knip is not installed
   return false
 }
@@ -28,7 +30,7 @@ async function runKnip(rootDir: string): Promise<KnipJsonOutput | null> {
       {
         timeout: KNIPTIMEOUT_MS,
         cwd: rootDir,
-      } as any,
+      },
     )
     if (!String(stdout).trim()) return null
     return JSON.parse(String(stdout)) as KnipJsonOutput
