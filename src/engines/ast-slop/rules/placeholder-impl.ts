@@ -2,6 +2,7 @@
 // Detects functions marked with TODO/FIXME that only return stub values.
 
 import type { Diagnostic, Language } from '../../../types/index.js'
+import { basename } from 'node:path'
 import { diag } from '../shared.js'
 
 export function detectPlaceholderImpl(
@@ -10,6 +11,9 @@ export function detectPlaceholderImpl(
   language: Language,
 ): Diagnostic[] {
   const results: Diagnostic[] = []
+
+  // Pattern documentation contains intentionally bad examples for illustration
+  if (basename(filePath) === 'pattern-docs.ts') return results
 
   const funcStartRe = language === 'python'
     ? /^\s*def\s+(\w+)\s*\(/

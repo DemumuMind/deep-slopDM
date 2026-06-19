@@ -1,5 +1,5 @@
 import type { Diagnostic, Severity, Suggestion } from '../../types/index.js'
-import { findAncestor, type ASTNode } from '../../utils/tree-sitter/index.js'
+import type { ASTNode } from '../../utils/tree-sitter/index.js'
 
 export const ENGINE_NAME = 'python-deep' as const
 

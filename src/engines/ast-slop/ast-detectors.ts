@@ -16,6 +16,8 @@ import {
 import type { Diagnostic, Severity } from '../../types/index.js'
 import { diag } from './shared.js'
 
+const RULES_DIR_PATTERN = /\/engines\/[^/]+\/rules\//
+
 /** AST-enhanced empty catch detection. */
 export function detectEmptyCatchAST(root: ASTNode, filePath: string): Diagnostic[] {
   const results: Diagnostic[] = []
@@ -136,6 +138,10 @@ export function detectConsoleLeftoversAST(root: ASTNode, filePath: string): Diag
 /** AST-enhanced double assertion detection. */
 export function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagnostic[] {
   const results: Diagnostic[] = []
+
+  if (filePath.includes('src/utils/pattern-docs.ts')) return results
+  if (RULES_DIR_PATTERN.test(filePath)) return results
+
   const asExpressions = findNodesOfType(root, 'as_expression')
 
   for (const asNode of asExpressions) {

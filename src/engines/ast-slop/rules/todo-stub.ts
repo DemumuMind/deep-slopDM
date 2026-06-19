@@ -11,11 +11,37 @@ const TODO_PATTERNS = [
   /\bXXX\b/i,
 ]
 
+function shouldSkipTodoStub(filePath: string): boolean {
+  const lowerPath = filePath.toLowerCase()
+  const parts = lowerPath.split(/[/\\]/)
+  const fileName = parts[parts.length - 1] ?? ''
+
+  // Skip other rule definition files that contain TODO/placeholder patterns as documentation.
+  const inRulesDir = parts.some((part, i) => part === 'engines' && parts[i + 1] && parts[i + 2] === 'rules')
+  if (inRulesDir && (fileName.includes('todo') || fileName.includes('placeholder'))) {
+    return true
+  }
+
+  // Skip example plugin files bundled with the project.
+  if (lowerPath.includes('.deep-slop/plugins/')) {
+    return true
+  }
+
+  // Skip pattern documentation that uses bad/good examples.
+  if (fileName === 'pattern-docs.ts') {
+    return true
+  }
+
+  return false
+}
+
 export function detectTodoStub(
   lines: { num: number; text: string }[],
   filePath: string,
   language: Language,
 ): Diagnostic[] {
+  if (shouldSkipTodoStub(filePath)) return []
+
   const results: Diagnostic[] = []
   const commentPrefix = language === 'python' ? '#' : '//'
 

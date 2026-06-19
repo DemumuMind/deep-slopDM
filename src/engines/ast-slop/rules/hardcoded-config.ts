@@ -4,6 +4,18 @@
 import type { Diagnostic, Language, Suggestion } from '../../../types/index.js'
 import { diag } from '../shared.js'
 
+const STATIC_URL_PATTERNS = [
+  /^https?:\/\/github\.com\/DemumuMind\/deep-slopDM\b/i,
+  /^https?:\/\/registry\.npmjs\.org\b/i,
+  /^https?:\/\/img\.shields\.io\b/i,
+  /^https?:\/\/raw\.githubusercontent\.com\b/i,
+  /^https?:\/\/.*sarif/i,
+]
+
+function isStaticProjectUrl(url: string): boolean {
+  return STATIC_URL_PATTERNS.some(pattern => pattern.test(url))
+}
+
 function buildHardcodedConfigSuggestion(
   lineText: string,
   urlMatch: RegExpMatchArray | null,
@@ -72,6 +84,7 @@ export function detectHardcodedConfig(
       const url = urlMatch[1]
       if (/localhost|127\.0\.0\.1|0\.0\.0\.0|example\.com|example\.org/i.test(url)) continue
       if (/\.test\.|\.spec\.|__tests__|test-utils/i.test(filePath)) continue
+      if (isStaticProjectUrl(url)) continue
 
       const col = text.indexOf(urlMatch[0]) + 1
       results.push(

@@ -4,11 +4,16 @@
 import type { Diagnostic } from '../../../types/index.js'
 import { diag } from '../shared.js'
 
+const RULES_DIR_PATTERN = /\/engines\/[^/]+\/rules\//
+
 export function detectDoubleAssertion(
   lines: { num: number; text: string }[],
   filePath: string,
 ): Diagnostic[] {
   const results: Diagnostic[] = []
+
+  if (filePath.includes('src/utils/pattern-docs.ts')) return results
+  if (RULES_DIR_PATTERN.test(filePath)) return results
 
   for (const { num, text } of lines) {
     const trimmed = text.trim()
