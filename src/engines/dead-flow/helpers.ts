@@ -287,10 +287,40 @@ export function collectImports(ast: ASTNode): Set<string> {
   for (const call of callExprs) {
     const func = call.children[0]
     if (func && func.type === 'import') {
-      const thenMatch = call.text.match(/\.then\s*\(\s*\((\w+)\)\s*=>\s*\1\.(\w+)/)
+      // .then((mod) => mod.func) — check text up the tree
+      const fullText = call.text
+      const thenMatch = fullText.match(/\.then\s*\(\s*\((\w+)\)\s*=>\s*\1\.(\w+)/)
       if (thenMatch) importedSymbols.add(thenMatch[2])
-      const thenMatch2 = call.text.match(/\.then\s*\(\s*(\w+)\s*=>\s*\1\.(\w+)/)
+      const thenMatch2 = fullText.match(/\.then\s*\(\s*(\w+)\s*=>\s*\1\.(\w+)/)
       if (thenMatch2) importedSymbols.add(thenMatch2[2])
+    }
+    // Broader: check any call_expression containing import() + .then() with destructuring
+    // This catches: import('...').then(({ X }) => ...)
+    if (call.text.includes('import(') && call.text.includes('.then(')) {
+      const thenDestructureMatch = call.text.match(/\.then\s*\(\s*\(\s*\{([^}]+)\}\s*\)/)
+      if (thenDestructureMatch) {
+        const names = thenDestructureMatch[1].split(',').map((s) => s.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean)
+        for (const name of names) importedSymbols.add(name)
+      }
+      // .then(mod => mod.func)
+      const thenModMatch = call.text.match(/\.then\s*\(\s*(\w+)\s*=>\s*\1\.(\w+)/)
+      if (thenModMatch) importedSymbols.add(thenModMatch[2])
+    }
+  }
+
+  // Handle: const { X, Y } = await import('...')
+  // Walk for lexical_declaration containing await import() with destructuring
+  const lexicalDecls = findNodesOfTypes(ast, ['lexical_declaration', 'variable_declaration'])
+  for (const decl of lexicalDecls) {
+    const text = decl.text
+    // Check if this declaration contains `await import(...)` or `import(...)`
+    if (/\bawait\s+import\s*\(/.test(text) || /\bimport\s*\(/.test(text)) {
+      // Extract destructured names: const { X, Y } = ...
+      const destructureMatch = text.match(/\{\s*([^}]+)\s*\}\s*=\s*(?:await\s+)?import\s*\(/)
+      if (destructureMatch) {
+        const names = destructureMatch[1].split(',').map((s) => s.trim().split(/\s+as\s+/)[0].trim()).filter(Boolean)
+        for (const name of names) importedSymbols.add(name)
+      }
     }
   }
 
