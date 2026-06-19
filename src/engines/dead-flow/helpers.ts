@@ -283,6 +283,28 @@ export function collectImports(ast: ASTNode): Set<string> {
     }
   }
 
+  // Collect re-export symbols: `export { X } from './mod.js'`
+  // These act as imports — X is imported from ./mod.js and re-exported
+  const exportStmts = findNodesOfType(ast, 'export_statement')
+  for (const exp of exportStmts) {
+    // Check if this is a re-export (has a 'from' clause)
+    const sourceNode = exp.children.find(
+      (c) => c.type === 'string' || c.fieldName === 'source',
+    )
+    if (!sourceNode) continue
+
+    const exportSpecifiers = findNodesOfType(exp, 'export_specifier')
+    for (const spec of exportSpecifiers) {
+      const ids = spec.children.filter(
+        (c) => c.type === 'identifier' || c.type === 'type_identifier',
+      )
+      // For `export { X as Y } from '...'`, X is the original imported name
+      // For `export { X } from '...'`, X is both imported and exported
+      const name = ids[0]?.text
+      if (name) importedSymbols.add(name)
+    }
+  }
+
   const callExprs = findNodesOfType(ast, 'call_expression')
   for (const call of callExprs) {
     const func = call.children[0]

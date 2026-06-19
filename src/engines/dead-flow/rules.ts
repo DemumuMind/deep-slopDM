@@ -323,6 +323,21 @@ export function detectUnusedExportsAST(
     // Skip Engine-named exports
     if (/Engine$/.test(name)) continue
 
+    // Skip test utility files — their exports are used by .test.ts files
+    // which may be excluded via .deep-slopignore
+    if (entries.every((e) => /test-utils|test-helpers|test-setup|__tests__/i.test(e.filePath))) continue
+
+    // Skip re-exports (export { X } from './mod.js') — these are barrel files
+    // The original export is already checked
+    if (entries.length === 1 && entries[0].filePath !== undefined) {
+      const content = contents.get(entries[0].filePath)
+      if (content) {
+        const lines = content.split('\n')
+        const exportLine = lines[entries[0].line - 1]
+        if (exportLine && /\bexport\s*\{[^}]*\}\s*from\s*['"]/.test(exportLine)) continue
+      }
+    }
+
     if (!importedSymbols.has(name)) {
       for (const entry of entries) {
         const { fixable, suggestion } = buildUnusedExportFix(entry.filePath, entry.line, contents, name)
