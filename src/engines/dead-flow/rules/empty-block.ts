@@ -8,6 +8,9 @@ export function detectEmptyBlock(
   content: string,
   filePath: string,
 ): ReturnType<typeof makeDiagnostic>[] {
+  // Skip pattern documentation files — they contain intentionally bad examples
+  if (filePath.endsWith('pattern-docs.ts')) return []
+
   const diagnostics: ReturnType<typeof makeDiagnostic>[] = []
   const lines = toLines(content)
 

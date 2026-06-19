@@ -66,6 +66,10 @@ function isConstantCandidate(value: string): boolean {
   if (value.includes(' ') && value.length > 20) return false
   // Tool name prefix: deep-slop scan, deep-slop-quality
   if (/^deep-slop/i.test(value)) return false
+  // Type assertion patterns: "as unknown as X"
+  if (/^as\s+(unknown|any)\s+as\s+/i.test(value)) return false
+  // Python exception patterns: "except Exception:", "raise NotImplementedError"
+  if (/^(except|raise)\s/i.test(value)) return false
   if (/\bimport\b|\bfrom\b|\brequire\b/.test(value)) return false
   if (/^\.[a-z]{1,4}$/i.test(value)) return false
   return true

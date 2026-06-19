@@ -33,6 +33,9 @@ export function detectDeadSwitchCode(
       const t = lineText.trim()
 
       if (/^\s*(break;|return\b|throw\b|continue;)/.test(lineText) && braceDepth > 0) {
+        // Record brace depth at the terminator — code at a shallower depth
+        // (after the block closes) is NOT unreachable
+        const returnDepth = braceDepth
         let nextLineIdx = j + 1
         while (nextLineIdx < lines.length && braceDepth > 0) {
           const nextTrimmed = lines[nextLineIdx].text.trim()
@@ -43,9 +46,12 @@ export function detectDeadSwitchCode(
           }
 
           if (braceDepth <= 0) break
+          // If we've exited the block containing the return, code after is reachable
+          if (braceDepth < returnDepth) break
           if (nextTrimmed.startsWith("case ") || nextTrimmed.startsWith("default:")) break
           if (
             nextTrimmed === "" ||
+            nextTrimmed === "}" ||
             nextTrimmed.startsWith("//") ||
             nextTrimmed.startsWith("/*") ||
             nextTrimmed.startsWith("*") ||

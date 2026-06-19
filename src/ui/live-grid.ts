@@ -9,7 +9,7 @@ const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', 
 const SPINNER_INTERVAL = 100
 
 type RowState = 'queued' | 'running' | 'done' | 'skipped'
-type RowOutcome = 'ok' | 'warn' | 'fail'
+type RowOutcome = 'ok' | 'warn' | 'fail' | 'skipped'
 
 interface GridRow {
   name: EngineName
@@ -31,10 +31,11 @@ function stateIcon(row: GridRow, frame: number): string {
         case 'ok': return style('success', '✓')
         case 'warn': return style('warn', '⚠')
         case 'fail': return style('danger', '✗')
+        case 'skipped': return style('muted', '⏭')
         default: return style('success', '✓')
       }
-    case 'skipped':
-      return style('muted', '⏭')
+    default:
+      return style('muted', '·')
   }
 }
 

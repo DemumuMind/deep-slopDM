@@ -22,7 +22,8 @@ export function detectDeadSwitchCaseAfterDefault(
     braceDepth = 1
     j++
 
-    const cases: Array<{ keyword: string; line: number }> = []
+    const cases: Array<{ keyword: string; line: number; depth: number }> = []
+    let switchDepth = 0
 
     while (j < lines.length && braceDepth > 0) {
       const lineText = lines[j].text
@@ -32,11 +33,21 @@ export function detectDeadSwitchCaseAfterDefault(
       }
 
       const t = lineText.trim()
-      if (t.startsWith("case ") || t.startsWith("default:")) {
+      // Track nested switch statements
+      if (t.startsWith("switch") && lineText.includes("{")) {
+        switchDepth++
+      }
+      // Only collect cases at the top level of this switch (switchDepth === 0)
+      if (switchDepth === 0 && (t.startsWith("case ") || t.startsWith("default:"))) {
         cases.push({
           keyword: t.startsWith("default") ? "default" : "case",
           line: lines[j].num,
+          depth: braceDepth,
         })
+      }
+      // Detect closing of nested switch (brace matches)
+      if (switchDepth > 0 && braceDepth === 1) {
+        switchDepth = 0
       }
       j++
     }

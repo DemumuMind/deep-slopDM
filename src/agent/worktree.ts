@@ -119,6 +119,7 @@ export async function cleanupWorktree(
   rootDir: string,
 ): Promise<void> {
   let branch = ''
+  let found = false
 
   try {
     // Extract branch name from worktree
@@ -129,9 +130,10 @@ export async function cleanupWorktree(
 
     for (const line of branchOutput.split('\n')) {
       if (line.startsWith('worktree ' + worktreeDir)) {
-        // Next lines contain branch info
+        found = true
+        continue
       }
-      if (line.startsWith('branch ')) {
+      if (found && line.startsWith('branch ')) {
         const candidate = line.replace('branch ', '').replace('refs/heads/', '')
         if (candidate.startsWith('deep-slop-repair-')) {
           branch = candidate
