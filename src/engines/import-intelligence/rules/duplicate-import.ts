@@ -12,6 +12,8 @@ export function detectDuplicateImport(
   const bySource = new Map<string, ParsedImport[]>()
 
   for (const imp of allImports) {
+    // Skip dynamic imports — static + dynamic from same module is NOT a duplicate
+    if (imp.isDynamic) continue
     const key = imp.source
     if (!bySource.has(key)) bySource.set(key, [])
     bySource.get(key)!.push(imp)
