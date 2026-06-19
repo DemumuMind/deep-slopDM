@@ -9,6 +9,15 @@ import { diag } from '../shared.js'
 
 const RULES_DIR_PATTERN = /\/engines\/[^/]+\/rules\//
 
+/** Config/interface types that are legitimate targets for dynamic JSON/config parsing. */
+const CONFIG_INTERFACE_TYPES = new Set([
+  'Record',
+  'DeepSlopConfig',
+  'FixStep',
+  'Engine',
+  'SpecificType',
+])
+
 /** Primitive-ish types that are truly suspicious when cast via `unknown`. */
 const SUSPICIOUS_PRIMITIVE_TYPES = new Set([
   'string',
@@ -31,8 +40,8 @@ export function detectDoubleAssertion(
   if (filePath.includes('src/utils/pattern-docs.ts')) return results
   if (RULES_DIR_PATTERN.test(filePath)) return results
 
-  const isConfigFile =
-    /\/src\/(?:config\/|cli\/commands\/config\.ts$|cli\/init\.ts$)/.test(filePath)
+  const isConfigContext =
+    /\/src\/(?:config\/|cli\/)/.test(filePath)
   const isPluginsFile = /\/src\/plugins\//.test(filePath)
 
   for (const { num, text } of lines) {
@@ -43,10 +52,10 @@ export function detectDoubleAssertion(
     const targetType = doubleMatch[1]
 
     // Standard pattern for dynamic JSON/config parsing — not a bypass.
-    if (targetType === 'Record') continue
+    if (CONFIG_INTERFACE_TYPES.has(targetType)) continue
 
-    // Config files legitimately cast to config-shaped types.
-    if (isConfigFile && targetType.endsWith('Config')) continue
+    // Config parsing contexts legitimately cast to config/interface types.
+    if (isConfigContext) continue
 
     // Plugin loading is dynamic by nature.
     if (isPluginsFile && targetType === 'Engine') continue

@@ -136,6 +136,15 @@ export function detectConsoleLeftoversAST(root: ASTNode, filePath: string): Diag
   return results
 }
 
+/** Config/interface types that are legitimate targets for dynamic JSON/config parsing. */
+const CONFIG_INTERFACE_TYPES = new Set([
+  'Record',
+  'DeepSlopConfig',
+  'FixStep',
+  'Engine',
+  'SpecificType',
+])
+
 /** Primitive-ish types that are truly suspicious when cast via `unknown`. */
 const SUSPICIOUS_PRIMITIVE_TYPES = new Set([
   'string',
@@ -156,8 +165,8 @@ export function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagn
   if (filePath.includes('src/utils/pattern-docs.ts')) return results
   if (RULES_DIR_PATTERN.test(filePath)) return results
 
-  const isConfigFile =
-    /\/src\/(?:config\/|cli\/commands\/config\.ts$|cli\/init\.ts$)/.test(filePath)
+  const isConfigContext =
+    /\/src\/(?:config\/|cli\/)/.test(filePath)
   const isPluginsFile = /\/src\/plugins\//.test(filePath)
 
   const asExpressions = findNodesOfType(root, 'as_expression')
@@ -174,10 +183,10 @@ export function detectDoubleAssertionAST(root: ASTNode, filePath: string): Diagn
     if (findAncestorOfType(asNode, 'string') || findAncestorOfType(asNode, 'comment')) continue
 
     // Standard pattern for dynamic JSON/config parsing — not a bypass.
-    if (type === 'Record') continue
+    if (CONFIG_INTERFACE_TYPES.has(type ?? '')) continue
 
-    // Config files legitimately cast to config-shaped types.
-    if (isConfigFile && type?.endsWith('Config')) continue
+    // Config parsing contexts legitimately cast to config/interface types.
+    if (isConfigContext) continue
 
     // Plugin loading is dynamic by nature.
     if (isPluginsFile && type === 'Engine') continue

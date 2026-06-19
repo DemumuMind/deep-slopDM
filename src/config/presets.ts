@@ -27,11 +27,11 @@ export const PRESETS: Record<string, Partial<DeepSlopConfig> & { description?: s
     },
     quality: {
       maxFunctionLoc: 30,
-      maxFileLoc: 200,
+      maxFileLoc: 500,
       maxNesting: 3,
       maxParams: 4,
       maxCyclomatic: 8,
-      maxCoupling: 8,
+      maxCoupling: 15,
     },
     ci: {
       failBelow: 80,

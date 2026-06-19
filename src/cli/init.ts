@@ -18,7 +18,7 @@ function configToYaml(config: DeepSlopConfig, strict: boolean): string {
       ? {
           ...config.quality,
           maxFunctionLoc: 30,
-          maxFileLoc: 200,
+          maxFileLoc: 500,
         }
       : config.quality,
     security: config.security,

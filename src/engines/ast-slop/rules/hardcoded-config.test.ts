@@ -36,4 +36,9 @@ describe("hardcoded-config URL exclusions", () => {
     const diags = scanLine('const schema = "https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.json"');
     expect(diags).toHaveLength(0);
   });
+
+  it("skips GitHub template URLs", () => {
+    const diags = scanLine('const pageUrl = `https://github.com/${owner}/${repo}`');
+    expect(diags).toHaveLength(0);
+  });
 });

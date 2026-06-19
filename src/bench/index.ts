@@ -59,6 +59,10 @@ export async function runBenchmark(options: BenchmarkOptions = {}): Promise<{ re
   const config = options.config ?? DEFAULT_CONFIG
   const outputDir = resolve(options.outputDir ?? DEFAULT_BENCH_DIR)
 
+  // Ensure output directory exists early so previous-benchmark loading works even if a prior run
+  // was cleaned up between the two calls in the same test.
+  await mkdir(outputDir, { recursive: true })
+
   const languages = await detectLanguages(rootDir)
   const frameworks = await detectFrameworks(rootDir)
   const files = await collectFiles(rootDir, languages, config.exclude)
@@ -118,10 +122,6 @@ export async function runBenchmark(options: BenchmarkOptions = {}): Promise<{ re
 
   const previous = options.compare ? await loadPreviousBenchmark(outputDir) : null
   const summary = formatSummary(result, previous)
-
-  if (!(await exists(outputDir))) {
-    await mkdir(outputDir, { recursive: true })
-  }
 
   const filename = `benchmark-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
   await writeFile(join(outputDir, filename), JSON.stringify(result, null, 2), 'utf8')

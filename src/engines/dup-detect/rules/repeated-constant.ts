@@ -19,6 +19,37 @@ function isRuleDefinitionFile(filePath: string): boolean {
   return RULES_DIR_RE.test(filePath)
 }
 
+/** Plain-language phrases (2+ words) that are not meaningful constants */
+function isCommonEnglishPhrase(value: string): boolean {
+  const trimmed = value.trim()
+  const words = trimmed.split(/\s+/)
+  if (words.length < 2) return false
+  return words.every((w) => /^[a-z-]+$/.test(w))
+}
+
+/** CLI option descriptions like "Output as JSON" or "Project directory" */
+function isCliFlagDescription(value: string): boolean {
+  const trimmed = value.trim()
+  const words = trimmed.split(/\s+/)
+  if (words.length < 2) return false
+  if (!/^[A-Z]/.test(trimmed)) return false
+  // Each word is either an all-caps acronym or starts with a lowercase letter
+  return words.every((w) => /^[A-Z]{2,}$/.test(w) || /^[a-zA-Z][a-z-]*$/.test(w))
+}
+
+/** Filename references such as pattern-docs.ts or utils.js */
+function isFilenameReference(value: string): boolean {
+  return /\.(ts|js)$/i.test(value) && !value.includes(' ')
+}
+
+/** UI status labels like "Needs Work" or "In Progress" */
+function isUiStatusLabel(value: string): boolean {
+  const trimmed = value.trim()
+  const words = trimmed.split(/\s+/)
+  if (words.length < 2) return false
+  return words.every((w) => /^[A-Z][a-z]+$/.test(w))
+}
+
 /** Extract string literals from a line */
 export function extractStringLiterals(line: string, lang: Language | null): { value: string; col: number; raw: string }[] {
   const results: { value: string; col: number; raw: string }[] = []
@@ -80,6 +111,11 @@ function isConstantCandidate(value: string): boolean {
   if (value.includes(' ') && value.length > 20) return false
   // Common English phrases and UI labels are not meaningful constants
   if (EXCLUDED_COMMON_PHRASES.has(value.toLowerCase().trim())) return false
+  // Skip common English phrases, CLI flag descriptions, filename references, and UI labels
+  if (isCommonEnglishPhrase(value)) return false
+  if (isCliFlagDescription(value)) return false
+  if (isFilenameReference(value)) return false
+  if (isUiStatusLabel(value)) return false
   // Tool name prefix: deep-slop scan, deep-slop-quality
   if (/^deep-slop/i.test(value)) return false
   // Type assertion patterns: "as unknown as X"

@@ -11,6 +11,7 @@ const STATIC_URL_PATTERNS = [
   /^https?:\/\/raw\.githubusercontent\.com\b/i,
   /^https?:\/\/.*sarif/i,
   /^https?:\/\/telemetry\.deep-slop\.dev\b/i,
+  /^https?:\/\/github\.com\/\$\{.*\}/i,
 ]
 
 function isStaticProjectUrl(url: string): boolean {

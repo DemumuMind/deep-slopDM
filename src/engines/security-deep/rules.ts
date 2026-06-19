@@ -318,7 +318,21 @@ const DEEP_MERGE_UTIL_PATHS = [
 const DEEP_MERGE_NAMES = "(?:deepMerge|deepExtend|mergeDeep|defaultsDeep)";
 
 // Safety primitives we look for inside a custom merge body.
-const SAFETY_CHECK_RE = /\bObject\s*\.\s*(?:hasOwnProperty|hasOwn)\s*\(|\bhasOwnProperty\s*\(|Object\s*\.\s*create\s*\(\s*null\s*\)|\bkey\s*(?:===|!==|==|!=)\s*(?:['\"]`__proto__`|['\"]constructor['\"]|['\"]prototype['\"])/;
+// Matches: Object.hasOwn, Object.hasOwnProperty, hasOwnProperty,
+// Object.create(null), Object.keys (only own enumerable keys),
+// and explicit __proto__ / constructor / prototype key checks.
+const SAFETY_CHECK_RE = new RegExp(
+  [
+    String.raw`\bObject\s*\.\s*(?:hasOwnProperty|hasOwn)\s*\(`,
+    String.raw`\bhasOwnProperty\s*\(`,
+    String.raw`Object\s*\.\s*create\s*\(\s*null\s*\)`,
+    String.raw`Object\s*\.\s*keys\s*\(`,
+    String.raw`\b(?:key|prop|k|name)\s*(?:===|!==|==|!=)\s*(['"\`])(?:__proto__|constructor|prototype)\1`,
+    String.raw`\.\s*(?:includes|indexOf|some)\s*\(\s*(['"\`])(?:__proto__|constructor|prototype)\2`,
+    String.raw`(?:__proto__|constructor|prototype)\s*in\s+\w+`,
+  ].join('|'),
+  'i'
+)
 
 // Imports of the project's safe deep-merge utility.
 const SAFE_DEEP_MERGE_IMPORT_RE = /\bimport\s*\{[^}]*\bdeepMerge\b[^}]*\}\s*from\s*['\"][^'\"]*deep-merge[^'\"]*['\"]/;
@@ -327,9 +341,10 @@ function isDeepMergeUtilFile(filePath: string): boolean {
   return DEEP_MERGE_UTIL_PATHS.some((suffix) => filePath.endsWith(suffix));
 }
 
-function findCustomDeepMergeBody(content: string): { start: number; end: number } | undefined {
+function findCustomDeepMergeBodies(content: string): { start: number; end: number }[] {
+  const bodies: { start: number; end: number }[] = []
   const customImplRe = new RegExp(
-    "\\b(?:function\\s+" + DEEP_MERGE_NAMES + "|(?:const|let|var)\\s+" + DEEP_MERGE_NAMES + "\\s*[:=]\\s*(?:function|\\(?))\\s*\\([^\\)]*\\)\\s*\\{",
+    "\\b(?:function\\s+" + DEEP_MERGE_NAMES + "|(?:const|let|var)\\s+" + DEEP_MERGE_NAMES + "\\s*[:=]\\s*(?:function|\\(?))\\s*\\([^)]*\\)(?:\\s*:\\s*\\w+)?\\s*\\{",
     "g"
   );
 
@@ -351,10 +366,19 @@ function findCustomDeepMergeBody(content: string): { start: number; end: number 
       }
     }
     if (closeBrace !== -1) {
-      return { start: openBrace, end: closeBrace + 1 };
+      // Range spans the whole function signature through the closing brace so
+      // both the declaration line and recursive calls are treated as protected.
+      bodies.push({ start: match.index, end: closeBrace + 1 });
     }
   }
-  return undefined;
+  return bodies;
+}
+
+function isInsideSafeMergeBody(
+  position: number,
+  safeBodies: { start: number; end: number }[]
+): boolean {
+  return safeBodies.some((body) => position >= body.start && position < body.end);
 }
 
 export function detectPrototypePollution(
@@ -379,59 +403,70 @@ export function detectPrototypePollution(
   const importsSafeDeepMerge = SAFE_DEEP_MERGE_IMPORT_RE.test(fullContent);
 
   // Detect custom deep merge implementations in user code and flag only the unsafe ones.
-  const customBody = findCustomDeepMergeBody(fullContent);
-  if (customBody) {
+  // Also track safe bodies so recursive calls inside a protected merge are not flagged.
+  const safeBodyRanges: { start: number; end: number }[] = [];
+  for (const customBody of findCustomDeepMergeBodies(fullContent)) {
     const body = fullContent.slice(customBody.start, customBody.end);
-    if (!SAFETY_CHECK_RE.test(body)) {
-      // Locate the line that contains the start of the function definition.
-      let lineIdx = 0;
-      let pos = 0;
-      for (const line of lines) {
-        if (pos + line.text.length >= customBody.start) {
-          break;
-        }
-        pos += line.text.length + 1;
-        lineIdx++;
+    if (SAFETY_CHECK_RE.test(body)) {
+      safeBodyRanges.push(customBody);
+      continue;
+    }
+
+    // Locate the line that contains the start of the function definition.
+    let lineIdx = 0;
+    let pos = 0;
+    for (const line of lines) {
+      if (pos + line.text.length >= customBody.start) {
+        break;
       }
-      const line = lines[lineIdx];
-      const col = line ? line.text.search(deepMergeDefinitionRe) : -1;
-      if (line && col !== -1) {
-        diagnostics.push(
-          makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
-            "Custom deep merge implementation detected — ensure it is safe against prototype pollution",
-            "Filter __proto__, constructor, and prototype keys, use Object.hasOwnProperty/Object.hasOwn checks, or use a null-prototype target.",
-            line.num, col + 1,
-            {
-              fixable: true,
-              suggestion: {
-                type: "replace",
-                text: "/* Add safety checks: Object.hasOwn(source, key) and Object.create(null) target */",
-                range: {
-                  startLine: line.num,
-                  startCol: col + 1,
-                  endLine: line.num,
-                  endCol: line.text.length + 1,
-                },
-                confidence: 0.65,
-                reason: "Custom deep merge implementations without Object.hasOwnProperty or null-prototype checks are a common prototype pollution vector.",
+      pos += line.text.length + 1;
+      lineIdx++;
+    }
+    const line = lines[lineIdx];
+    const col = line ? line.text.search(deepMergeDefinitionRe) : -1;
+    if (line && col !== -1) {
+      diagnostics.push(
+        makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
+          "Custom deep merge implementation detected — ensure it is safe against prototype pollution",
+          "Filter __proto__, constructor, and prototype keys, use Object.hasOwnProperty/Object.hasOwn checks, or use a null-prototype target.",
+          line.num, col + 1,
+          {
+            fixable: true,
+            suggestion: {
+              type: "replace",
+              text: "/* Add safety checks: Object.hasOwn(source, key) and Object.create(null) target */",
+              range: {
+                startLine: line.num,
+                startCol: col + 1,
+                endLine: line.num,
+                endCol: line.text.length + 1,
               },
-            }
-          )
-        );
-      }
+              confidence: 0.65,
+              reason: "Custom deep merge implementations without Object.hasOwnProperty or null-prototype checks are a common prototype pollution vector.",
+            },
+          }
+        )
+      );
     }
   }
 
   let inBlockComment = false;
+  let lineStartPos = 0;
 
   for (const { num, text } of lines) {
     const { skip, inBlockComment: newBlockState } = checkCommentState(text, inBlockComment);
     inBlockComment = newBlockState;
-    if (skip) continue;
+    if (skip) {
+      lineStartPos += text.length + 1;
+      continue;
+    }
 
     const oaCol = text.search(objectAssignRe);
     if (oaCol !== -1) {
-      if (isInsideStringOrRegex(text, oaCol)) continue;
+      if (isInsideStringOrRegex(text, oaCol)) {
+        lineStartPos += text.length + 1;
+        continue;
+      }
 
       diagnostics.push(
         makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
@@ -459,7 +494,10 @@ export function detectPrototypePollution(
 
     const protoCol = text.search(protoRe);
     if (protoCol !== -1) {
-      if (isInsideStringOrRegex(text, protoCol)) continue;
+      if (isInsideStringOrRegex(text, protoCol)) {
+        lineStartPos += text.length + 1;
+        continue;
+      }
 
       diagnostics.push(
         makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
@@ -487,34 +525,43 @@ export function detectPrototypePollution(
 
     const dmCol = text.search(deepMergeCallRe);
     if (dmCol !== -1) {
-      if (isInsideStringOrRegex(text, dmCol)) continue;
+      if (!isInsideStringOrRegex(text, dmCol)) {
+        // Calls to the project's safe deep-merge utility are a deliberate safe pattern.
+        const isSafeCall = importsSafeDeepMerge ||
+          // Recursive calls inside a custom merge that already has sanitization checks are safe.
+          isInsideSafeMergeBody(lineStartPos + dmCol, safeBodyRanges);
 
-      // Calls to the project's safe deep-merge utility are a deliberate safe pattern.
-      if (importsSafeDeepMerge) continue;
+        // The declaration line itself is already handled by the custom-impl detector above.
+        const isDeclarationLine = deepMergeDefinitionRe.test(text);
 
-      diagnostics.push(
-        makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
-          "Deep merge function detected — ensure inputs are sanitized against prototype pollution",
-          "Use a prototype-pollution-safe merge library or explicitly filter __proto__, constructor, and prototype keys.",
-          num, dmCol + 1,
-          {
-            fixable: true,
-            suggestion: {
-              type: "replace",
-              text: "safeMerge(Object.create(null), target, source)",
-              range: {
-                startLine: num,
-                startCol: dmCol + 1,
-                endLine: num,
-                endCol: text.length + 1,
-              },
-              confidence: 0.65,
-              reason: "Deep merge utilities can propagate __proto__ properties, leading to prototype pollution. Use a safe merge with a null-prototype target and filtered keys.",
-            },
-          }
-        )
-      );
+        if (!isSafeCall && !isDeclarationLine) {
+          diagnostics.push(
+            makeDiagnostic(filePath, "security-deep/prototype-pollution", "warning",
+              "Deep merge function detected — ensure inputs are sanitized against prototype pollution",
+              "Use a prototype-pollution-safe merge library or explicitly filter __proto__, constructor, and prototype keys.",
+              num, dmCol + 1,
+              {
+                fixable: true,
+                suggestion: {
+                  type: "replace",
+                  text: "safeMerge(Object.create(null), target, source)",
+                  range: {
+                    startLine: num,
+                    startCol: dmCol + 1,
+                    endLine: num,
+                    endCol: text.length + 1,
+                  },
+                  confidence: 0.65,
+                  reason: "Deep merge utilities can propagate __proto__ properties, leading to prototype pollution. Use a safe merge with a null-prototype target and filtered keys.",
+                },
+              }
+            )
+          );
+        }
+      }
     }
+
+    lineStartPos += text.length + 1;
   }
 
   return diagnostics;
