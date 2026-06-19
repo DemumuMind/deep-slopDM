@@ -3,13 +3,13 @@
 // Instead, we inject deep-slop rules into their config files
 // so the agent reads quality rules on every turn.
 
-interface RulesOnlyAgent {
+export interface RulesOnlyAgent {
   agent: string
   configPath: string
   injector: (content: string, rules: string) => string
 }
 
-const rulesOnlyAgents: RulesOnlyAgent[] = [
+export const rulesOnlyAgents: readonly RulesOnlyAgent[] = [
   {
     agent: 'codex',
     configPath: 'AGENTS.md',

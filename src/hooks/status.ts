@@ -1,4 +1,4 @@
-// ── Hook Status ───────────────────────────────────────
+// ── Hook Status ────────────────────────────────────
 // Check installation status of deep-slop hooks
 
 import { existsSync, readFileSync } from 'node:fs'
@@ -6,9 +6,9 @@ import { join } from 'node:path'
 import { homedir } from 'node:os'
 import type { HookProvider, HookStatus } from './types.js'
 
-function checkClaudeStatus(): HookStatus {
-  const globalPath = join(homedir(), '.claude', 'settings.json')
-  const projectPath = join(process.cwd(), '.claude', 'settings.json')
+function checkClaudeStatus(rootDir: string, homeDir: string): HookStatus {
+  const globalPath = join(homeDir, '.claude', 'settings.json')
+  const projectPath = join(rootDir, '.claude', 'settings.json')
 
   for (const [scope, configPath] of [['global', globalPath], ['project', projectPath]] as const) {
     if (!existsSync(configPath)) continue
@@ -41,8 +41,8 @@ function checkClaudeStatus(): HookStatus {
   return { provider: 'claude', installed: false, scope: 'none', qualityGate: false, path: '' }
 }
 
-function checkCursorStatus(): HookStatus {
-  const rulePath = join(process.cwd(), '.cursor', 'rules', 'deep-slop-quality.mdc')
+function checkCursorStatus(rootDir: string): HookStatus {
+  const rulePath = join(rootDir, '.cursor', 'rules', 'deep-slop-quality.mdc')
 
   if (!existsSync(rulePath)) {
     return { provider: 'cursor', installed: false, scope: 'none', qualityGate: false, path: '' }
@@ -57,8 +57,8 @@ function checkCursorStatus(): HookStatus {
   }
 }
 
-function checkGeminiStatus(): HookStatus {
-  const configPath = join(process.cwd(), '.gemini', 'config.json')
+function checkGeminiStatus(rootDir: string): HookStatus {
+  const configPath = join(rootDir, '.gemini', 'config.json')
 
   if (!existsSync(configPath)) {
     return { provider: 'gemini', installed: false, scope: 'none', qualityGate: false, path: '' }
@@ -77,8 +77,8 @@ function checkGeminiStatus(): HookStatus {
   }
 }
 
-function checkClineStatus(): HookStatus {
-  const rulePath = join(process.cwd(), '.clinerules')
+function checkClineStatus(rootDir: string): HookStatus {
+  const rulePath = join(rootDir, '.clinerules')
 
   if (!existsSync(rulePath)) {
     return { provider: 'cline', installed: false, scope: 'none', qualityGate: false, path: '' }
@@ -97,7 +97,7 @@ function checkClineStatus(): HookStatus {
   }
 }
 
-const STATUS_CHECKERS: Record<HookProvider, () => HookStatus> = {
+const STATUS_CHECKERS: Record<HookProvider, (rootDir: string, homeDir: string) => HookStatus> = {
   claude: checkClaudeStatus,
   cursor: checkCursorStatus,
   gemini: checkGeminiStatus,
@@ -113,7 +113,8 @@ const ALL_PROVIDERS: HookProvider[] = ['claude', 'cursor', 'gemini', 'cline']
  * a deep-slop hook is present, its scope, and whether quality gate
  * is enabled.
  */
-export function getHookStatus(): HookStatus[] {
-  return ALL_PROVIDERS.map((provider) => STATUS_CHECKERS[provider]())
+export function getHookStatus(rootDir?: string, homeDir?: string): HookStatus[] {
+  const effectiveRootDir = rootDir ?? process.cwd()
+  const effectiveHomeDir = homeDir ?? homedir()
+  return ALL_PROVIDERS.map((provider) => STATUS_CHECKERS[provider](effectiveRootDir, effectiveHomeDir))
 }
-

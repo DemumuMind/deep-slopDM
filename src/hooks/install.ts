@@ -2,7 +2,7 @@
 // Install deep-slop hooks for AI coding tool providers
 
 import { mkdirSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve, dirname } from 'node:path'
+import { join, dirname } from 'node:path'
 import { homedir } from 'node:os'
 import type { HookInstall, HookProvider } from './types.js'
 
@@ -15,10 +15,10 @@ const QUALITY_GATE_COMMAND =
 
 // ── Provider-specific installers ──────────────────────
 
-function installClaudeHook(options: HookInstall): void {
+function installClaudeHook(options: HookInstall, rootDir: string, homeDir: string): void {
   const configPath = options.scope === 'global'
-    ? join(homedir(), '.claude', 'settings.json')
-    : join(process.cwd(), '.claude', 'settings.json')
+    ? join(homeDir, '.claude', 'settings.json')
+    : join(rootDir, '.claude', 'settings.json')
 
   const configDir = dirname(configPath)
   if (!existsSync(configDir)) {
@@ -61,8 +61,8 @@ function installClaudeHook(options: HookInstall): void {
   process.stderr.write(`  ✔ Claude hook installed → ${configPath}\n`)
 }
 
-function installCursorHook(options: HookInstall): void {
-  const rulesDir = join(process.cwd(), '.cursor', 'rules')
+function installCursorHook(options: HookInstall, rootDir: string): void {
+  const rulesDir = join(rootDir, '.cursor', 'rules')
   const rulePath = join(rulesDir, 'deep-slop-quality.mdc')
 
   if (!existsSync(rulesDir)) {
@@ -85,8 +85,8 @@ function installCursorHook(options: HookInstall): void {
   process.stderr.write(`  ✔ Cursor hook installed → ${rulePath}\n`)
 }
 
-function installGeminiHook(options: HookInstall): void {
-  const configPath = join(process.cwd(), '.gemini', 'config.json')
+function installGeminiHook(options: HookInstall, rootDir: string): void {
+  const configPath = join(rootDir, '.gemini', 'config.json')
   const configDir = dirname(configPath)
 
   if (!existsSync(configDir)) {
@@ -110,8 +110,8 @@ function installGeminiHook(options: HookInstall): void {
   process.stderr.write(`  ✔ Gemini hook installed → ${configPath}\n`)
 }
 
-function installClineHook(options: HookInstall): void {
-  const rulePath = join(process.cwd(), '.clinerules')
+function installClineHook(options: HookInstall, rootDir: string): void {
+  const rulePath = join(rootDir, '.clinerules')
 
   const qualityGateBlock = options.qualityGate
     ? `\nAfter making changes, check the deep-slop score against .deep-slop/baseline.json. If the score has dropped below the baseline score, revert the changes.`
@@ -139,7 +139,7 @@ function installClineHook(options: HookInstall): void {
   process.stderr.write(`  ✔ Cline hook installed → ${rulePath}\n`)
 }
 
-const INSTALLERS: Record<HookProvider, (options: HookInstall) => void> = {
+const INSTALLERS: Record<HookProvider, (options: HookInstall, rootDir: string, homeDir: string) => void> = {
   claude: installClaudeHook,
   cursor: installCursorHook,
   gemini: installGeminiHook,
@@ -153,21 +153,22 @@ const INSTALLERS: Record<HookProvider, (options: HookInstall) => void> = {
  * so that deep-slop runs automatically after edits.
  * If qualityGate is enabled, also captures a baseline score.
  */
-export async function installHook(options: HookInstall): Promise<void> {
+export async function installHook(options: HookInstall, rootDir?: string, homeDir?: string): Promise<void> {
   const installer = INSTALLERS[options.provider]
   if (!installer) {
     throw new Error(`Unknown hook provider: ${options.provider}`)
   }
 
-  installer(options)
+  const effectiveRootDir = rootDir ?? process.cwd()
+  const effectiveHomeDir = homeDir ?? homedir()
+
+  installer(options, effectiveRootDir, effectiveHomeDir)
 
   // Capture baseline if quality gate is enabled
   if (options.qualityGate) {
-    const rootDir = options.scope === 'global' ? homedir() : process.cwd()
     // Defer baseline capture — the CLI handler will run the scan first
     process.stderr.write(`  ℹ Quality gate enabled — run 'deep-slop hook baseline' to capture baseline\n`)
   }
 
   process.stderr.write(`  ✔ Hook installed for ${options.provider} (${options.scope})\n`)
 }
-
