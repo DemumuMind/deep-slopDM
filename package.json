@@ -89,6 +89,7 @@
     "@types/micromatch": "^4.0.10",
     "@types/minimatch": "^6.0.0",
     "@types/node": "^25.6.0",
+    "@vitest/coverage-v8": "4.1.8",
     "esbuild": "^0.28.1",
     "tsdown": "^0.20.3",
     "typescript": "^5.9.3",
