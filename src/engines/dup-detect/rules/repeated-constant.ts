@@ -45,14 +45,29 @@ export function extractStringLiterals(line: string, lang: Language | null): { va
 /** Check if a string looks like a meaningful constant (not a URL, path, import, etc.) */
 function isConstantCandidate(value: string): boolean {
   if (/^https?:\/\//.test(value)) return false
-  if (/^\/|^\.\.?\//.test(value)) return false
+  if (/^\/|^\.\.\//.test(value)) return false
   if (/^\d+$/.test(value)) return false
   if (/^[.\[]/.test(value)) return false
   if (/^node_modules/.test(value)) return false
   if (/^[@a-z0-9][-a-z0-9.]*\/[-a-z0-9.@/]*$/i.test(value)) return false
-  if (/^[a-z][-a-z0-9]{1,20}$/.test(value) && value.length <= 20) return false
+  // Node.js built-in modules: node:fs, node:path, node:child_process, etc.
+  if (/^node:[a-z]/i.test(value)) return false
+  // CLI flags: --dry-run, --staged, --max-turns, etc.
+  if (/^--/.test(value)) return false
+  // Config filenames: package.json, tsconfig.json, config.yml, .deep-slop-quality.mdc, etc.
+  if (/^\w[\w-]*\.(json|yml|yaml|toml|txt|mdc|md|lock|json5)$/i.test(value)) return false
+  // Template expressions in string literals: "${source}", "${imp.source}"
+  if (value.includes('${')) return false
+  // snake_case or kebab-case identifiers (AST node types, engine names, rule IDs, package names)
+  // catch_clause, import_statement, ast-slop, dead-flow, bare-except, web-tree-sitter
+  if (/^[a-z][a-z0-9_-]{1,25}$/i.test(value)) return false
+  // Natural language descriptions/messages (CLI .description() strings, diagnostic messages)
+  // These contain spaces and are > 20 chars — not worth extracting as constants
+  if (value.includes(' ') && value.length > 20) return false
+  // Tool name prefix: deep-slop scan, deep-slop-quality
+  if (/^deep-slop/i.test(value)) return false
   if (/\bimport\b|\bfrom\b|\brequire\b/.test(value)) return false
-  if (/^\.[a-z]{1,4}$/.test(value)) return false
+  if (/^\.[a-z]{1,4}$/i.test(value)) return false
   return true
 }
 
