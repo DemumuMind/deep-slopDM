@@ -68,7 +68,7 @@ function monitorPath(rootDir: string, id: string): string {
 }
 
 /** Save monitor state to disk */
-export function saveMonitorState(rootDir: string, state: MonitorState): void {
+function saveMonitorState(rootDir: string, state: MonitorState): void {
   const dir = monitorsDir(rootDir)
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
@@ -108,7 +108,7 @@ export function listMonitors(rootDir: string): MonitorState[] {
 }
 
 /** Remove a monitor file (stop) */
-export function removeMonitorState(rootDir: string, id: string): boolean {
+function removeMonitorState(rootDir: string, id: string): boolean {
   const filePath = monitorPath(rootDir, id)
   if (!existsSync(filePath)) return false
   rmSync(filePath)

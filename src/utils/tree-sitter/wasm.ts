@@ -1,4 +1,4 @@
-// ── WASM / Core Parser Initialisation ────────────────────────
+// ── WASM / Core Parser Initialisation ───────────────────────
 
 import type { Language as TSLanguage, Parser } from 'web-tree-sitter'
 
@@ -65,9 +65,4 @@ export async function initParser(): Promise<boolean> {
 /** Check if tree-sitter is available and initialized */
 export function isAvailable(): boolean {
   return initOk && parserInstance !== null
-}
-
-/** Alias for initDone check */
-export function isReady(): boolean {
-  return initOk
 }

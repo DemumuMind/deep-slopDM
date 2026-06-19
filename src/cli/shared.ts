@@ -20,7 +20,7 @@ export function truncateSnippet(text: string, maxLen: number): string {
 }
 
 /** Tier display badge */
-export function tierBadge(tier: string): string {
+function tierBadge(tier: string): string {
   const colors: Record<string, () => string> = {
     strict: () => styleBold('danger', 'STRICT'),
     standard: () => styleBold('danger', 'STD'),

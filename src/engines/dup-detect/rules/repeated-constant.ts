@@ -43,7 +43,7 @@ export function extractStringLiterals(line: string, lang: Language | null): { va
 }
 
 /** Check if a string looks like a meaningful constant (not a URL, path, import, etc.) */
-export function isConstantCandidate(value: string): boolean {
+function isConstantCandidate(value: string): boolean {
   if (/^https?:\/\//.test(value)) return false
   if (/^\/|^\.\.?\//.test(value)) return false
   if (/^\d+$/.test(value)) return false
@@ -57,7 +57,7 @@ export function isConstantCandidate(value: string): boolean {
 }
 
 /** Convert a string value to a SCREAMING_SNAKE_CASE constant name */
-export function toConstantName(value: string): string {
+function toConstantName(value: string): string {
   const words = value
     .replace(/[^a-zA-Z0-9\s]/g, ' ')
     .split(/\s+/)

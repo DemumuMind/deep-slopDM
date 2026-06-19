@@ -13,7 +13,7 @@ const SCORE_PADDING = { top: 10, right: 10, bottom: 24, left: 36 }
 const SEVERITY_PADDING = { top: 10, right: 10, bottom: 24, left: 46 }
 
 /** Build a smooth SVG path for a sparkline-style chart */
-export function scoreSparklinePath(records: HistoryRecord[], width: number, height: number): string {
+function scoreSparklinePath(records: HistoryRecord[], width: number, height: number): string {
   if (records.length === 0) return ''
   const chartW = width - SCORE_PADDING.left - SCORE_PADDING.right
   const chartH = height - SCORE_PADDING.top - SCORE_PADDING.bottom
@@ -39,7 +39,7 @@ export function scoreSparklinePath(records: HistoryRecord[], width: number, heig
 }
 
 /** Build a stacked area SVG for severity counts over time */
-export function severityStackedPath(records: HistoryRecord[], width: number, height: number): string {
+function severityStackedPath(records: HistoryRecord[], width: number, height: number): string {
   if (records.length === 0) return ''
   const chartW = width - SEVERITY_PADDING.left - SEVERITY_PADDING.right
   const chartH = height - SEVERITY_PADDING.top - SEVERITY_PADDING.bottom

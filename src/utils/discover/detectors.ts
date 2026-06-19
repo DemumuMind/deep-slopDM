@@ -1,8 +1,12 @@
-import { readdir, readFile } from 'node:fs/promises'
+import { readdir, readFile, access } from 'node:fs/promises'
 import { join, extname } from 'node:path'
-import { existsSync } from 'node:fs'
 import type { Language, Framework } from '../../types/index.js'
 import { EXT_MAP, walkDir } from './helpers.js'
+
+/** Async file existence check */
+async function exists(path: string): Promise<boolean> {
+  try { await access(path); return true } catch { return false }
+}
 
 /** Detect languages from file extensions in the project */
 export async function detectLanguages(rootDir: string): Promise<Language[]> {
@@ -71,10 +75,10 @@ export async function detectPackageManager(
   rootDir: string,
 ): Promise<'npm' | 'pnpm' | 'yarn' | 'bun' | null> {
   // Check for lock files first (most reliable)
-  if (existsSync(join(rootDir, 'pnpm-lock.yaml'))) return 'pnpm'
-  if (existsSync(join(rootDir, 'bun.lockb')) || existsSync(join(rootDir, 'bun.lock'))) return 'bun'
-  if (existsSync(join(rootDir, 'yarn.lock'))) return 'yarn'
-  if (existsSync(join(rootDir, 'package-lock.json'))) return 'npm'
+  if (await exists(join(rootDir, 'pnpm-lock.yaml'))) return 'pnpm'
+  if (await exists(join(rootDir, 'bun.lockb')) || await exists(join(rootDir, 'bun.lock'))) return 'bun'
+  if (await exists(join(rootDir, 'yarn.lock'))) return 'yarn'
+  if (await exists(join(rootDir, 'package-lock.json'))) return 'npm'
 
   // Check packageManager field in package.json
   try {
@@ -114,18 +118,18 @@ export async function detectInstalledLinters(rootDir: string): Promise<string[]>
   // Check for ESLint config files
   const eslintConfigs = ['.eslintrc.js', '.eslintrc.cjs', '.eslintrc.json', '.eslintrc.yml', '.eslintrc']
   for (const cfg of eslintConfigs) {
-    if (existsSync(join(rootDir, cfg))) {
+    if (await exists(join(rootDir, cfg))) {
       if (!linters.includes('eslint')) linters.push('eslint')
       break
     }
   }
   // Check for flat config
-  if (existsSync(join(rootDir, 'eslint.config.js')) || existsSync(join(rootDir, 'eslint.config.mjs'))) {
+  if (await exists(join(rootDir, 'eslint.config.js')) || await exists(join(rootDir, 'eslint.config.mjs'))) {
     if (!linters.includes('eslint')) linters.push('eslint')
   }
 
   // Check for Biome config
-  if (existsSync(join(rootDir, 'biome.json'))) {
+  if (await exists(join(rootDir, 'biome.json'))) {
     if (!linters.includes('biome')) linters.push('biome')
   }
 
@@ -150,7 +154,7 @@ export async function detectInstalledLinters(rootDir: string): Promise<string[]>
   } catch { /* no pyproject.toml */ }
 
   // Check Go linters
-  if (existsSync(join(rootDir, 'go.mod'))) {
+  if (await exists(join(rootDir, 'go.mod'))) {
     try {
       const { execSync } = await import('node:child_process')
       execSync('which golangci-lint', { stdio: 'pipe', timeout: 3000 })
@@ -159,7 +163,7 @@ export async function detectInstalledLinters(rootDir: string): Promise<string[]>
   }
 
   // Check Rust linters
-  if (existsSync(join(rootDir, 'Cargo.toml'))) {
+  if (await exists(join(rootDir, 'Cargo.toml'))) {
     try {
       const { execSync } = await import('node:child_process')
       execSync('which clippy', { stdio: 'pipe', timeout: 3000 })
@@ -168,7 +172,7 @@ export async function detectInstalledLinters(rootDir: string): Promise<string[]>
   }
 
   // Check for .golangci.yml / .golangci.yaml
-  if (existsSync(join(rootDir, '.golangci.yml')) || existsSync(join(rootDir, '.golangci.yaml'))) {
+  if (await exists(join(rootDir, '.golangci.yml')) || await exists(join(rootDir, '.golangci.yaml'))) {
     if (!linters.includes('golangci-lint')) linters.push('golangci-lint')
   }
 
@@ -209,7 +213,7 @@ export async function detectTestFramework(rootDir: string): Promise<string[]> {
     { file: 'cypress.config.js', name: 'cypress' },
   ]
   for (const cfg of testConfigs) {
-    if (existsSync(join(rootDir, cfg.file))) {
+    if (await exists(join(rootDir, cfg.file))) {
       if (!frameworks.includes(cfg.name)) frameworks.push(cfg.name)
     }
   }
@@ -231,12 +235,12 @@ export async function detectTestFramework(rootDir: string): Promise<string[]> {
   } catch { /* no pyproject.toml */ }
 
   // Check Go test framework
-  if (existsSync(join(rootDir, 'go.mod'))) {
+  if (await exists(join(rootDir, 'go.mod'))) {
     frameworks.push('go-test')
   }
 
   // Check Rust test framework
-  if (existsSync(join(rootDir, 'Cargo.toml'))) {
+  if (await exists(join(rootDir, 'Cargo.toml'))) {
     frameworks.push('cargo-test')
   }
 
@@ -248,47 +252,47 @@ export async function detectCI(rootDir: string): Promise<string[]> {
   const systems: string[] = []
 
   // GitHub Actions
-  if (existsSync(join(rootDir, '.github', 'workflows'))) {
+  if (await exists(join(rootDir, '.github', 'workflows'))) {
     systems.push('github-actions')
   }
 
   // GitLab CI
-  if (existsSync(join(rootDir, '.gitlab-ci.yml'))) {
+  if (await exists(join(rootDir, '.gitlab-ci.yml'))) {
     systems.push('gitlab-ci')
   }
 
   // Jenkins
-  if (existsSync(join(rootDir, 'Jenkinsfile'))) {
+  if (await exists(join(rootDir, 'Jenkinsfile'))) {
     systems.push('jenkins')
   }
 
   // CircleCI
-  if (existsSync(join(rootDir, '.circleci', 'config.yml'))) {
+  if (await exists(join(rootDir, '.circleci', 'config.yml'))) {
     systems.push('circleci')
   }
 
   // Travis CI
-  if (existsSync(join(rootDir, '.travis.yml'))) {
+  if (await exists(join(rootDir, '.travis.yml'))) {
     systems.push('travis-ci')
   }
 
   // Azure Pipelines
-  if (existsSync(join(rootDir, 'azure-pipelines.yml')) || existsSync(join(rootDir, '.azure-pipelines.yml'))) {
+  if (await exists(join(rootDir, 'azure-pipelines.yml')) || await exists(join(rootDir, '.azure-pipelines.yml'))) {
     systems.push('azure-pipelines')
   }
 
   // Bitbucket Pipelines
-  if (existsSync(join(rootDir, 'bitbucket-pipelines.yml'))) {
+  if (await exists(join(rootDir, 'bitbucket-pipelines.yml'))) {
     systems.push('bitbucket-pipelines')
   }
 
   // Buildkite
-  if (existsSync(join(rootDir, '.buildkite', 'pipeline.yml'))) {
+  if (await exists(join(rootDir, '.buildkite', 'pipeline.yml'))) {
     systems.push('buildkite')
   }
 
   // Drone CI
-  if (existsSync(join(rootDir, '.drone.yml'))) {
+  if (await exists(join(rootDir, '.drone.yml'))) {
     systems.push('drone')
   }
 
@@ -296,7 +300,7 @@ export async function detectCI(rootDir: string): Promise<string[]> {
   if (systems.length > 0) {
     try {
       const ghWorkflows = join(rootDir, '.github', 'workflows')
-      if (existsSync(ghWorkflows)) {
+      if (await exists(ghWorkflows)) {
         const entries = await readdir(ghWorkflows)
         for (const entry of entries) {
           try {

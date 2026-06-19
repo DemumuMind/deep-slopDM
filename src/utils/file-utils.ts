@@ -30,11 +30,6 @@ export function toLines(content: string): { num: number; text: string }[] {
   return content.split("\n").map((text, i) => ({ num: i + 1, text }));
 }
 
-/** Get cached line map for a file */
-export async function toLinesForFile(filePath: string): Promise<{ num: number; text: string }[]> {
-  return toLinesCached(filePath);
-}
-
 /** Find all import statements in a file (regex-based, for quick scan) */
 export function extractImports(content: string, language: string): ImportInfo[] {
   const imports: ImportInfo[] = [];

@@ -3,8 +3,17 @@
 
 import { execSync } from 'node:child_process'
 import { join, basename, dirname, relative } from 'node:path'
-import { cpSync, mkdirSync, existsSync, rmSync, readdirSync, statSync } from 'node:fs'
+import { access, cp, rm, mkdir, readdir, stat } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Create a temporary git worktree for isolated agent repair.
@@ -41,8 +50,8 @@ export async function createWorktree(
     }
 
     try {
-      if (existsSync(worktreeDir)) {
-        rmSync(worktreeDir, { recursive: true, force: true })
+      if (await exists(worktreeDir)) {
+        await rm(worktreeDir, { recursive: true, force: true })
       }
     } catch {
       // Cleanup failure is non-critical
@@ -83,15 +92,15 @@ export async function applyWorktreeDiff(
       const src = join(worktreeDir, relPath)
       const dest = join(rootDir, relPath)
 
-      if (existsSync(src)) {
+      if (await exists(src)) {
         // Ensure destination directory exists
         const destDir = dirname(dest)
-        if (!existsSync(destDir)) {
-          mkdirSync(destDir, { recursive: true })
+        if (!(await exists(destDir))) {
+          await mkdir(destDir, { recursive: true })
         }
 
         // Copy file (preserves content)
-        cpSync(src, dest, { force: true })
+        await cp(src, dest, { force: true })
       }
     }
   } catch (err) {
@@ -142,8 +151,8 @@ export async function cleanupWorktree(
   } catch {
     // Force-remove directory if git worktree remove fails
     try {
-      if (existsSync(worktreeDir)) {
-        rmSync(worktreeDir, { recursive: true, force: true })
+      if (await exists(worktreeDir)) {
+        await rm(worktreeDir, { recursive: true, force: true })
       }
     } catch {
       // Directory cleanup failure is non-critical

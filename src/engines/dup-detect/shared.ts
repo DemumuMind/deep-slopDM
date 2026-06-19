@@ -124,7 +124,7 @@ export function normalizeLine(line: string, lang: Language | null): string {
 }
 
 /** Normalize a block of lines into a single string */
-export function normalizeBlock(lines: string[], lang: Language | null): string {
+function normalizeBlock(lines: string[], lang: Language | null): string {
   return lines
     .map((l) => normalizeLine(l, lang))
     .filter((l) => l.length > 0)
@@ -132,7 +132,7 @@ export function normalizeBlock(lines: string[], lang: Language | null): string {
 }
 
 /** Tokenize a line into meaningful tokens (identifiers, operators, literals) */
-export function tokenizeLine(line: string): string[] {
+function tokenizeLine(line: string): string[] {
   return line
     .split(/[\s{}()\[\];,.<>:=+\-*/&|!~^%]+/)
     .filter((t) => t.length > 0)

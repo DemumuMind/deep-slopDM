@@ -6,7 +6,7 @@ import { findNodesOfType, findNodesOfTypes } from './query-execution.js'
 /**
  * Find all Python function definitions in an AST.
  */
-export function findPythonFunctions(root: ASTNode): {
+function findPythonFunctions(root: ASTNode): {
   name: string
   decorators: string[]
   parameters: string[]
@@ -128,7 +128,7 @@ export function findPythonImports(root: ASTNode): {
  * Check if a Python function body is essentially empty
  * (only contains pass, ..., or docstrings).
  */
-export function isPythonFunctionStub(funcInfo: {
+function isPythonFunctionStub(funcInfo: {
   text: string
 }): boolean {
   const text = funcInfo.text

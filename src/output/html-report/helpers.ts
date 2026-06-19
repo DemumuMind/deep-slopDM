@@ -37,7 +37,7 @@ export function escapeHtml(value: string): string {
 }
 
 /** Format a number of milliseconds as human-readable duration */
-export function formatDuration(ms: number): string {
+function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`
   const seconds = Math.round(ms / 1000)
   if (seconds < 60) return `${seconds}s`
@@ -81,7 +81,7 @@ export function deltaLabel(current: number, previous: number | null): string {
 }
 
 /** Build a <tbody> of recent scans */
-export function historyTableRows(records: HistoryRecord[]): string {
+function historyTableRows(records: HistoryRecord[]): string {
   const reversed = [...records].reverse()
   return reversed
     .map((r) => {
@@ -102,7 +102,7 @@ export function historyTableRows(records: HistoryRecord[]): string {
 }
 
 /** Build engine usage / performance table rows */
-export function engineTableRows(records: HistoryRecord[]): string {
+function engineTableRows(records: HistoryRecord[]): string {
   const engineStats = new Map<string, { count: number, totalDuration: number, totalIssues: number }>()
   for (const r of records) {
     const totalIssues = r.errors + r.warnings + r.info + r.suggestions

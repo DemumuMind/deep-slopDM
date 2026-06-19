@@ -1,37 +1,8 @@
-import { existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { Command } from 'commander'
 import yaml from 'js-yaml'
-import { loadConfig } from '../../config/index.js'
+import { loadConfig, findConfigFile } from '../../config/index.js'
 import { style } from '../../output/theme.js'
-
-/** Config directory name */
-const CONFIG_DIR = '.deep-slop'
-
-/** Config file names to search for, in priority order */
-const CONFIG_FILES = ['config.yml', 'config.yaml', 'config.json'] as const
-
-/**
- * Search upward from `startDir` for a .deep-slop/ directory
- * containing config.yml, config.yaml, or config.json.
- * Returns the absolute path to the first config file found,
- * or `undefined` if none exists up to the filesystem root.
- */
-function findConfigPath(startDir: string): string | undefined {
-  let dir = startDir
-  let prev = ''
-  while (dir !== prev) {
-    for (const name of CONFIG_FILES) {
-      const candidate = join(dir, CONFIG_DIR, name)
-      if (existsSync(candidate)) {
-        return candidate
-      }
-    }
-    prev = dir
-    dir = dirname(dir)
-  }
-  return undefined
-}
 
 /** Read the effective --json option from the parent command */
 function wantsJson(command: Command): boolean {
@@ -49,7 +20,7 @@ function serializeConfig(config: Record<string, unknown>, asJson: boolean): stri
 /** Print the resolved config to stdout */
 async function showConfig(rootDir: string, asJson: boolean): Promise<void> {
   const config = loadConfig(rootDir) as unknown as Record<string, unknown>
-  const configPath = findConfigPath(rootDir)
+  const configPath = findConfigFile(rootDir)
 
   process.stderr.write(`\n  deep-slop config: ${rootDir}\n`)
   if (configPath) {
@@ -63,7 +34,7 @@ async function showConfig(rootDir: string, asJson: boolean): Promise<void> {
 
 /** Validate the resolved config and report the result */
 async function validateConfig(rootDir: string, asJson: boolean): Promise<void> {
-  const configPath = findConfigPath(rootDir)
+  const configPath = findConfigFile(rootDir)
   const startTime = Date.now()
 
   try {
@@ -107,7 +78,7 @@ async function validateConfig(rootDir: string, asJson: boolean): Promise<void> {
 
 /** Print the discovered config file path */
 async function showConfigPath(rootDir: string): Promise<void> {
-  const configPath = findConfigPath(rootDir)
+  const configPath = findConfigFile(rootDir)
 
   if (configPath) {
     console.log(configPath)

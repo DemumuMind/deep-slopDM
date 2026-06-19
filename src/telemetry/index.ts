@@ -7,7 +7,7 @@ import { EVENTS } from './events.js'
 const TELEMETRY_ENDPOINT = 'https://telemetry.deep-slop.dev/v1/track'
 
 /** Check if telemetry is enabled via env or config */
-export function isTelemetryEnabled(): boolean {
+function isTelemetryEnabled(): boolean {
   // Explicit opt-in required
   if (process.env.DEEP_SLOP_TELEMETRY === '1') return true
 
@@ -57,35 +57,6 @@ function buildPayload(
     node: process.version,
     timestamp: new Date().toISOString(),
     ...sanitizeProperties(properties),
-  }
-}
-
-/**
- * Track a telemetry event (fire-and-forget).
- *
- * No PII, no file paths — just: version, OS, command, engine counts, score bucket.
- * Respects DO_NOT_TRACK=1 and requires explicit opt-in.
- */
-export function trackEvent(
-  name: string,
-  properties?: Record<string, unknown>,
-): void {
-  if (!isTelemetryEnabled()) return
-
-  const payload = buildPayload(name, properties)
-
-  // Fire-and-forget POST — never block the CLI
-  try {
-    fetch(TELEMETRY_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(3000),
-    }).catch(() => {
-      // Silently ignore telemetry failures
-    })
-  } catch {
-    // Silently ignore
   }
 }
 

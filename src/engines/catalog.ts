@@ -96,7 +96,7 @@ const TIER_SEVERITY: Record<ImpactTier, Severity> = {
  * Build the full catalog of all rules with metadata.
  * Merges data from rule-impact.ts, rule-labels.ts, and fixable set.
  */
-export function catalogRuleIds(): RuleInfo[] {
+function catalogRuleIds(): RuleInfo[] {
   // Collect all known rule IDs from both sources (labels + impact map)
   const allIds = new Set<string>([
     ...knownRuleIds(),

@@ -116,7 +116,7 @@ function extractGoImports(content: string): ExtractedImport[] {
 }
 
 /** Detect language from file extension and extract imports */
-export function extractImportsFromContent(content: string, filePath: string): ExtractedImport[] {
+function extractImportsFromContent(content: string, filePath: string): ExtractedImport[] {
   const ext = filePath.split('.').pop() ?? ''
 
   if (['ts', 'tsx', 'js', 'jsx', 'mjs', 'cjs'].includes(ext)) {
@@ -174,7 +174,7 @@ function buildDiag(opts: {
  * The `forbid` field is a glob that matches against import sources.
  * The `match` field is a glob that selects which files to check.
  */
-export function applyForbidImport(
+function applyForbidImport(
   rule: ArchRule,
   content: string,
   filePath: string,
@@ -213,7 +213,7 @@ export function applyForbidImport(
  * The `forbid` field specifies what is being imported (glob on import source).
  * The `from` field specifies the source path pattern that triggers the violation.
  */
-export function applyForbidImportFromPath(
+function applyForbidImportFromPath(
   rule: ArchRule,
   content: string,
   filePath: string,
@@ -255,7 +255,7 @@ export function applyForbidImportFromPath(
  * The `match` field is a glob that selects which files to check.
  * The `pattern` field is a regex that must be present in the file content.
  */
-export function applyRequirePattern(
+function applyRequirePattern(
   rule: ArchRule,
   content: string,
   filePath: string,

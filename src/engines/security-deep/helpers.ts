@@ -171,10 +171,3 @@ export function isTestFile(filePath: string): boolean {
 export function containsSQLKeyword(text: string): boolean {
   return /\b(?:SELECT|INSERT|UPDATE|DELETE|DROP)\b/i.test(text);
 }
-
-// ── Helper: redact a secret for display ─────────────────
-
-export function redactSecret(secret: string): string {
-  if (secret.length <= 4) return "****";
-  return secret.slice(0, 4) + "***";
-}

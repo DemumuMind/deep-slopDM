@@ -70,12 +70,3 @@ export function maskSecrets(text: string): string {
   return result
 }
 
-/** Count how many secrets were redacted */
-export function countMaskedSecrets(original: string, masked: string): number {
-  let count = 0
-  const redactedRe = /\[REDACTED[^\]]*\]/g
-  const matches = masked.match(redactedRe)
-  if (matches) count = matches.length
-  return count
-}
-

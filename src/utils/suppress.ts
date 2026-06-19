@@ -26,7 +26,7 @@ export interface SuppressMap {
 }
 
 /** Parse suppress directives from source content */
-export function parseSuppressDirectives(content: string): SuppressEntry[] {
+function parseSuppressDirectives(content: string): SuppressEntry[] {
   const entries: SuppressEntry[] = []
   const lines = content.split('\n')
 
@@ -176,7 +176,7 @@ function parseRuleList(rulesStr: string | undefined): Set<string> {
 }
 
 /** Build a suppress check function from parsed directives */
-export function buildSuppressChecker(
+function buildSuppressChecker(
   entries: SuppressEntry[],
 ): (line: number, rule: string) => boolean {
   // Build block ranges
@@ -233,7 +233,7 @@ export function buildSuppressChecker(
  * Build a full suppress map for a file's content.
  * Returns both the entries and a checker function.
  */
-export function buildSuppressMap(content: string): SuppressMap {
+function buildSuppressMap(content: string): SuppressMap {
   const entries = parseSuppressDirectives(content)
   const isSuppressed = buildSuppressChecker(entries)
   return { entries, isSuppressed }

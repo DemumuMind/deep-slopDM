@@ -18,7 +18,7 @@ import { EXPECTED_COMMAND_FRAGMENT, checkResult, type SentinelIssue, type Sentin
  * - Command string contains expected fragment
  * - Command has not drifted from the expected template
  */
-export function checkClaudeHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+function checkClaudeHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const globalPath = join(homedir(), '.claude', 'settings.json')
   const projectPath = join(rootDir, '.claude', 'settings.json')
@@ -140,7 +140,7 @@ export function checkClaudeHook(rootDir: string, autoRepair: boolean): SentinelC
  * - File contains expected deep-slop content
  * - File has not been truncated or emptied
  */
-export function checkCursorHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+function checkCursorHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const rulePath = join(rootDir, '.cursor', 'rules', 'deep-slop-quality.mdc')
 
@@ -225,7 +225,7 @@ export function checkCursorHook(rootDir: string, autoRepair: boolean): SentinelC
  * - postEditCommand contains deep-slop
  * - Command has not drifted
  */
-export function checkGeminiHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+function checkGeminiHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const configPath = join(rootDir, '.gemini', 'config.json')
 
@@ -302,7 +302,7 @@ export function checkGeminiHook(rootDir: string, autoRepair: boolean): SentinelC
  * - Contains deep-slop references
  * - References have not been corrupted
  */
-export function checkClineHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
+function checkClineHook(rootDir: string, autoRepair: boolean): SentinelCheckResult {
   const issues: SentinelIssue[] = []
   const rulePath = join(rootDir, '.clinerules')
 

@@ -2,11 +2,20 @@
 // Runs deep-slop scan repeatedly and reports per-engine timing statistics.
 
 import { resolve, join } from 'node:path'
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs'
+import { access, readdir, stat, readFile, writeFile, mkdir } from 'node:fs/promises'
 import { runScan } from '../engines/orchestrator.js'
 import { detectLanguages, detectFrameworks, collectFiles } from '../utils/discover.js'
 import { DEFAULT_CONFIG } from '../types/index.js'
 import type { DeepSlopConfig, EngineName } from '../types/index.js'
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Benchmark timing for a single engine */
 export interface EngineBenchmark {
@@ -108,33 +117,47 @@ export async function runBenchmark(options: BenchmarkOptions = {}): Promise<{ re
     score: finalScore,
   }
 
-  const previous = options.compare ? loadPreviousBenchmark(outputDir) : null
+  const previous = options.compare ? await loadPreviousBenchmark(outputDir) : null
   const summary = formatSummary(result, previous)
 
-  if (!existsSync(outputDir)) {
-    mkdirSync(outputDir, { recursive: true })
+  if (!(await exists(outputDir))) {
+    await mkdir(outputDir, { recursive: true })
   }
 
   const filename = `benchmark-${new Date().toISOString().replace(/[:.]/g, '-')}.json`
-  writeFileSync(join(outputDir, filename), JSON.stringify(result, null, 2), 'utf8')
+  await writeFile(join(outputDir, filename), JSON.stringify(result, null, 2), 'utf8')
 
   return { result, summary, previous }
 }
 
 /** Find the most recent benchmark JSON file in the output directory */
-function loadPreviousBenchmark(outputDir: string): BenchmarkResult | null {
-  if (!existsSync(outputDir)) return null
+async function loadPreviousBenchmark(outputDir: string): Promise<BenchmarkResult | null> {
+  if (!(await exists(outputDir))) return null
 
-  const files = readdirSync(outputDir)
+  const entries = await readdir(outputDir)
+  const files = entries
     .filter((f) => f.startsWith('benchmark-') && f.endsWith('.json'))
     .map((f) => join(outputDir, f))
-    .filter((p) => existsSync(p))
-    .sort((a, b) => statSync(b).mtime.getTime() - statSync(a).mtime.getTime())
 
-  if (files.length === 0) return null
+  const stats = await Promise.all(
+    files.map(async (p) => {
+      try {
+        const s = await stat(p)
+        return { path: p, mtime: s.mtime.getTime() }
+      } catch {
+        return null
+      }
+    })
+  )
+
+  const valid = stats
+    .filter((x): x is { path: string; mtime: number } => x !== null)
+    .sort((a, b) => b.mtime - a.mtime)
+
+  if (valid.length === 0) return null
 
   try {
-    const content = readFileSync(files[0], 'utf8')
+    const content = await readFile(valid[0].path, 'utf8')
     return JSON.parse(content) as BenchmarkResult
   } catch {
     return null

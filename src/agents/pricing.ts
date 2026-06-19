@@ -21,25 +21,3 @@ export const TOKEN_PRICES: Record<string, { input: number; output: number }> = {
   antigravity: { input: 2.5, output: 10.0 },
 }
 
-/**
- * Estimate the cost of an agent repair session.
- *
- * @param provider - Provider name (must match a key in TOKEN_PRICES)
- * @param inputTokens - Number of input tokens used
- * @param outputTokens - Number of output tokens generated
- * @returns Estimated cost in USD
- */
-export function estimateCost(
-  provider: string,
-  inputTokens: number,
-  outputTokens: number,
-): number {
-  const prices = TOKEN_PRICES[provider]
-  if (!prices) return 0
-
-  const inputCost = (inputTokens / 1_000_000) * prices.input
-  const outputCost = (outputTokens / 1_000_000) * prices.output
-
-  return Math.round((inputCost + outputCost) * 100) / 100
-}
-

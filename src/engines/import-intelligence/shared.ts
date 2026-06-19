@@ -268,38 +268,6 @@ export function resolveAliasPath(
 
 // ── Deduplication ───────────────────────────────
 
-/** Merge regex-parsed and AST-parsed imports, preferring AST-confirmed */
-export function mergeImportSources(
-  regexImports: ParsedImport[],
-  astImports: ParsedImport[] | null,
-): ParsedImport[] {
-  if (!astImports) return regexImports
-
-  const seen = new Map<string, ParsedImport>()
-
-  for (const imp of regexImports) {
-    const key = `${imp.source}:${imp.line}`
-    seen.set(key, imp)
-  }
-
-  for (const imp of astImports) {
-    const key = `${imp.source}:${imp.line}`
-    const existing = seen.get(key)
-    if (existing) {
-      seen.set(key, {
-        ...existing,
-        symbols: imp.symbols.length > 0 ? imp.symbols : existing.symbols,
-        isTypeOnly: imp.isTypeOnly ?? existing.isTypeOnly,
-        viaAST: true,
-      })
-    } else {
-      seen.set(key, imp)
-    }
-  }
-
-  return [...seen.values()]
-}
-
 /** Deduplicate diagnostics: prefer AST-confirmed over regex-guessed */
 export function deduplicateDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
   const seen = new Map<string, Diagnostic>()

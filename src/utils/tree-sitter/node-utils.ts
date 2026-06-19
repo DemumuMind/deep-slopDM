@@ -1,25 +1,6 @@
 // ── Node Utilities ─────────────────────────────────────────────────────
 
-import type { ASTNode, ASTRange } from './types.js'
-
-/**
- * Get the text content of a node.
- */
-export function getNodeText(node: ASTNode): string {
-  return node.text
-}
-
-/**
- * Get the source range of a node (1-indexed lines).
- */
-export function getNodeRange(node: ASTNode): ASTRange {
-  return {
-    startRow: node.startRow + 1, // Convert 0-indexed to 1-indexed
-    startCol: node.startCol,
-    endRow: node.endRow + 1,
-    endCol: node.endCol,
-  }
-}
+import type { ASTNode } from './types.js'
 
 /**
  * Find the nearest ancestor of a node matching a type predicate.
@@ -58,26 +39,6 @@ export function isInsideFunction(node: ASTNode): boolean {
  */
 export function isInsideCatch(node: ASTNode): boolean {
   return findAncestor(node, (n) => n.type === 'catch_clause') !== null
-}
-
-/** Get next named sibling that is not a comment */
-export function nextNamedNonCommentSibling(node: ASTNode): ASTNode | null {
-  if (!node.parent) return null
-  const siblings = node.parent.children.filter(
-    (c) => c.type !== 'comment' && c.type !== '//' && c.type !== '/*',
-  )
-  const idx = siblings.indexOf(node)
-  return idx >= 0 && idx < siblings.length - 1 ? siblings[idx + 1] : null
-}
-
-/** Get previous named sibling that is not a comment */
-export function prevNamedNonCommentSibling(node: ASTNode): ASTNode | null {
-  if (!node.parent) return null
-  const siblings = node.parent.children.filter(
-    (c) => c.type !== 'comment' && c.type !== '//' && c.type !== '/*',
-  )
-  const idx = siblings.indexOf(node)
-  return idx > 0 ? siblings[idx - 1] : null
 }
 
 /** Check if a catch clause body is empty (only contains comments or whitespace) */
@@ -182,32 +143,4 @@ export function extractImportFromNode(node: ASTNode): {
   }
 
   return { source, symbols, line: node.startRow + 1, isTypeOnly }
-}
-
-/** Check if a node is in an HTML attribute context (JSX attribute value) */
-export function isHtmlAttributeContext(node: ASTNode): boolean {
-  const attr = findAncestor(node, (n) =>
-    n.type === 'jsx_attribute' || n.type === 'attribute',
-  )
-  return attr !== null
-}
-
-/** Check if a name is a destructured API binding (e.g., `const { data } = useSWR()`) */
-export function isDestructuredApiBinding(node: ASTNode): boolean {
-  const objPattern = findAncestor(node, (n) =>
-    n.type === 'object_pattern',
-  )
-  if (!objPattern) return false
-  const declarator = findAncestor(objPattern, (n) =>
-    n.type === 'variable_declarator',
-  )
-  if (!declarator) return false
-  const callExpr = declarator.children.find(
-    (c) => c.type === 'call_expression',
-  )
-  if (callExpr) {
-    const text = callExpr.text
-    return /^(useSWR|useQuery|useMutation|fetch|axios|prisma|db)\./.test(text)
-  }
-  return false
 }

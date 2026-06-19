@@ -1,34 +1,34 @@
-// ── Grammar Loading (per-language) ──────────────────────
+// ── Grammar Loading (per-language) ────────────────────
 
 import type { Language as TSLanguage } from 'web-tree-sitter'
 import { initParser, initOk } from './wasm.js'
 
-// ── Python grammar state ────────────────────────────────
+// ── Python grammar state ─────────────────────────
 let pyLang: TSLanguage | null = null
 let pyInitDone = false
 let pyInitOk = false
 
-// ── Go grammar state ────────────────────────────────────
+// ── Go grammar state ───────────────────────────
 let goLang: TSLanguage | null = null
 let goInitDone = false
 let goInitOk = false
 
-// ── Rust grammar state ──────────────────────────────────
+// ── Rust grammar state ─────────────────────────
 let rustLang: TSLanguage | null = null
 let rustInitDone = false
 let rustInitOk = false
 
-// ── PHP grammar state ────────────────────────────────────
+// ── PHP grammar state ──────────────────────────
 let phpLang: TSLanguage | null = null
 let phpInitDone = false
 let phpInitOk = false
 
-// ── C# grammar state ────────────────────────────────────
+// ── C# grammar state ─────────────────────────
 let csharpLang: TSLanguage | null = null
 let csharpInitDone = false
 let csharpInitOk = false
 
-// ── Swift grammar state ─────────────────────────────────
+// ── Swift grammar state ────────────────────────
 let swiftLang: TSLanguage | null = null
 let swiftInitDone = false
 let swiftInitOk = false
@@ -228,31 +228,6 @@ export async function initSwiftParser(): Promise<boolean> {
 /** Check if Python tree-sitter grammar is available */
 export function isPythonAvailable(): boolean {
   return pyInitOk && pyLang !== null
-}
-
-/** Check if Go tree-sitter grammar is available */
-export function isGoAvailable(): boolean {
-  return goInitOk && goLang !== null
-}
-
-/** Check if Rust tree-sitter grammar is available */
-export function isRustAvailable(): boolean {
-  return rustInitOk && rustLang !== null
-}
-
-/** Check if PHP tree-sitter grammar is available */
-export function isPhpAvailable(): boolean {
-  return phpInitOk && phpLang !== null
-}
-
-/** Check if C# tree-sitter grammar is available */
-export function isCsharpAvailable(): boolean {
-  return csharpInitOk && csharpLang !== null
-}
-
-/** Check if Swift tree-sitter grammar is available */
-export function isSwiftAvailable(): boolean {
-  return swiftInitOk && swiftLang !== null
 }
 
 export {

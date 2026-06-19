@@ -218,17 +218,3 @@ results.push(...users)`,
   },
 ]
 
-/** Get pattern docs by rule name */
-export function getPatternForRule(rule: string): PatternDoc | undefined {
-  return PATTERN_DOCS.find((p) => p.rule === rule)
-}
-
-/** Get all pattern docs for a category */
-export function getPatternsByCategory(category: string): PatternDoc[] {
-  return PATTERN_DOCS.filter((p) => p.category === category)
-}
-
-/** Get all unique categories */
-export function getCategories(): string[] {
-  return [...new Set(PATTERN_DOCS.map((p) => p.category))]
-}

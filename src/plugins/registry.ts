@@ -1,11 +1,19 @@
-// ── Plugin Registry ────────────────────────────────────
+// ── Plugin Registry ─────────────────────────────────────
 // Manages installed plugins: discovery, registration, and lookup.
 
 import type { Engine } from '../types/index.js'
 import { loadPlugin, loadPlugins } from './loader.js'
 import { join } from 'node:path'
-import { readdir } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { access, readdir } from 'node:fs/promises'
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Plugin metadata stored in the registry */
 export interface PluginEntry {
@@ -110,7 +118,7 @@ export async function discoverAndLoadPlugins(rootDir: string): Promise<Engine[]>
 
   const pluginDir = getPluginDir(rootDir)
 
-  if (!existsSync(pluginDir)) {
+  if (!(await exists(pluginDir))) {
     pluginRegistry.setLoaded(true)
     return []
   }
@@ -159,4 +167,3 @@ export async function discoverAndLoadPlugins(rootDir: string): Promise<Engine[]>
     return []
   }
 }
-

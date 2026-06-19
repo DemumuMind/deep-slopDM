@@ -210,15 +210,11 @@ export function isInsideFunction(node: ASTNode): boolean {
   return findAncestor(node, (n) => n.type === 'function_definition') !== null
 }
 
-export function isInsideClass(node: ASTNode): boolean {
-  return findAncestor(node, (n) => n.type === 'class_definition') !== null
-}
-
 export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-export function getIndent(line: string): string {
+function getIndent(line: string): string {
   const match = line.match(/^(\s*)/)
   return match ? match[1] : ''
 }
@@ -304,7 +300,7 @@ export function applyFixes(content: string, diagnostics: Diagnostic[]): string {
   return lines.join('\n')
 }
 
-export function convertFstringLine(line: string): string {
+function convertFstringLine(line: string): string {
   const exprs: string[] = []
   let converted = line.replace(/f(['"])([\s\S]*?)\1/g, (_match, quote, inner) => {
     const text = inner.replace(/\{([^}]+)\}/g, (_m: string, expr: string) => {

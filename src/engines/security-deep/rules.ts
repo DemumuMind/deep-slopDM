@@ -6,9 +6,7 @@ import {
   makeDiagnostic,
   checkCommentState,
   isInsideStringOrRegex,
-  isTestFile,
   containsSQLKeyword,
-  redactSecret,
 } from "./helpers.js";
 
 // ── Rule 1: eval-usage (error) ────────────────────────
@@ -474,127 +472,6 @@ export function detectSSRF(
               confidence: 0.55,
               reason: "Interpolated URLs may contain user input pointing to internal services (SSRF).",
             },
-          }
-        )
-      );
-    }
-  }
-
-  return diagnostics;
-}
-
-// ── Rule 7: hardcoded-secret (error) ────────────────
-
-export function detectHardcodedSecret(
-  filePath: string,
-  lines: { num: number; text: string }[]
-): Diagnostic[] {
-  const diagnostics: Diagnostic[] = [];
-
-  // Skip test files entirely
-  if (isTestFile(filePath)) return diagnostics;
-
-  // Secret patterns
-  const apiKeyRe = /['"`](sk-[A-Za-z0-9_-]{10,}|key-[A-Za-z0-9_-]{10,}|AIza[A-Za-z0-9_-]{20,})['"`]/g;
-  const passwordRe = /(?:password|pwd|passwd|pass)\s*(?:=|:)\s*['"`]([^'"`]{4,})['"`]/gi;
-  const tokenRe = /['"`](Bearer\s+[A-Za-z0-9_.-]{10,}|ghpt_[A-Za-z0-9_-]{10,})['"`]/g;
-  const awsKeyRe = /['"`](AKIA[A-Z0-9]{12,})['"`]/g;
-
-  let inBlockComment = false;
-
-  for (const { num, text } of lines) {
-    const { skip, inBlockComment: newBlockState } = checkCommentState(text, inBlockComment);
-    inBlockComment = newBlockState;
-    if (skip) continue;
-
-    let match: RegExpExecArray | null;
-    apiKeyRe.lastIndex = 0;
-    while ((match = apiKeyRe.exec(text)) !== null) {
-      const secret = match[1];
-      const col = match.index + 1;
-      diagnostics.push(
-        makeDiagnostic(filePath, "security-deep/hardcoded-secret", "error",
-          `Hardcoded API key detected: ${redactSecret(secret)}`,
-          "Move secrets to environment variables or a secrets manager. Never commit secrets to source control.",
-          num, col,
-          {
-            fixable: true,
-            suggestion: {
-              type: "replace",
-              text: `process.env.SECRET_KEY`,
-              confidence: 0.9,
-              reason: "Hardcoded secrets in source code are exposed in version control; use environment variables.",
-            },
-            detail: { secretPrefix: secret.slice(0, 4), secretType: "api-key" },
-          }
-        )
-      );
-    }
-
-    passwordRe.lastIndex = 0;
-    while ((match = passwordRe.exec(text)) !== null) {
-      const secret = match[1];
-      const col = match.index + 1;
-      diagnostics.push(
-        makeDiagnostic(filePath, "security-deep/hardcoded-secret", "error",
-          `Hardcoded password detected: ${redactSecret(secret)}`,
-          "Move passwords to environment variables or a secrets manager. Never commit credentials to source control.",
-          num, col,
-          {
-            fixable: true,
-            suggestion: {
-              type: "replace",
-              text: `process.env.PASSWORD`,
-              confidence: 0.9,
-              reason: "Hardcoded passwords in source code are exposed in version control; use environment variables.",
-            },
-            detail: { secretPrefix: secret.slice(0, 4), secretType: "password" },
-          }
-        )
-      );
-    }
-
-    tokenRe.lastIndex = 0;
-    while ((match = tokenRe.exec(text)) !== null) {
-      const secret = match[1];
-      const col = match.index + 1;
-      diagnostics.push(
-        makeDiagnostic(filePath, "security-deep/hardcoded-secret", "error",
-          `Hardcoded token detected: ${redactSecret(secret)}`,
-          "Move tokens to environment variables or a secrets manager. Never commit tokens to source control.",
-          num, col,
-          {
-            fixable: true,
-            suggestion: {
-              type: "replace",
-              text: `process.env.AUTH_TOKEN`,
-              confidence: 0.9,
-              reason: "Hardcoded tokens in source code are exposed in version control; use environment variables.",
-            },
-            detail: { secretPrefix: secret.slice(0, 4), secretType: "token" },
-          }
-        )
-      );
-    }
-
-    awsKeyRe.lastIndex = 0;
-    while ((match = awsKeyRe.exec(text)) !== null) {
-      const secret = match[1];
-      const col = match.index + 1;
-      diagnostics.push(
-        makeDiagnostic(filePath, "security-deep/hardcoded-secret", "error",
-          `Hardcoded AWS access key detected: ${redactSecret(secret)}`,
-          "Move AWS credentials to environment variables, ~/.aws/credentials, or a secrets manager.",
-          num, col,
-          {
-            fixable: true,
-            suggestion: {
-              type: "replace",
-              text: `process.env.AWS_ACCESS_KEY_ID`,
-              confidence: 0.95,
-              reason: "AWS keys in source code are a critical leak risk; use IAM roles or env vars.",
-            },
-            detail: { secretPrefix: secret.slice(0, 4), secretType: "aws-key" },
           }
         )
       );

@@ -1,7 +1,7 @@
 // ── deep-slop doctor ───────────────────────────────────
 // Diagnose the project environment for deep-slop compatibility
 
-import { existsSync } from 'node:fs'
+import { access } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { execSync } from 'node:child_process'
 import { loadConfig, DEFAULT_CONFIG } from '../config/index.js'
@@ -9,6 +9,16 @@ import { initParser } from '../utils/tree-sitter/index.js'
 import { style, styleBold } from '../output/theme.js'
 import type { DeepSlopConfig } from '../config/schema.js'
 import type { EngineName } from '../types/index.js'
+import { ENGINE_REGISTRY } from '../engines/orchestrator.js'
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Engine module paths for dynamic import check */
 const ENGINE_MODULES: Record<EngineName, string> = {
@@ -34,8 +44,6 @@ const ENGINE_MODULES: Record<EngineName, string> = {
   'python-deep': '../engines/python-deep/index.js',
   'go-deep': '../engines/go-deep/index.js',
 }
-
-import { ENGINE_REGISTRY } from '../engines/orchestrator.js'
 
 /** ESLint config file candidates */
 const ESLINT_CONFIGS = [
@@ -166,14 +174,20 @@ export async function runDoctor(targetPath: string): Promise<void> {
 
   // ── 6. package.json exists ─────────────────────────────
   const pkgPath = join(rootDir, 'package.json')
-  if (existsSync(pkgPath)) {
+  if (await exists(pkgPath)) {
     checks.push(pass('package.json', 'found'))
   } else {
     checks.push(fail('package.json', 'not found — not a Node.js project?'))
   }
 
   // ── 7. ESLint config exists ────────────────────────────
-  const eslintFound = ESLINT_CONFIGS.some((f) => existsSync(join(rootDir, f)))
+  let eslintFound = false
+  for (const f of ESLINT_CONFIGS) {
+    if (await exists(join(rootDir, f))) {
+      eslintFound = true
+      break
+    }
+  }
   if (eslintFound) {
     checks.push(pass('ESLint config', 'found'))
   } else {
@@ -181,7 +195,13 @@ export async function runDoctor(targetPath: string): Promise<void> {
   }
 
   // ── 8. Prettier config exists ──────────────────────────
-  const prettierFound = PRETTIER_CONFIGS.some((f) => existsSync(join(rootDir, f)))
+  let prettierFound = false
+  for (const f of PRETTIER_CONFIGS) {
+    if (await exists(join(rootDir, f))) {
+      prettierFound = true
+      break
+    }
+  }
   if (prettierFound) {
     checks.push(pass('Prettier config', 'found'))
   } else {

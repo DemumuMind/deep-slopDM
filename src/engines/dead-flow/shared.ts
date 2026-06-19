@@ -1,7 +1,7 @@
 // ── Dead-Flow Shared Helpers ──────────────────────────────────────────
 // Common utilities and diagnostic factory used by all dead-flow rule detectors.
 
-import type { Diagnostic, Suggestion } from '../../types/index.js'
+import type { Diagnostic } from '../../types/index.js'
 import micromatch from 'micromatch'
 
 export const TS_JS_EXTENSIONS = new Set([
@@ -41,25 +41,5 @@ export function makeDiagnostic(
     fixable: true,
     help: '',
     ...overrides,
-  }
-}
-
-export function buildDeleteSuggestion(
-  line: number,
-  text: string,
-  reason: string,
-  confidence = 0.9,
-): Suggestion {
-  return {
-    type: 'delete',
-    text: '',
-    confidence,
-    reason,
-    range: {
-      startLine: line,
-      startCol: 1,
-      endLine: line,
-      endCol: text.length + 1,
-    },
   }
 }

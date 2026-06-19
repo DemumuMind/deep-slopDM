@@ -3,26 +3,36 @@
 // and saves the preference. resolveProvider picks which one to use.
 
 import { join } from 'node:path'
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { access, readFile, writeFile, mkdir } from 'node:fs/promises'
 import { AGENT_PROVIDERS, isAgentAvailable } from '../agents/providers.js'
 
 const CONFIG_DIR = '.deep-slop'
 const PROVIDER_FILE = 'provider'
 
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** Ensure .deep-slop directory exists */
-function ensureConfigDir(rootDir: string): string {
+async function ensureConfigDir(rootDir: string): Promise<string> {
   const dir = join(rootDir, CONFIG_DIR)
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
+  if (!(await exists(dir))) {
+    await mkdir(dir, { recursive: true })
   }
   return dir
 }
 
 /** Read the saved provider preference */
-function readProviderPreference(rootDir: string): string | null {
+async function readProviderPreference(rootDir: string): Promise<string | null> {
   const filePath = join(rootDir, CONFIG_DIR, PROVIDER_FILE)
   try {
-    return readFileSync(filePath, 'utf-8').trim() || null
+    const content = await readFile(filePath, 'utf-8')
+    return content.trim() || null
   } catch {
     return null
   }
@@ -61,9 +71,9 @@ export async function connectProvider(
   }
 
   // Save provider preference
-  ensureConfigDir(rootDir)
+  await ensureConfigDir(rootDir)
   const filePath = join(rootDir, CONFIG_DIR, PROVIDER_FILE)
-  writeFileSync(filePath, provider, 'utf-8')
+  await writeFile(filePath, provider, 'utf-8')
 
   return {
     success: true,
@@ -91,7 +101,7 @@ export async function resolveProvider(
 
   // 'auto' or no name: check saved preference first
   if (!name || name === 'auto') {
-    const saved = readProviderPreference(rootDir)
+    const saved = await readProviderPreference(rootDir)
     if (saved && saved !== 'auto') {
       const def = AGENT_PROVIDERS[saved]
       if (def) {

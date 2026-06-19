@@ -41,20 +41,6 @@ export async function baseRefExists(ref: string): Promise<boolean> {
   }
 }
 
-/** Check if a directory is inside a git repo */
-export async function isGitRepo(rootDir: string): Promise<boolean> {
-  try {
-    execSync('git rev-parse --is-inside-work-tree', {
-      encoding: 'utf-8',
-      cwd: rootDir,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
-    return true
-  } catch {
-    return false
-  }
-}
-
 /**
  * Filter a list of absolute file paths to only those matching
  * the given changed-relative-paths. Matches by basename or by

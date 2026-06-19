@@ -47,17 +47,7 @@ export async function processFiles(
   }
 }
 
-/** Get cached file data without triggering processing */
-export function getFileData(filePath: string): FileData | undefined {
-  return batchCache.get(filePath);
-}
-
 /** Clear the shared batch cache (call between scan runs) */
 export function clearBatch(): void {
   batchCache.clear();
-}
-
-/** Current number of files in the batch cache */
-export function batchCacheSize(): number {
-  return batchCache.size;
 }

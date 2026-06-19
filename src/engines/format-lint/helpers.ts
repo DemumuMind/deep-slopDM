@@ -5,7 +5,7 @@
 
 import { readdir } from 'node:fs/promises'
 import { join, extname } from 'node:path'
-import type { Diagnostic, Language } from '../../types/index.js'
+import type { Diagnostic } from '../../types/index.js'
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -28,27 +28,6 @@ export function isRelevantFile(filePath: string): boolean {
 export function isJsTsFile(filePath: string): boolean {
   const ext = extname(filePath)
   return JS_TS_EXTENSIONS.has(ext)
-}
-
-export function languageFromExt(filePath: string): Language | null {
-  const ext = extname(filePath)
-  const map: Record<string, Language> = {
-    '.ts': 'typescript',
-    '.tsx': 'tsx',
-    '.js': 'javascript',
-    '.jsx': 'jsx',
-    '.mjs': 'javascript',
-    '.cjs': 'javascript',
-    '.py': 'python',
-    '.go': 'go',
-    '.rs': 'rust',
-    '.rb': 'ruby',
-    '.php': 'php',
-    '.java': 'java',
-    '.cs': 'csharp',
-    '.swift': 'swift',
-  }
-  return map[ext] ?? null
 }
 
 /** Recursively collect file paths under root, respecting exclude list */

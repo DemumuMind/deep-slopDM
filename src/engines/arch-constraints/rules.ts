@@ -89,19 +89,19 @@ const SERVICE_IMPORT_PATTERNS = [
   /\/domain\//i,
 ];
 
-export function isUIFile(relPath: string): boolean {
+function isUIFile(relPath: string): boolean {
   return UI_PATH_PATTERNS.some((p) => p.test(relPath));
 }
 
-export function isAPIRoute(relPath: string): boolean {
+function isAPIRoute(relPath: string): boolean {
   return API_ROUTE_PATTERNS.some((p) => p.test(relPath));
 }
 
-export function isDBImport(source: string): boolean {
+function isDBImport(source: string): boolean {
   return DB_IMPORT_PATTERNS.some((p) => p.test(source));
 }
 
-export function isServiceImport(source: string): boolean {
+function isServiceImport(source: string): boolean {
   return SERVICE_IMPORT_PATTERNS.some((p) => p.test(source));
 }
 

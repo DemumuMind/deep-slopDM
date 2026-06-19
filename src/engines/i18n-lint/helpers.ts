@@ -165,7 +165,7 @@ export const TECHNICAL_PROPS = new Set([
 // ── String classification helpers ─────────────────────────
 
 /** Check if a string is emoji-only */
-export function isEmojiOnly(str: string): boolean {
+function isEmojiOnly(str: string): boolean {
   const trimmed = str.trim()
   if (trimmed.length === 0) return false
   // Emoji regex: covers most common emoji ranges
@@ -174,13 +174,13 @@ export function isEmojiOnly(str: string): boolean {
 }
 
 /** Check if a string is a pure number */
-export function isNumberOnly(str: string): boolean {
+function isNumberOnly(str: string): boolean {
   const trimmed = str.trim()
   return /^[\d.,\-+%]+$/.test(trimmed)
 }
 
 /** Check if a string is just whitespace / formatting */
-export function isWhitespaceOnly(str: string): boolean {
+function isWhitespaceOnly(str: string): boolean {
   return str.trim().length === 0
 }
 
@@ -308,7 +308,7 @@ export interface LocaleData {
 }
 
 /** Flatten a nested JSON object into dot-notation keys */
-export function flattenKeys(obj: Record<string, unknown>, prefix = ""): Set<string> {
+function flattenKeys(obj: Record<string, unknown>, prefix = ""): Set<string> {
   const keys = new Set<string>()
   for (const [key, value] of Object.entries(obj)) {
     const fullKey = prefix ? `${prefix}.${key}` : key
@@ -323,7 +323,7 @@ export function flattenKeys(obj: Record<string, unknown>, prefix = ""): Set<stri
 }
 
 /** Find locale JSON files in the project */
-export async function findLocaleFiles(rootDir: string): Promise<string[]> {
+async function findLocaleFiles(rootDir: string): Promise<string[]> {
   const candidates: string[] = []
   const searchDirs = ["messages", "locales", "i18n", "public/locales", "public/messages", "public/i18n", "src/locales", "src/i18n", "src/messages"]
 

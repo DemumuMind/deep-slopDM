@@ -1,10 +1,18 @@
-import { readdir, stat, readFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { access, readdir, stat, readFile } from 'node:fs/promises'
 import { join, extname, relative } from 'node:path'
 import type { Diagnostic } from '../../types/index.js'
 import { readFileContent } from '../../utils/file-utils.js'
 
 // ── Helpers ──────────────────────────────────────────────
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /** Create a framework-lint diagnostic */
 export function diag(overrides: Partial<Diagnostic> & Pick<Diagnostic, 'rule' | 'severity' | 'message' | 'filePath'>): Diagnostic {
@@ -38,7 +46,7 @@ export async function detectNextJs(rootDir: string): Promise<boolean> {
     'next.config.cjs',
   ]
   for (const name of configCandidates) {
-    if (existsSync(join(rootDir, name))) return true
+    if (await exists(join(rootDir, name))) return true
   }
 
   return false

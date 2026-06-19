@@ -23,7 +23,7 @@ const CONFIG_DIR = '.deep-slop'
  * Returns the absolute path to the first config file found,
  * or `undefined` if none exists up to the filesystem root.
  */
-function findConfigFile(startDir: string): string | undefined {
+export function findConfigFile(startDir: string): string | undefined {
   let dir = startDir
   // Guard against infinite loop at root
   let prev = ''

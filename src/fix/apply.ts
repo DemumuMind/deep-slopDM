@@ -1,12 +1,21 @@
 // ── Fix Plan Applier ───────────────────────────────────
 // Applies fix steps to files with backup and rollback support.
 
-import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { access, readFile, writeFile, mkdir, copyFile, readdir, stat } from 'node:fs/promises'
+import { join, dirname, relative } from 'node:path'
 import type { FixPlan, FixResult, FixDiff } from './types.js'
 
 /** Directory for backup copies of original files */
 const BACKUP_DIR = '.deep-slop/fix-backup'
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * Apply a fix plan to the project files.
@@ -23,7 +32,7 @@ export async function applyFixPlan(
 ): Promise<FixResult> {
   // Dry run: return plan with diff data without modifying anything
   if (dryRun) {
-    const diffs = buildDryRunDiffs(plan, rootDir)
+    const diffs = await buildDryRunDiffs(plan, rootDir)
     return {
       filesModified: plan.fileCount,
       diagnosticsFixed: plan.diagnosticCount,
@@ -49,7 +58,7 @@ export async function applyFixPlan(
 
   // Ensure backup directory exists
   try {
-    mkdirSync(backupDir, { recursive: true })
+    await mkdir(backupDir, { recursive: true })
   } catch (err) {
     errors.push(`Failed to create backup directory: ${err instanceof Error ? err.message : String(err)}`)
     return {
@@ -67,7 +76,7 @@ export async function applyFixPlan(
   for (const [filePath, steps] of fileSteps) {
     const absolutePath = join(rootDir, filePath)
 
-    if (!existsSync(absolutePath)) {
+    if (!(await exists(absolutePath))) {
       errors.push(`File not found: ${filePath}`)
       continue
     }
@@ -75,8 +84,8 @@ export async function applyFixPlan(
     // Backup the original file
     const backupPath = join(backupDir, filePath)
     try {
-      mkdirSync(dirname(backupPath), { recursive: true })
-      copyFileSync(absolutePath, backupPath)
+      await mkdir(dirname(backupPath), { recursive: true })
+      await copyFile(absolutePath, backupPath)
     } catch (err) {
       errors.push(`Failed to backup ${filePath}: ${err instanceof Error ? err.message : String(err)}`)
       continue
@@ -85,7 +94,7 @@ export async function applyFixPlan(
     // Read file content
     let content: string
     try {
-      content = readFileSync(absolutePath, 'utf-8')
+      content = await readFile(absolutePath, 'utf-8')
     } catch (err) {
       errors.push(`Failed to read ${filePath}: ${err instanceof Error ? err.message : String(err)}`)
       continue
@@ -130,7 +139,7 @@ export async function applyFixPlan(
     // Write modified content back
     if (applied > 0) {
       try {
-        writeFileSync(absolutePath, lines.join('\n'), 'utf-8')
+        await writeFile(absolutePath, lines.join('\n'), 'utf-8')
         modifiedFiles.add(filePath)
       } catch (err) {
         errors.push(`Failed to write ${filePath}: ${err instanceof Error ? err.message : String(err)}`)
@@ -153,7 +162,7 @@ export async function applyFixPlan(
  * Build diff data for dry-run display.
  * Reads file content and builds before/after for each fix step.
  */
-function buildDryRunDiffs(plan: FixPlan, rootDir: string): FixDiff[] {
+async function buildDryRunDiffs(plan: FixPlan, rootDir: string): Promise<FixDiff[]> {
   const diffs: FixDiff[] = []
 
   // Cache file reads
@@ -165,7 +174,7 @@ function buildDryRunDiffs(plan: FixPlan, rootDir: string): FixDiff[] {
     if (!fileCache.has(step.filePath)) {
       try {
         const absolutePath = join(rootDir, step.filePath)
-        const content = readFileSync(absolutePath, 'utf-8')
+        const content = await readFile(absolutePath, 'utf-8')
         fileCache.set(step.filePath, content.split('\n'))
       } catch {
         fileCache.set(step.filePath, [])
@@ -200,22 +209,19 @@ export async function rollback(rootDir: string): Promise<string[]> {
   const backupDir = join(rootDir, BACKUP_DIR)
   const rolled: string[] = []
 
-  if (!existsSync(backupDir)) return rolled
+  if (!(await exists(backupDir))) return rolled
 
   // Find all backup files and restore them
-  const { readdirSync, statSync } = await import('node:fs')
-  const { join: joinPath, relative } = await import('node:path')
-
-  function restoreDir(dir: string): void {
-    for (const entry of readdirSync(dir)) {
-      const full = joinPath(dir, entry)
-      if (statSync(full).isDirectory()) {
-        restoreDir(full)
+  async function restoreDir(dir: string): Promise<void> {
+    for (const entry of await readdir(dir)) {
+      const full = join(dir, entry)
+      if ((await stat(full)).isDirectory()) {
+        await restoreDir(full)
       } else {
         const relPath = relative(backupDir, full)
-        const targetPath = joinPath(rootDir, relPath)
+        const targetPath = join(rootDir, relPath)
         try {
-          copyFileSync(full, targetPath)
+          await copyFile(full, targetPath)
           rolled.push(relPath)
         } catch {
           // Best-effort rollback
@@ -224,7 +230,6 @@ export async function rollback(rootDir: string): Promise<string[]> {
     }
   }
 
-  restoreDir(backupDir)
+  await restoreDir(backupDir)
   return rolled
 }
-

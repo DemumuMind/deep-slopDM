@@ -29,16 +29,6 @@ export function clearParseCache(): void {
   parseCache.clear()
 }
 
-/** Get a cached AST for a file path, if previously parsed. */
-export function getCachedAST(filePath: string): ASTNode | null | undefined {
-  return parseCache.get(filePath)
-}
-
-/** Store a parsed AST in the cache. */
-export function setCachedAST(filePath: string, ast: ASTNode | null): void {
-  parseCache.set(filePath, ast)
-}
-
 /**
  * Parse a source file into an AST tree.
  * Returns null if tree-sitter is not available or parsing fails.
@@ -132,7 +122,7 @@ export async function parsePython(content: string, filePath?: string): Promise<A
  * Parse Go source content into an AST tree.
  * Returns null if tree-sitter-go is not available or parsing fails.
  */
-export async function parseGoFile(content: string, filePath?: string): Promise<ASTNode | null> {
+async function parseGoFile(content: string, filePath?: string): Promise<ASTNode | null> {
   if (filePath) {
     const cached = parseCache.get(`go:${filePath}`)
     if (cached !== undefined) return cached
@@ -167,7 +157,7 @@ export async function parseGoFile(content: string, filePath?: string): Promise<A
  * Parse Rust source content into an AST tree.
  * Returns null if tree-sitter-rust is not available or parsing fails.
  */
-export async function parseRustFile(content: string, filePath?: string): Promise<ASTNode | null> {
+async function parseRustFile(content: string, filePath?: string): Promise<ASTNode | null> {
   if (filePath) {
     const cached = parseCache.get(`rs:${filePath}`)
     if (cached !== undefined) return cached
@@ -202,7 +192,7 @@ export async function parseRustFile(content: string, filePath?: string): Promise
  * Parse PHP source content into an AST tree.
  * Returns null if tree-sitter-php is not available or parsing fails.
  */
-export async function parsePhpFile(content: string, filePath?: string): Promise<ASTNode | null> {
+async function parsePhpFile(content: string, filePath?: string): Promise<ASTNode | null> {
   if (filePath) {
     const cached = parseCache.get(`php:${filePath}`)
     if (cached !== undefined) return cached
@@ -237,7 +227,7 @@ export async function parsePhpFile(content: string, filePath?: string): Promise<
  * Parse C# source content into an AST tree.
  * Returns null if tree-sitter-c-sharp is not available or parsing fails.
  */
-export async function parseCsharpFile(content: string, filePath?: string): Promise<ASTNode | null> {
+async function parseCsharpFile(content: string, filePath?: string): Promise<ASTNode | null> {
   if (filePath) {
     const cached = parseCache.get(`cs:${filePath}`)
     if (cached !== undefined) return cached
@@ -272,7 +262,7 @@ export async function parseCsharpFile(content: string, filePath?: string): Promi
  * Parse Swift source content into an AST tree.
  * Returns null if tree-sitter-swift is not available or parsing fails.
  */
-export async function parseSwiftFile(content: string, filePath?: string): Promise<ASTNode | null> {
+async function parseSwiftFile(content: string, filePath?: string): Promise<ASTNode | null> {
   if (filePath) {
     const cached = parseCache.get(`swift:${filePath}`)
     if (cached !== undefined) return cached
@@ -301,111 +291,6 @@ export async function parseSwiftFile(content: string, filePath?: string): Promis
     if (filePath) parseCache.set(`swift:${filePath}`, null)
     return null
   }
-}
-
-/**
- * Generic file parser that routes to the correct language parser
- * based on file extension. Returns null if the appropriate grammar
- * is not available or parsing fails.
- */
-export async function parseAnyFile(
-  filePath: string,
-  content: string,
-): Promise<ASTNode | null> {
-  const ext = filePath.toLowerCase()
-
-  if (ext.endsWith('.go')) return parseGoFile(content, filePath)
-  if (ext.endsWith('.rs')) return parseRustFile(content, filePath)
-  if (ext.endsWith('.php')) return parsePhpFile(content, filePath)
-  if (ext.endsWith('.cs')) return parseCsharpFile(content, filePath)
-  if (ext.endsWith('.swift')) return parseSwiftFile(content, filePath)
-  if (ext.endsWith('.py')) return parsePython(content, filePath)
-
-  // TypeScript / JavaScript variants
-  const isTsx = ext.endsWith('.tsx') || ext.endsWith('.jsx')
-  return parseFile(content, isTsx, filePath)
-}
-
-// ── Node selectors (TypeScript / language-specific) ────
-
-/**
- * Parse a TypeScript/TSX file and return a specific AST node
- * selected by a visitor callback. Returns null on failure or
- * when the visitor never returns a node.
- */
-export async function getASTNode(
-  content: string,
-  isTsx: boolean,
-  selector: (root: ASTNode) => ASTNode | null,
-): Promise<ASTNode | null> {
-  const root = await parseFile(content, isTsx)
-  if (!root) return null
-  return selector(root)
-}
-
-/**
- * Parse a Go file and return a specific AST node
- * selected by a visitor callback.
- */
-export async function getGoASTNode(
-  content: string,
-  selector: (root: ASTNode) => ASTNode | null,
-): Promise<ASTNode | null> {
-  const root = await parseGoFile(content)
-  if (!root) return null
-  return selector(root)
-}
-
-/**
- * Parse a Rust file and return a specific AST node
- * selected by a visitor callback.
- */
-export async function getRustASTNode(
-  content: string,
-  selector: (root: ASTNode) => ASTNode | null,
-): Promise<ASTNode | null> {
-  const root = await parseRustFile(content)
-  if (!root) return null
-  return selector(root)
-}
-
-/**
- * Parse a PHP file and return a specific AST node
- * selected by a visitor callback.
- */
-export async function getPhpASTNode(
-  content: string,
-  selector: (root: ASTNode) => ASTNode | null,
-): Promise<ASTNode | null> {
-  const root = await parsePhpFile(content)
-  if (!root) return null
-  return selector(root)
-}
-
-/**
- * Parse a C# file and return a specific AST node
- * selected by a visitor callback.
- */
-export async function getCsharpASTNode(
-  content: string,
-  selector: (root: ASTNode) => ASTNode | null,
-): Promise<ASTNode | null> {
-  const root = await parseCsharpFile(content)
-  if (!root) return null
-  return selector(root)
-}
-
-/**
- * Parse a Swift file and return a specific AST node
- * selected by a visitor callback.
- */
-export async function getSwiftASTNode(
-  content: string,
-  selector: (root: ASTNode) => ASTNode | null,
-): Promise<ASTNode | null> {
-  const root = await parseSwiftFile(content)
-  if (!root) return null
-  return selector(root)
 }
 
 // ── Internal ───────────────────────────────────────────
