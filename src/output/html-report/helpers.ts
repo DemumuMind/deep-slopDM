@@ -47,7 +47,7 @@ function formatDuration(ms: number): string {
 }
 
 /** Format an ISO timestamp for display */
-export function formatDate(iso: string): string {
+function formatDate(iso: string): string {
   const d = new Date(iso)
   return d.toLocaleString('en-US', {
     month: 'short',

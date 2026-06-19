@@ -1,8 +1,8 @@
 // ── Shared helpers for markup-lint rules ─────────────────
 
-import { readdir } from 'node:fs/promises'
-import { join, extname } from 'node:path'
+import { extname } from 'node:path'
 import type { Diagnostic } from '../../types/index.js'
+import { collectFilesByExtension } from '../../utils/file-collection.js'
 
 export const MARKUP_EXTENSIONS = new Set([
   '.json', '.yaml', '.yml', '.css', '.scss',
@@ -29,28 +29,7 @@ export async function collectMarkupFiles(
   root: string,
   exclude: string[],
 ): Promise<string[]> {
-  const results: string[] = []
-
-  async function walk(dir: string): Promise<void> {
-    let entries
-    try {
-      entries = await readdir(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      const full = join(dir, entry.name)
-      if (exclude.some((pat) => full.includes(pat))) continue
-      if (entry.isDirectory()) {
-        await walk(full)
-      } else if (entry.isFile() && isMarkupFile(full)) {
-        results.push(full)
-      }
-    }
-  }
-
-  await walk(root)
-  return results
+  return collectFilesByExtension(root, MARKUP_EXTENSIONS, exclude)
 }
 
 /** Make a diagnostic with sensible defaults for markup-lint */

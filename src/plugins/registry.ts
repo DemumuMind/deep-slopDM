@@ -103,7 +103,7 @@ export const PLUGIN_DIR = '.deep-slop/plugins'
 /**
  * Resolve the plugins directory for a given project root.
  */
-export function getPluginDir(rootDir: string): string {
+function getPluginDir(rootDir: string): string {
   return join(rootDir, PLUGIN_DIR)
 }
 

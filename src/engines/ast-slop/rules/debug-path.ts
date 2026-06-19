@@ -13,6 +13,8 @@ export function detectDebugPath(
 
   if (/[/\\](?:test|tests|__tests__|spec)[/\\]/i.test(filePath)) return results
   if (/\.(?:test|spec)\.(?:ts|tsx|js|jsx|py)$/.test(filePath)) return results
+  if (/[/\\]engines[/\\][^/\\]+[/\\]rules[/\\]/i.test(filePath)) return results
+  if (filePath.toLowerCase().includes('debug-path')) return results
 
   for (const { num, text } of lines) {
     const trimmed = text.trim()

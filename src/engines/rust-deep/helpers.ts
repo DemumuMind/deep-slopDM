@@ -3,13 +3,13 @@
 // Falls back to regex only; tree-sitter Rust parser is available via
 // src/utils/tree-sitter/ but is not required for this engine.
 
-import { readdir } from 'node:fs/promises'
-import { join, relative, extname } from 'node:path'
+import { relative, extname } from 'node:path'
 import type {
   Diagnostic,
   Severity,
   Suggestion,
 } from '../../types/index.js'
+import { collectFilesByExtension } from '../../utils/file-collection.js'
 
 // ── Helpers ──────────────────────────────────────────────
 
@@ -24,28 +24,7 @@ export async function collectRustFiles(
   root: string,
   exclude: string[],
 ): Promise<string[]> {
-  const results: string[] = []
-
-  async function walk(dir: string): Promise<void> {
-    let entries
-    try {
-      entries = await readdir(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      const full = join(dir, entry.name)
-      if (exclude.some((pat) => full.includes(pat))) continue
-      if (entry.isDirectory()) {
-        await walk(full)
-      } else if (entry.isFile() && isRustFile(full)) {
-        results.push(full)
-      }
-    }
-  }
-
-  await walk(root)
-  return results
+  return collectFilesByExtension(root, RUST_EXTENSIONS, exclude)
 }
 
 export function relativePath(root: string, filePath: string): string {
@@ -123,11 +102,14 @@ export function checkCommentState(
   return { skip: false, inBlockComment: false }
 }
 
-/**
- * Returns true when `matchStart` falls inside a string literal.
- * Heuristic: count unescaped single/double quotes before matchStart.
- */
-export function isInsideString(text: string, matchStart: number): boolean {
+export function isTestFile(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, '/')
+  if (normalized.endsWith('.test.rs') || normalized.endsWith('_test.rs')) return true
+  if (normalized.endsWith('.rs') && (normalized.includes('/tests/') || normalized.includes('/test/'))) return true
+  return false
+}
+
+export function isInsideMacroOrString(text: string, matchStart: number): boolean {
   let sq = 0
   let dq = 0
   let raw = false
@@ -139,7 +121,6 @@ export function isInsideString(text: string, matchStart: number): boolean {
       continue
     }
     if (raw && ch === '"') {
-      // Find matching raw string end
       const end = text.indexOf('"', i + 1)
       if (end !== -1 && end < matchStart) {
         i = end
@@ -154,15 +135,4 @@ export function isInsideString(text: string, matchStart: number): boolean {
     }
   }
   return sq % 2 === 1 || dq % 2 === 1
-}
-
-export function isTestFile(filePath: string): boolean {
-  const normalized = filePath.replace(/\\/g, '/')
-  if (normalized.endsWith('.test.rs') || normalized.endsWith('_test.rs')) return true
-  if (normalized.endsWith('.rs') && (normalized.includes('/tests/') || normalized.includes('/test/'))) return true
-  return false
-}
-
-export function isInsideMacroOrString(text: string, matchStart: number): boolean {
-  return isInsideString(text, matchStart)
 }

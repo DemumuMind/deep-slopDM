@@ -26,15 +26,6 @@ export function findAncestorOfType(
 }
 
 /**
- * Check if a node is inside a function of a certain kind.
- */
-export function isInsideFunction(node: ASTNode): boolean {
-  return findAncestor(node, (n) =>
-    ['function_declaration', 'function', 'arrow_function', 'method_definition', 'generator_function_declaration'].includes(n.type),
-  ) !== null
-}
-
-/**
  * Check if a node is inside a try/catch block.
  */
 export function isInsideCatch(node: ASTNode): boolean {

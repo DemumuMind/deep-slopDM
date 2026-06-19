@@ -63,11 +63,3 @@ export function generateBadgeMarkdown(owner: string, repo: string, score: number
   return `![deep-slop](${badgeUrl})](${pageUrl})`
 }
 
-/**
- * Generate the shields.io endpoint URL for dynamic badge.
- * This uses the shields.io endpoint API for real-time score updates.
- */
-export function generateBadgeEndpointUrl(owner: string, repo: string): string {
-  return `https://img.shields.io/endpoint?url=https://deep-slop.dev/api/badge/${owner}/${repo}`
-}
-

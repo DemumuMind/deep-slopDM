@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { readFileCached, preloadFiles, clearFileCache, fileCacheSize } from './file-cache.js'
+import { readFileCached, preloadFiles, clearFileCache } from './file-cache.js'
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -25,11 +25,14 @@ describe('file-cache', () => {
       expect(content).toBe('hello world')
     })
 
-    it('caches file content on subsequent reads', async () => {
+    it('returns cached content when stat/read fails', async () => {
       const filePath = join(TEST_DIR, 'cached.txt')
       writeFileSync(filePath, 'cached content', 'utf-8')
-      await readFileCached(filePath)
-      expect(fileCacheSize()).toBe(1)
+      const first = await readFileCached(filePath)
+      rmSync(filePath)
+      const second = await readFileCached(filePath)
+      expect(first).toBe('cached content')
+      expect(second).toBe('cached content')
     })
 
     it('strips BOM from file content', async () => {
@@ -51,10 +54,11 @@ describe('file-cache', () => {
     it('clears the cache', async () => {
       const filePath = join(TEST_DIR, 'clear.txt')
       writeFileSync(filePath, 'data', 'utf-8')
-      await readFileCached(filePath)
-      expect(fileCacheSize()).toBe(1)
+      const first = await readFileCached(filePath)
+      rmSync(filePath)
       clearFileCache()
-      expect(fileCacheSize()).toBe(0)
+      await expect(readFileCached(filePath)).rejects.toThrow()
+      expect(first).toBe('data')
     })
   })
 
@@ -65,21 +69,15 @@ describe('file-cache', () => {
       writeFileSync(f1, 'aaa', 'utf-8')
       writeFileSync(f2, 'bbb', 'utf-8')
       await preloadFiles([f1, f2])
-      expect(fileCacheSize()).toBe(2)
+      expect(await readFileCached(f1)).toBe('aaa')
+      expect(await readFileCached(f2)).toBe('bbb')
     })
 
     it('skips unreadable files without throwing', async () => {
       const f1 = join(TEST_DIR, 'good.txt')
       const f2 = join(TEST_DIR, 'missing.txt')
       writeFileSync(f1, 'ok', 'utf-8')
-      await preloadFiles([f1, f2])
-      expect(fileCacheSize()).toBe(1)
-    })
-  })
-
-  describe('fileCacheSize', () => {
-    it('returns 0 for empty cache', () => {
-      expect(fileCacheSize()).toBe(0)
+      await expect(preloadFiles([f1, f2])).resolves.toBeUndefined()
     })
   })
 })

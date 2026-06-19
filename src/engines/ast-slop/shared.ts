@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises'
 import { existsSync, readFileSync } from 'node:fs'
 import { join, extname, resolve } from 'node:path'
 import type { Diagnostic, Language, Severity, Suggestion } from '../../types/index.js'
+import { createDiagnostic } from '../../utils/diagnostics.js'
 
 /** Build a diagnostic with common fields filled */
 export function diag(opts: {
@@ -19,20 +20,7 @@ export function diag(opts: {
   suggestion?: Suggestion
   detail?: Record<string, unknown>
 }): Diagnostic {
-  return {
-    filePath: opts.filePath,
-    engine: 'ast-slop',
-    rule: opts.rule,
-    severity: opts.severity,
-    message: opts.message,
-    help: opts.help,
-    line: opts.line,
-    column: opts.column,
-    category: 'ai-slop',
-    fixable: opts.fixable,
-    suggestion: opts.suggestion,
-    detail: opts.detail,
-  }
+  return createDiagnostic('ast-slop', 'ai-slop', opts)
 }
 
 /** Determine language from file extension */

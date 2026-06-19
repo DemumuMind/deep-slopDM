@@ -1,11 +1,12 @@
 // ── Shared types and helpers for dup-detect rules ───────
 
 import { extname } from 'node:path'
-import type { Diagnostic, Language, Severity, Suggestion } from '../../types/index.js'
+import type { Category, Diagnostic, Language, Severity, Suggestion } from '../../types/index.js'
+import { createDiagnostic } from '../../utils/diagnostics.js'
 
 // ── Constants (Calibrated) ──────────────────────────────
 
-export const IDENTICAL_BLOCK_MIN_LINES = 10
+export const IDENTICAL_BLOCK_MIN_LINES = 14
 export const SIMILAR_BLOCK_MIN_LINES = 10
 export const SIMILARITY_THRESHOLD = 0.9
 export const DUPLICATE_IMPORT_MIN_FILES = 15
@@ -31,6 +32,7 @@ export interface CodeBlock {
   endLine: number
   normalizedText: string
   tokenSet?: Set<string>
+  isBoilerplate?: boolean
 }
 
 export interface FunctionDef {
@@ -73,20 +75,7 @@ export function diag(opts: {
   suggestion?: Suggestion
   detail?: Record<string, unknown>
 }): Diagnostic {
-  return {
-    filePath: opts.filePath,
-    engine: 'dup-detect',
-    rule: opts.rule,
-    severity: opts.severity,
-    message: opts.message,
-    help: opts.help,
-    line: opts.line,
-    column: opts.column,
-    category: 'duplication',
-    fixable: opts.fixable,
-    suggestion: opts.suggestion,
-    detail: opts.detail,
-  }
+  return createDiagnostic('dup-detect', 'duplication', opts)
 }
 
 /** Determine language from file extension */
@@ -121,6 +110,40 @@ export function normalizeLine(line: string, lang: Language | null): string {
   }
 
   return trimmed
+}
+
+/** Determine whether a block is mostly imports or header comments */
+function isImportLine(line: string): boolean {
+  return /^\s*import\b/.test(line)
+}
+
+function isCommentLine(line: string, lang: Language | null): boolean {
+  const trimmed = line.trim()
+  if (lang === 'python') return trimmed.startsWith('#')
+  return trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')
+}
+
+function isSectionHeader(line: string): boolean {
+  return /^\s*\/\/\s*─{2,}/.test(line)
+}
+
+function isBoilerplateBlock(rawLines: string[], lang: Language | null): boolean {
+  const nonEmpty = rawLines.filter((l) => l.trim().length > 0)
+  if (nonEmpty.length === 0) return true
+
+  const importLines = nonEmpty.filter((l) => isImportLine(l)).length
+  const commentLines = nonEmpty.filter((l) => isCommentLine(l, lang)).length
+  const headerLines = nonEmpty.filter((l) => isSectionHeader(l)).length
+  const total = nonEmpty.length
+
+  // Block is mostly imports (e.g. duplicated import boilerplate)
+  if (importLines > 0 && importLines / total >= 0.5) return true
+  // Block is mostly comments (e.g. duplicated file headers)
+  if (commentLines > 0 && commentLines / total >= 0.7) return true
+  // Block starts with a section header and is mostly imports/comments
+  if (headerLines > 0 && (importLines + commentLines) / total >= 0.5) return true
+
+  return false
 }
 
 /** Normalize a block of lines into a single string */
@@ -185,6 +208,7 @@ export function extractBlocks(
       endLine: slice[slice.length - 1].num,
       normalizedText,
       tokenSet,
+      isBoilerplate: isBoilerplateBlock(rawLines, lang),
     })
   }
   return blocks

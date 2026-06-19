@@ -5,6 +5,25 @@ import { relative } from 'node:path'
 import type { Diagnostic, Language } from '../../../types/index.js'
 import { diag, DUPLICATE_IMPORT_MIN_FILES, type ImportOccurrence } from '../shared.js'
 
+// Modules that are intentionally imported in many files and should not be flagged
+const IMPORT_EXCLUSIONS = new Set([
+  // Internal shared utilities used everywhere by design
+  'types/index.js',
+  'shared.js',
+  'utils/file-utils.js',
+  // CLI framework imported in all command files
+  'commander',
+])
+
+/** Whether a module specifier should be ignored by duplicate-import detection */
+function isExcludedImportSource(source: string): boolean {
+  if (source.startsWith('node:')) return true
+  for (const excluded of IMPORT_EXCLUSIONS) {
+    if (source.endsWith(excluded)) return true
+  }
+  return false
+}
+
 /** Extract named import symbols from raw import text */
 export function extractNamedSymbols(raw: string, lang: Language | null): string[] {
   if (lang === 'typescript' || lang === 'javascript') {
@@ -62,6 +81,8 @@ export function detectDuplicateImports(
   }
 
   for (const [source, occurrences] of byModule) {
+    if (isExcludedImportSource(source)) continue
+
     const uniqueFiles = new Set(occurrences.map((o) => o.filePath))
     if (uniqueFiles.size < DUPLICATE_IMPORT_MIN_FILES) continue
 

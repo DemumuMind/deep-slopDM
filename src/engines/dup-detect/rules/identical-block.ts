@@ -61,6 +61,9 @@ export function detectIdenticalBlocks(
 
   const groups = new Map<string, CodeBlock[]>()
   for (const block of allBlocks) {
+    // Skip duplicated import/header boilerplate — not actionable copy-paste duplication
+    if (block.isBoilerplate) continue
+
     let group = groups.get(block.normalizedText)
     if (!group) {
       group = []

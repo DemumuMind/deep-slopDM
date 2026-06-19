@@ -205,10 +205,6 @@ export function containsFString(node: ASTNode): boolean {
   return found
 }
 
-export function isInsideFunction(node: ASTNode): boolean {
-  return findAncestor(node, (n) => n.type === 'function_definition') !== null
-}
-
 export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }

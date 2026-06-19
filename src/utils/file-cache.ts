@@ -58,8 +58,3 @@ export async function preloadFiles(filePaths: string[]): Promise<void> {
 export function clearFileCache(): void {
   cache.clear()
 }
-
-/** Get current cache size */
-export function fileCacheSize(): number {
-  return cache.size
-}

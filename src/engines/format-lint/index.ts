@@ -6,6 +6,7 @@ import {
   isEngineEarlyExitEnabled,
 } from '../../config/engine-utils.js'
 import { readFileContent, toLines } from '../../utils/file-utils.js'
+import { uniqueDiagnostics } from '../../utils/diagnostics.js'
 import { collectFiles, isRelevantFile } from './helpers.js'
 import {
   detectBlankLineCluster,
@@ -97,13 +98,7 @@ export const formatLintEngine: Engine = {
     }
 
     // Deduplicate diagnostics (same file + line + rule)
-    const seen = new Set<string>()
-    const unique = diagnostics.filter((d) => {
-      const key = `${d.filePath}:${d.line}:${d.rule}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
+    const unique = uniqueDiagnostics(diagnostics)
 
     return {
       engine: this.name,

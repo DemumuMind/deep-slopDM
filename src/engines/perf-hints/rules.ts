@@ -301,6 +301,16 @@ export function detectStringConcatInLoop(
   const templateConcatRe = /\b(\w+)\s*\+=\s*`/
   const anyConcatRe = /\b(\w+)\s*\+=\s*["'`]/
 
+  // Visual/TUI variables are building rendered output (progress bars, prompts,
+  // SVG paths, lines) and are not performance-critical string concatenation.
+  const visualVarNames = new Set(['bar', 'prompt', 'output', 'line', 'path', 'result'])
+
+  const isTuiOrPromptFile = /tui|prompt/i.test(filePath)
+  const isVisualVariable = (varName: string): boolean => visualVarNames.has(varName)
+
+  const shouldSkip = (varName: string): boolean =>
+    isTuiOrPromptFile || isVisualVariable(varName)
+
   // First pass: count concatenations per variable per loop block
   const concatCounts = new Map<string, number>()
   for (let i = 0; i < lines.length; i++) {
@@ -308,6 +318,7 @@ export function detectStringConcatInLoop(
     const match = trimmed.match(anyConcatRe)
     if (!match) continue
     const varName = match[1]
+    if (shouldSkip(varName)) continue
     const enclosingLoop = isInsideBlock(blocks, i, loopKinds)
     if (!enclosingLoop) continue
     const key = `${varName}:${enclosingLoop.startIdx}`
@@ -324,6 +335,7 @@ export function detectStringConcatInLoop(
     const templateMatch = trimmed.match(templateConcatRe)
     if (templateMatch) {
       const varName = templateMatch[1]
+      if (shouldSkip(varName)) continue
       const loopDesc = describeLoopKind(enclosingLoop.kind)
       const lineText = lines[i].text
       const indent = lineText.match(/^(\s*)/)?.[1] ?? ''
@@ -364,6 +376,7 @@ export function detectStringConcatInLoop(
     const anyMatch = trimmed.match(anyConcatRe)
     if (anyMatch) {
       const varName = anyMatch[1]
+      if (shouldSkip(varName)) continue
       const key = `${varName}:${enclosingLoop.startIdx}`
       const count = concatCounts.get(key) ?? 0
       if (count >= 3) {

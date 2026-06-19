@@ -10,6 +10,7 @@ import type {
   Diagnostic,
 } from '../../types/index.js'
 import { processFiles } from '../../utils/batch-processor.js'
+import { uniqueDiagnostics } from '../../utils/diagnostics.js'
 import { collectFiles, isRelevantFile, parseBlocks } from './helpers.js'
 import {
   detectLargeLoopAllocation,
@@ -72,13 +73,7 @@ export const perfHintsEngine: Engine = {
     })
 
     // Deduplicate diagnostics (same file + line + rule)
-    const seen = new Set<string>()
-    const unique = diagnostics.filter((d) => {
-      const key = `${d.filePath}:${d.line}:${d.rule}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
+    const unique = uniqueDiagnostics(diagnostics)
 
     return {
       engine: this.name,

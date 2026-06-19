@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { scoreColor, generateBadgeUrl, generateBadgeMarkdown, generateBadgeEndpointUrl } from './index.js'
+import { scoreColor, generateBadgeUrl, generateBadgeMarkdown } from './index.js'
 
 describe('badge', () => {
   describe('scoreColor', () => {
@@ -50,14 +50,6 @@ describe('badge', () => {
       expect(md).toContain('![deep-slop]')
       expect(md).toContain('img.shields.io')
       expect(md).toContain('github.com/myorg/myrepo')
-    })
-  })
-
-  describe('generateBadgeEndpointUrl', () => {
-    it('generates endpoint URL for dynamic badge', () => {
-      const url = generateBadgeEndpointUrl('myorg', 'myrepo')
-      expect(url).toContain('img.shields.io/endpoint')
-      expect(url).toContain('deep-slop.dev/api/badge/myorg/myrepo')
     })
   })
 })
