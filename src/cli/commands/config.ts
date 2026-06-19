@@ -1,5 +1,5 @@
 import { resolve } from 'node:path'
-import { Command } from 'commander'
+import type { Command } from 'commander'
 import yaml from 'js-yaml'
 import { loadConfig, findConfigFile } from '../../config/index.js'
 import { style } from '../../output/theme.js'

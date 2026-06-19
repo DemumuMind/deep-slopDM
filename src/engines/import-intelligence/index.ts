@@ -18,7 +18,7 @@ import {
   fileExists,
   resolveModulePath,
 } from './shared.js'
-import { parseImportsAST, detectBarrelFileAST, findUsedSymbolsAST } from './ast-imports.js'
+import { parseImportsAST, detectBarrelFileAST, findUsedSymbolsAST, findValueUsedSymbolsAST } from './ast-imports.js'
 import { detectUnusedImport } from './rules/unused-import.js'
 import { detectUnusedSymbol } from './rules/unused-symbol.js'
 import { detectDuplicateImport } from './rules/duplicate-import.js'
@@ -38,7 +38,7 @@ import { detectAliasCanonical } from './rules/alias-canonical.js'
 async function parseImportsForFile(
   filePath: string,
   content: string,
-): Promise<{ parsed: ParsedImport[]; astUsedSymbols?: Set<string> }> {
+): Promise<{ parsed: ParsedImport[]; astUsedSymbols?: Set<string>; astValueUsedSymbols?: Set<string> }> {
   if (isAvailable()) {
     try {
       const treeSitter = await import('../../utils/tree-sitter/index.js')
@@ -47,11 +47,10 @@ async function parseImportsForFile(
       if (astRoot) {
         const astImports = await parseImportsAST(content, filePath, astRoot)
         const parsed = astImports ?? []
-        const astUsedSymbols = findUsedSymbolsAST(
-          astRoot,
-          parsed.flatMap((imp) => imp.symbols),
-        )
-        return { parsed, astUsedSymbols }
+        const allSymbols = parsed.flatMap((imp) => imp.symbols)
+        const astUsedSymbols = findUsedSymbolsAST(astRoot, allSymbols)
+        const astValueUsedSymbols = findValueUsedSymbolsAST(astRoot, allSymbols)
+        return { parsed, astUsedSymbols, astValueUsedSymbols }
       }
     } catch {
       // Fall back to regex below
@@ -181,7 +180,7 @@ export const importIntelligenceEngine: Engine = {
       }
 
       const relPath = filePath.replace(context.rootDirectory, '').replace(/^[/\\]/, '') || filePath
-      const { parsed, astUsedSymbols } = await parseImportsForFile(filePath, content)
+      const { parsed, astUsedSymbols, astValueUsedSymbols } = await parseImportsForFile(filePath, content)
       fileImports.set(filePath, parsed)
       if (parsed.some((p) => p.viaAST)) hasASTImports = true
 
@@ -193,7 +192,7 @@ export const importIntelligenceEngine: Engine = {
 
         allDiagnostics.push(...detectUnusedImport(imp, relPath, content, astUsedSymbols))
         allDiagnostics.push(...detectUnusedSymbol(imp, relPath, content, astUsedSymbols))
-        allDiagnostics.push(...detectTypeOnlyImport(imp, relPath, content, astUsedSymbols))
+        allDiagnostics.push(...detectTypeOnlyImport(imp, relPath, content, astValueUsedSymbols))
         allDiagnostics.push(...detectTreeShakeable(imp, relPath))
         allDiagnostics.push(...detectReactAutoJsx(imp, relPath, isReactAutoJsx))
         allDiagnostics.push(...detectReactAutoJsxNamed(imp, relPath, isReactAutoJsx))

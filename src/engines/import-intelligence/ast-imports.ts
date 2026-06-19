@@ -217,3 +217,56 @@ export function findUsedSymbolsAST(ast: ASTNode, symbolNames: string[]): Set<str
 
   return usedSymbols
 }
+
+/**
+ * Like findUsedSymbolsAST but only collects VALUE usages (identifier nodes),
+ * not type annotations (type_identifier nodes).
+ * Used by type-only-import rule to avoid false positives where a symbol
+ * used as a value in an object literal (e.g. `version: APP_VERSION`)
+ * is incorrectly flagged as type-only.
+ */
+export function findValueUsedSymbolsAST(ast: ASTNode, symbolNames: string[]): Set<string> {
+  const valueUsed = new Set<string>()
+  if (symbolNames.length === 0) return valueUsed
+  const symbolSet = new Set(symbolNames)
+
+  const importTypes = new Set([
+    'import_statement',
+    'import_declaration',
+    'named_imports',
+    'import_clause',
+    'import_specifier',
+  ])
+
+  const typeNodeTypes = new Set([
+    'type_identifier',
+    'type_annotation',
+    'generic_type',
+    'type_arguments',
+    'type_parameter',
+    'abstract_class_declaration',
+  ])
+
+  walkAST(ast, (node) => {
+    const name = node.text
+    if (symbolSet.has(name)) {
+      const parent = node.parent
+      if (parent && importTypes.has(parent.type)) {
+        return undefined
+      }
+      // Skip type annotation positions
+      if (typeNodeTypes.has(node.type)) {
+        return undefined
+      }
+      // Skip if parent is a type_annotation
+      if (parent && typeNodeTypes.has(parent.type)) {
+        return undefined
+      }
+      valueUsed.add(name)
+    }
+
+    return undefined
+  })
+
+  return valueUsed
+}

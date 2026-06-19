@@ -13,7 +13,9 @@ function isTypeOnlyUsage(symbol: string, body: string): boolean {
   let stripped = body
 
   stripped = stripped.replace(/:\s*[A-Z]\w*(?:\s*[&|]\s*[A-Z]\w*)*/g, '')
-  stripped = stripped.replace(/<[^>]*>/g, '')
+  // Only strip generics with uppercase type names (Array<string>, Map<K, V>)
+  // NOT comparison operators (a < b) which were stripping value usages
+  stripped = stripped.replace(/<[A-Z]\w*(?:[\s,&|]+[A-Z]\w*)*>/g, '')
   stripped = stripped.replace(/\bas\s+[A-Z]\w*/g, '')
   stripped = stripped.replace(/\b(?:extends|implements)\s+[A-Z]\w*/g, '')
   stripped = stripped.replace(/\btype\s+\w+\s*=\s*[A-Z]\w*/g, '')
@@ -26,18 +28,16 @@ export function detectTypeOnlyImport(
   parsed: ParsedImport,
   filePath: string,
   fileContent: string,
-  astUsedSymbols?: Set<string>,
+  astValueUsedSymbols?: Set<string>,
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = []
   if (parsed.isSideEffect || parsed.isDynamic || parsed.isTypeOnly || parsed.symbols.length === 0) return diagnostics
 
   let allTypeUsage: boolean
-  if (astUsedSymbols !== undefined && parsed.viaAST) {
-    const bodyAfterImports = getBodyAfterImports(fileContent, parsed.line)
-    allTypeUsage = parsed.symbols.every((sym) => {
-      if (!astUsedSymbols.has(sym)) return true
-      return isTypeOnlyUsage(sym, bodyAfterImports)
-    })
+  if (astValueUsedSymbols !== undefined && parsed.viaAST) {
+    // AST mode: if ANY symbol is used as a value (identifier, not type_identifier),
+    // the import is NOT type-only
+    allTypeUsage = parsed.symbols.every((sym) => !astValueUsedSymbols.has(sym))
   } else {
     const bodyAfterImports = getBodyAfterImports(fileContent, parsed.line)
     allTypeUsage = parsed.symbols.every((sym) => isTypeOnlyUsage(sym, bodyAfterImports))
